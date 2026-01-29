@@ -1,6 +1,6 @@
 ---
 name: "\U0001F680 Feature Request"
-about: 새로운 기능 구현을 위한 이슈입니다.
+about: '새로운 기능 구현을 위한 이슈입니다. '
 title: "[FEATURE] 기능명"
 labels: ''
 assignees: ''
