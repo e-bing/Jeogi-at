@@ -10,6 +10,10 @@ assignees: ''
 ## 📌 버그 현상
 > 어떤 문제가 발생했는지 한 줄로 요약해주세요. (예: Qt 화면에서 센서 값이 0으로 고정됨)
 
+### 작업 대상
+- Host: server / embedded-linux / firmware
+- 관련 모듈:
+
 ### 🏃 재현 경로 (Steps to Reproduce)
 1. STM32 전원을 켜고 센서를 연결한다.
 2. RPi에서 파이썬 게이트웨이 스크립트를 실행한다.
