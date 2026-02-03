@@ -8,7 +8,7 @@ sudo dpkg --configure -a
 sudo apt --fix-broken install -y
 
 echo "--- 2. 시스템 업데이트 및 업그레이드 ---"
-sudo apt update && sudo apt upgrade -y
+sudo apt update  -y
 
 echo "--- 3. MariaDB(MySQL) 설치 및 보안 설정 ---"
 sudo apt install -y mariadb-server
