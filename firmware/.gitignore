@@ -1,0 +1,31 @@
+# ===== Build output =====
+Debug/
+Release/
+build/
+
+# ===== STM32CubeIDE metadata =====
+.settings/
+.project
+.cproject
+.mxproject
+
+# ===== Generated files =====
+*.o
+*.d
+*.elf
+*.map
+*.lst
+*.su
+
+# ===== User-specific =====
+*.swp
+*.bak
+*.tmp
+*.log
+
+# ===== OS files =====
+.DS_Store
+Thumbs.db
+
+# ===== VSCode (if used) =====
+.vscode/
