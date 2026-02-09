@@ -18,7 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "fatfs.h"
+#include "i2s.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -26,6 +28,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "spi_sdcard.h"
+#include <math.h>
 
 /* USER CODE END Includes */
 
@@ -95,88 +98,106 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
+  MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t buf[512];
+//  uint8_t buf[512];
+//
+//  if(sd_init()==0)
+//  {
+//      printf("SD init OK\r\n");
+//
+//      if(sd_read_block(0, buf)==0)
+//          printf("Read OK\r\n");
+//  }
+//
+//
+//  FRESULT res;
+//
+//  res = f_mount(&USERFatFS, USERPath, 1);
+//  printf("mount = %d\r\n", res);
+//
+//  if (res == FR_OK)
+//  {
+//	    FIL file;
+//	    FRESULT res;
+//	    UINT br;
+//
+//	    uint8_t buf[32];   // 32바이?��?�� ?���?
+//
+//	    res = f_open(&file, "sample_1.txt", FA_READ);
+//
+//	    if(res != FR_OK)
+//	    {
+//	        printf("open fail = %d\r\n", res);
+//	        return;
+//	    }
+//
+//	    printf("---- FILE DUMP START ----\r\n");
+//
+//	    f_lseek(&file, 0);
+//
+//	    while(1)
+//	    {
+//	        res = f_read(&file, buf, sizeof(buf), &br);
+//
+//	        if(res != FR_OK)
+//	        {
+//	            printf("read err = %d\r\n", res);
+//	            break;
+//	        }
+//
+//	        if(br == 0) break;   // EOF
+//
+//	        /* HEX 출력 */
+//	        for(int i=0;i<br;i++)
+//	            printf("%02X ", buf[i]);
+//
+//	        printf(" | ");
+//
+//	        /* ASCII 출력 */
+//	        for(int i=0;i<br;i++)
+//	        {
+//	            if(buf[i] >= 32 && buf[i] <= 126)
+//	                printf("%c", buf[i]);
+//	            else if(buf[i] == '\r')
+//	                printf("<CR>");
+//	            else if(buf[i] == '\n')
+//	                printf("<LF>");
+//	            else
+//	                printf(".");
+//	        }
+//
+//	        printf("\r\n");
+//	    }
+//
+//	    printf("---- FILE DUMP END ----\r\n");
+//
+//	    f_close(&file);
+//  }
+//  else
+//  {
+//      printf("Mount Fail\r\n");
+//  }
 
-  if(sd_init()==0)
+
+
+  printf("start sound\r\n");
+
+  int16_t sine_table[256]; // ?��?��?�� ?��?���?
+
+  for(int i = 0; i < 256; i++)
   {
-      printf("SD init OK\r\n");
-
-      if(sd_read_block(0, buf)==0)
-          printf("Read OK\r\n");
+	  sine_table[i] =
+        (int16_t)(10000 * sin(2 * 3.141592 * i / 256));
   }
 
+  HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t*)sine_table, 256);
 
-  FRESULT res;
 
-  res = f_mount(&USERFatFS, USERPath, 1);
-  printf("mount = %d\r\n", res);
-
-  if (res == FR_OK)
-  {
-	    FIL file;
-	    FRESULT res;
-	    UINT br;
-
-	    uint8_t buf[32];   // 32바이트씩 읽기
-
-	    res = f_open(&file, "sample_1.txt", FA_READ);
-
-	    if(res != FR_OK)
-	    {
-	        printf("open fail = %d\r\n", res);
-	        return;
-	    }
-
-	    printf("---- FILE DUMP START ----\r\n");
-
-	    f_lseek(&file, 0);
-
-	    while(1)
-	    {
-	        res = f_read(&file, buf, sizeof(buf), &br);
-
-	        if(res != FR_OK)
-	        {
-	            printf("read err = %d\r\n", res);
-	            break;
-	        }
-
-	        if(br == 0) break;   // EOF
-
-	        /* HEX 출력 */
-	        for(int i=0;i<br;i++)
-	            printf("%02X ", buf[i]);
-
-	        printf(" | ");
-
-	        /* ASCII 출력 */
-	        for(int i=0;i<br;i++)
-	        {
-	            if(buf[i] >= 32 && buf[i] <= 126)
-	                printf("%c", buf[i]);
-	            else if(buf[i] == '\r')
-	                printf("<CR>");
-	            else if(buf[i] == '\n')
-	                printf("<LF>");
-	            else
-	                printf(".");
-	        }
-
-	        printf("\r\n");
-	    }
-
-	    printf("---- FILE DUMP END ----\r\n");
-
-	    f_close(&file);
-  }
-  else
-  {
-      printf("Mount Fail\r\n");
-  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
