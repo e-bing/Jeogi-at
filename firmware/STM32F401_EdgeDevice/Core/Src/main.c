@@ -18,11 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "spi_sdcard.h"
 
 /* USER CODE END Includes */
 
@@ -55,6 +57,13 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// printf UART 우회
+int _write(int file, char *ptr, int len)
+{
+	HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    return len;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -86,8 +95,27 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+  sd_send_dummy();
+  uint8_t r = sd_cmd0();
+  printf("CMD0 Response = 0x%02X\r\n", r);
 
+  uint8_t r7[4];
+  r = sd_cmd8(r7);
+  printf("CMD8 R1 = 0x%02X\r\n", r);
+  printf("R7 = %02X %02X %02X %02X\r\n",
+  	   r7[0], r7[1], r7[2], r7[3]);
+
+  do {
+	r = sd_cmd55();
+	r = sd_acmd41();
+
+	printf("ACMD41 = 0x%02X\r\n", r);
+
+	HAL_Delay(50);
+
+  } while(r != 0x00);
   /* USER CODE END 2 */
 
   /* Infinite loop */
