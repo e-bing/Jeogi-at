@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -57,7 +58,7 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// printf UART 우회
+// printf <-> UART
 int _write(int file, char *ptr, int len)
 {
 	HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
@@ -96,26 +97,86 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_SPI2_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  sd_send_dummy();
-  uint8_t r = sd_cmd0();
-  printf("CMD0 Response = 0x%02X\r\n", r);
+  uint8_t buf[512];
 
-  uint8_t r7[4];
-  r = sd_cmd8(r7);
-  printf("CMD8 R1 = 0x%02X\r\n", r);
-  printf("R7 = %02X %02X %02X %02X\r\n",
-  	   r7[0], r7[1], r7[2], r7[3]);
+  if(sd_init()==0)
+  {
+      printf("SD init OK\r\n");
 
-  do {
-	r = sd_cmd55();
-	r = sd_acmd41();
+      if(sd_read_block(0, buf)==0)
+          printf("Read OK\r\n");
+  }
 
-	printf("ACMD41 = 0x%02X\r\n", r);
 
-	HAL_Delay(50);
+  FRESULT res;
 
-  } while(r != 0x00);
+  res = f_mount(&USERFatFS, USERPath, 1);
+  printf("mount = %d\r\n", res);
+
+  if (res == FR_OK)
+  {
+	    FIL file;
+	    FRESULT res;
+	    UINT br;
+
+	    uint8_t buf[32];   // 32바이트씩 읽기
+
+	    res = f_open(&file, "sample_1.txt", FA_READ);
+
+	    if(res != FR_OK)
+	    {
+	        printf("open fail = %d\r\n", res);
+	        return;
+	    }
+
+	    printf("---- FILE DUMP START ----\r\n");
+
+	    f_lseek(&file, 0);
+
+	    while(1)
+	    {
+	        res = f_read(&file, buf, sizeof(buf), &br);
+
+	        if(res != FR_OK)
+	        {
+	            printf("read err = %d\r\n", res);
+	            break;
+	        }
+
+	        if(br == 0) break;   // EOF
+
+	        /* HEX 출력 */
+	        for(int i=0;i<br;i++)
+	            printf("%02X ", buf[i]);
+
+	        printf(" | ");
+
+	        /* ASCII 출력 */
+	        for(int i=0;i<br;i++)
+	        {
+	            if(buf[i] >= 32 && buf[i] <= 126)
+	                printf("%c", buf[i]);
+	            else if(buf[i] == '\r')
+	                printf("<CR>");
+	            else if(buf[i] == '\n')
+	                printf("<LF>");
+	            else
+	                printf(".");
+	        }
+
+	        printf("\r\n");
+	    }
+
+	    printf("---- FILE DUMP END ----\r\n");
+
+	    f_close(&file);
+  }
+  else
+  {
+      printf("Mount Fail\r\n");
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
