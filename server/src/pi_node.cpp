@@ -63,8 +63,11 @@ void PiNode::run() {
   AVDictionary* opts = nullptr;
   std::string url = "tcp://" + pi_ip + ":5000";
 
-  av_dict_set(&opts, "probesize", "1048576", 0);
-  av_dict_set(&opts, "fflags", "nobuffer", 0);
+  av_dict_set(&opts, "probesize", "32", 0);       // 축소 테스트 중
+  av_dict_set(&opts, "analyzeduration", "0", 0);  // 분석 시간 0
+  av_dict_set(&opts, "fflags", "nobuffer", 0);    // 버퍼링 제거
+  av_dict_set(&opts, "flags", "low_delay", 0);    // 저지연 모드 활성화
+  av_dict_set(&opts, "err_detect", "ignore_err", 0);
   AVInputFormat* ifmt = av_find_input_format("h264");
 
   if (avformat_open_input(&this->fmtCtx, url.c_str(), ifmt, &opts) < 0) {

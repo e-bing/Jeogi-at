@@ -1,3 +1,5 @@
+#include <chrono>   // FPS 측정용
+#include <iomanip>  // FPS 측정용
 #include <thread>
 #include <vector>
 
@@ -29,11 +31,20 @@ int main() {
   bool running = true;
   SDL_Event ev;
 
+  // FPS 측정용 변수
+  int frame_count = 0;
+  auto last_time = std::chrono::steady_clock::now();
+  float current_fps = 0.0f;
+  // 나중에 삭제하기
+
   while (running) {
     while (SDL_PollEvent(&ev)) {
       if (ev.type == SDL_QUIT) running = false;
     }
     SDL_RenderClear(renderer);
+
+    // FPS 측정용
+    bool frame_updated = false;
 
     {
       std::lock_guard<std::mutex> lock(g_frame_mutex);
@@ -46,8 +57,28 @@ int main() {
 
         SDL_UpdateYUVTexture(piTexture, nullptr, y_plane, w, u_plane, w / 2,
                              v_plane, w / 2);
+
+        frame_updated = true;       // FPS 측정용
+        g_pi_frame_buffer.clear();  // FPS 측정용
       }
     }
+
+    // === FPS 측정 로직 시작 ===
+    if (frame_updated) {
+      frame_count++;
+      auto now = std::chrono::steady_clock::now();
+      std::chrono::duration<double> elapsed = now - last_time;
+
+      if (elapsed.count() >= 1.0) {  // 1초마다 출력
+        current_fps = frame_count / elapsed.count();
+        std::cout << "[Live Monitor] PI Node FPS: " << std::fixed
+                  << std::setprecision(1) << current_fps << std::endl;
+
+        frame_count = 0;
+        last_time = now;
+      }
+    }
+    // === FPS 측정 로직 끝 ===
 
     SDL_Rect piRect = {640, 0, 640, 480};
     SDL_RenderCopy(renderer, piTexture, nullptr, &piRect);
