@@ -14,7 +14,7 @@ sudo apt install -y build-essential cmake git pkg-config
 echo "--- 3. MariaDB(MySQL) 설치 및 경로 복구 ---"
 
 sudo mkdir -p /etc/mysql/conf.d/ /etc/mysql/mariadb.conf.d/
-sudo apt install -y mariadb-server
+sudo apt install -y mariadb-server libmariadb-dev
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
 
@@ -40,6 +40,7 @@ cd /tmp
 git clone https://github.com/eclipse/paho.mqtt.cpp.git
 cd paho.mqtt.cpp && mkdir build && cd build
 cmake .. && make -j$(nproc) && sudo make install
+sudo sed -i 's/add_library(PahoMqttCpp::paho-mqttpp3 ALIAS PahoMqttCpp::paho-mqttpp3-shared)/set_target_properties(PahoMqttCpp::paho-mqttpp3-shared PROPERTIES IMPORTED_GLOBAL TRUE)\n    add_library(PahoMqttCpp::paho-mqttpp3 ALIAS PahoMqttCpp::paho-mqttpp3-shared)/' /usr/local/lib/cmake/PahoMqttCpp/PahoMqttCppConfig.cmake
 sudo ldconfig
 
 echo "--- 6. 영상 처리/디코딩/시각화 라이브러리 설치 ---"
