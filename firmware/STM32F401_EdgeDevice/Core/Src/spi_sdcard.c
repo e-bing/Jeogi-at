@@ -1,7 +1,7 @@
 #include "spi_sdcard.h"
 #include "spi.h"
 #include "gpio.h"
-
+#include "fatfs.h"
 
 /* ================= CS CONTROL ================= */
 
@@ -196,4 +196,23 @@ uint8_t sd_read_block(uint32_t lba, uint8_t *buf)
 
 
     return 0;
+}
+
+void sd_files(void) {
+	DIR dir;
+	FILINFO fno;
+
+	if (f_opendir(&dir, "/") == FR_OK) {
+		while (1) {
+			if (f_readdir(&dir, &fno) != FR_OK)
+				break;
+			if (fno.fname[0] == 0)
+				break;
+
+			// ?���???????????????? 브레?��?��?��?��?�� 찍기
+			volatile char *name = fno.fname;
+			printf("%s\r\n", name);
+
+		}
+	}
 }

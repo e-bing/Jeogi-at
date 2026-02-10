@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -28,17 +28,34 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "spi_sdcard.h"
-#include <math.h>
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct {
+	char riff[4];
+	uint32_t size;
+	char wave[4];
+
+	char fmt[4];
+	uint32_t fmt_size;
+	uint16_t format;
+	uint16_t channels;
+	uint32_t sample_rate;
+	uint32_t byte_rate;
+	uint16_t align;
+	uint16_t bits;
+
+	char data[4];
+	uint32_t data_size;
+} WAV_Header;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,10 +79,81 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 // printf <-> UART
-int _write(int file, char *ptr, int len)
-{
-	HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
-    return len;
+int _write(int file, char *ptr, int len) {
+	HAL_UART_Transmit(&huart2, (uint8_t*) ptr, len, 200);
+	return len;
+}
+
+#define BUF_SAMPLES 8192
+
+static int16_t mono_buf[BUF_SAMPLES];
+static int16_t stereo_buf[BUF_SAMPLES * 2]; // L,R interleaved
+
+void PlayWav(const char *name) {
+	FIL file;
+	WAV_Header header;
+	UINT br;
+
+	if (f_open(&file, name, FA_READ) != FR_OK) {
+		printf("open fail\r\n");
+		return;
+	}
+
+	// ?��?�� 44바이?�� ?���????????????(PCM ?���???????????? WAV �?????????????��)
+	f_read(&file, &header, 44, &br);
+	printf("fmt=%d ch=%d bits=%d rate=%ld size=%ld\n", header.format,
+			header.channels, header.bits, header.sample_rate, header.data_size);
+
+	// 최소 �????????????�???????????? (?��?��?���???????????? ?�� 추�?)
+	if (header.format != 1 || header.bits != 16) {
+		printf("wav fmt error\r\n");
+		f_close(&file);
+		return;
+	}
+
+	// data ?��?��?���???????????? ?��?��
+	f_lseek(&file, 44);
+
+	while (1) {
+		// WAV 채널?�� ?��?�� ?���???????????? ?���???????????? 결정
+		if (header.channels == 1) {
+			// mono: 16bit * BUF
+		    uint32_t t0 = HAL_GetTick();
+		    f_read(&file, mono_buf, BUF_SAMPLES * 2, &br);
+		    uint32_t dt = HAL_GetTick() - t0;
+
+		    printf("4096B read: %ld ms\r\n", dt);
+
+			if (br == 0)
+				break;
+
+			int n = br / 2; // mono samples
+
+			// mono -> stereo 복제
+			for (int i = 0; i < n; i++) {
+				int16_t v = mono_buf[i];
+				stereo_buf[2 * i] = v; // L
+				stereo_buf[2 * i + 1] = v; // R
+			}
+			// ?��?�� �????????????�???????????? 0 ?��?��
+			for (int i = n; i < BUF_SAMPLES; i++) {
+				stereo_buf[2 * i] = 0;
+				stereo_buf[2 * i + 1] = 0;
+			}
+
+		} else {
+			printf("unsupported channels=%d\r\n", header.channels);
+			break;
+		}
+
+		// I2S 16on16: Size?�� 16-bit halfword 개수
+		// stereo_buf?�� 16-bit * (BUF_SAMPLES*2)
+		HAL_I2S_Transmit(&hi2s3, (uint16_t*) stereo_buf,
+		BUF_SAMPLES * 2, 200);
+	}
+
+	f_close(&file);
+	printf("play end\r\n");
 }
 
 /* USER CODE END 0 */
@@ -104,110 +192,41 @@ int main(void)
   MX_FATFS_Init();
   MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
-//  uint8_t buf[512];
-//
-//  if(sd_init()==0)
-//  {
-//      printf("SD init OK\r\n");
-//
-//      if(sd_read_block(0, buf)==0)
-//          printf("Read OK\r\n");
-//  }
-//
-//
-//  FRESULT res;
-//
-//  res = f_mount(&USERFatFS, USERPath, 1);
-//  printf("mount = %d\r\n", res);
-//
-//  if (res == FR_OK)
-//  {
-//	    FIL file;
-//	    FRESULT res;
-//	    UINT br;
-//
-//	    uint8_t buf[32];   // 32바이?��?�� ?���?
-//
-//	    res = f_open(&file, "sample_1.txt", FA_READ);
-//
-//	    if(res != FR_OK)
-//	    {
-//	        printf("open fail = %d\r\n", res);
-//	        return;
-//	    }
-//
-//	    printf("---- FILE DUMP START ----\r\n");
-//
-//	    f_lseek(&file, 0);
-//
-//	    while(1)
-//	    {
-//	        res = f_read(&file, buf, sizeof(buf), &br);
-//
-//	        if(res != FR_OK)
-//	        {
-//	            printf("read err = %d\r\n", res);
-//	            break;
-//	        }
-//
-//	        if(br == 0) break;   // EOF
-//
-//	        /* HEX 출력 */
-//	        for(int i=0;i<br;i++)
-//	            printf("%02X ", buf[i]);
-//
-//	        printf(" | ");
-//
-//	        /* ASCII 출력 */
-//	        for(int i=0;i<br;i++)
-//	        {
-//	            if(buf[i] >= 32 && buf[i] <= 126)
-//	                printf("%c", buf[i]);
-//	            else if(buf[i] == '\r')
-//	                printf("<CR>");
-//	            else if(buf[i] == '\n')
-//	                printf("<LF>");
-//	            else
-//	                printf(".");
-//	        }
-//
-//	        printf("\r\n");
-//	    }
-//
-//	    printf("---- FILE DUMP END ----\r\n");
-//
-//	    f_close(&file);
-//  }
-//  else
-//  {
-//      printf("Mount Fail\r\n");
-//  }
+	uint8_t buf[512];
 
+	if (sd_init() == 0) {
+		printf("SD init OK\r\n");
 
+		if (sd_read_block(0, buf) == 0){
+			printf("Read OK\r\n");
 
-  printf("start sound\r\n");
+			hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4; // or _4
+			HAL_SPI_Init(&hspi2);
+		}
+	}
 
-  int16_t sine_table[256]; // ?��?��?�� ?��?���?
+	FRESULT res;
 
-  for(int i = 0; i < 256; i++)
-  {
-	  sine_table[i] =
-        (int16_t)(10000 * sin(2 * 3.141592 * i / 256));
-  }
+	res = f_mount(&USERFatFS, USERPath, 1);
+	printf("mount = %d\r\n", res);
 
-  HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t*)sine_table, 256);
+	sd_files();
 
+	printf("voice start\r\n");
 
+	PlayWav("voice_1.wav");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	while (1) {
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+		HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -268,11 +287,10 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1) {
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
