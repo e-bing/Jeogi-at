@@ -132,16 +132,18 @@ DRESULT USER_read (
   /* USER CODE BEGIN READ */
     if (pdrv != 0) return RES_PARERR;
 
-    for (UINT i = 0; i < count; i++)
-    {
-        if (sd_read_block(sector + i,
-                          buff + (i * 512)) != 0)
-        {
-            return RES_ERROR;
-        }
+    uint32_t t0 = HAL_GetTick();
+
+    int ret;
+    if (count > 1) {
+        ret = sd_read_multi(sector, buff, count);
+    } else {
+        ret = sd_read_block(sector, buff);
     }
 
-    return RES_OK;
+//    printf("USER_read %luB: %lums\r\n", (uint32_t)count * 512UL, HAL_GetTick() - t0);
+
+    return (ret == 0) ? RES_OK : RES_ERROR;
 
     // end
     return RES_OK;

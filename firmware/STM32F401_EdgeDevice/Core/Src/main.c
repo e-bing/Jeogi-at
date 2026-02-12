@@ -28,6 +28,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "spi_sdcard.h"
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -78,84 +79,176 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// printf <-> UART
-int _write(int file, char *ptr, int len) {
-	HAL_UART_Transmit(&huart2, (uint8_t*) ptr, len, 200);
-	return len;
+
+/* ================= Config ================= */
+
+#define MONO_SAMPLES     8192
+#define WAV_HEADER_SIZE  44
+
+/* ================= Buffer ================= */
+
+static int16_t mono_buf[MONO_SAMPLES];
+
+static int16_t i2s_buf[MONO_SAMPLES * 2 * 2];
+// [half][L,R] = *2 *2
+
+static FIL wav_file;
+
+volatile uint8_t buf_evt = 0;
+volatile uint8_t wav_eof = 0;
+
+/* ================= UART printf ================= */
+
+int _write(int file, char *ptr, int len)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, 2000);
+    return len;
 }
 
-#define BUF_SAMPLES 8192
+/* ================= Fill Half ================= */
 
-static int16_t mono_buf[BUF_SAMPLES];
-static int16_t stereo_buf[BUF_SAMPLES * 2]; // L,R interleaved
+volatile uint32_t miss_fill_cnt = 0;
+volatile uint8_t filling = 0;
 
-void PlayWav(const char *name) {
-	FIL file;
-	WAV_Header header;
-	UINT br;
+static void FillHalf(int16_t *dst)
+{
+    UINT br;
 
-	if (f_open(&file, name, FA_READ) != FR_OK) {
-		printf("open fail\r\n");
-		return;
-	}
+    if (wav_eof) {
+        memset(dst, 0, MONO_SAMPLES * 4);
+        return;
+    }
 
-	// ?��?�� 44바이?�� ?���????????????(PCM ?���???????????? WAV �?????????????��)
-	f_read(&file, &header, 44, &br);
-	printf("fmt=%d ch=%d bits=%d rate=%ld size=%ld\n", header.format,
-			header.channels, header.bits, header.sample_rate, header.data_size);
+    /* Read mono samples */
+    if (filling) {
+        miss_fill_cnt++;   // 겹침 ?�� ?��?�� ?��?��
+    }
 
-	// 최소 �????????????�???????????? (?��?��?���???????????? ?�� 추�?)
-	if (header.format != 1 || header.bits != 16) {
-		printf("wav fmt error\r\n");
-		f_close(&file);
-		return;
-	}
+    filling = 1;
+    uint32_t t0 = HAL_GetTick();
+    f_read(&wav_file,
+           mono_buf,
+           MONO_SAMPLES * 2,
+           &br);
 
-	// data ?��?��?���???????????? ?��?��
-	f_lseek(&file, 44);
+    uint32_t dt = HAL_GetTick() - t0;
+    printf("%dB read: %ld ms\r\n", MONO_SAMPLES, dt);
 
-	while (1) {
-		// WAV 채널?�� ?��?�� ?���???????????? ?���???????????? 결정
-		if (header.channels == 1) {
-			// mono: 16bit * BUF
-		    uint32_t t0 = HAL_GetTick();
-		    f_read(&file, mono_buf, BUF_SAMPLES * 2, &br);
-		    uint32_t dt = HAL_GetTick() - t0;
 
-		    printf("4096B read: %ld ms\r\n", dt);
+    int samples = br / 2;
 
-			if (br == 0)
-				break;
+    if (samples == 0) {
+        wav_eof = 1;
+        memset(dst, 0, MONO_SAMPLES * 4);
+        return;
+    }
 
-			int n = br / 2; // mono samples
+    /* Mono ?   Stereo */
 
-			// mono -> stereo 복제
-			for (int i = 0; i < n; i++) {
-				int16_t v = mono_buf[i];
-				stereo_buf[2 * i] = v; // L
-				stereo_buf[2 * i + 1] = v; // R
-			}
-			// ?��?�� �????????????�???????????? 0 ?��?��
-			for (int i = n; i < BUF_SAMPLES; i++) {
-				stereo_buf[2 * i] = 0;
-				stereo_buf[2 * i + 1] = 0;
-			}
+    for (int i = 0; i < samples; i++) {
 
-		} else {
-			printf("unsupported channels=%d\r\n", header.channels);
-			break;
-		}
+        int16_t v = mono_buf[i];
 
-		// I2S 16on16: Size?�� 16-bit halfword 개수
-		// stereo_buf?�� 16-bit * (BUF_SAMPLES*2)
-		HAL_I2S_Transmit(&hi2s3, (uint16_t*) stereo_buf,
-		BUF_SAMPLES * 2, 200);
-	}
+        dst[i*2]     = v;   // L
+        dst[i*2 + 1] = v;   // R
+    }
 
-	f_close(&file);
-	printf("play end\r\n");
+    /* Pad */
+
+    if (samples < MONO_SAMPLES) {
+
+        for (int i = samples; i < MONO_SAMPLES; i++) {
+            dst[i*2]     = 0;
+            dst[i*2 + 1] = 0;
+        }
+
+        wav_eof = 1;
+    }
+
+    filling = 0;
 }
 
+/* ================= DMA Callbacks ================= */
+
+void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
+{
+    if (hi2s == &hi2s3)
+        buf_evt |= 0x01;
+}
+
+void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
+{
+    if (hi2s == &hi2s3)
+        buf_evt |= 0x02;
+}
+
+volatile uint32_t i2s_err_cnt = 0;
+
+void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s)
+{
+    if (hi2s == &hi2s3) {
+        // ?��기서 ?��?�� ?��?���??? 찍기(?��?�� 중엔 출력 말고 �????���???)
+    	i2s_err_cnt++;
+    }
+}
+
+/* ================= Player ================= */
+
+void PlayWav_DMA(const char *name)
+{
+    UINT br;
+
+    buf_evt = 0;
+    wav_eof = 0;
+
+    if (f_open(&wav_file, name, FA_READ) != FR_OK) {
+        printf("Open fail\r\n");
+        return;
+    }
+
+    /* Skip header */
+
+    f_lseek(&wav_file, WAV_HEADER_SIZE);
+
+    /* Prefill */
+
+    FillHalf(&i2s_buf[0]);
+    FillHalf(&i2s_buf[MONO_SAMPLES * 2]);
+
+    /* Start DMA */
+
+    HAL_I2S_Transmit_DMA(
+        &hi2s3,
+        (uint16_t*)i2s_buf,
+        MONO_SAMPLES * 2 * 2
+    );
+
+    printf("Play start\r\n");
+
+    /* Loop */
+
+    while (!wav_eof)
+    {
+        if (buf_evt & 0x01) {
+
+            buf_evt &= ~0x01;
+            FillHalf(&i2s_buf[0]);
+        }
+
+        if (buf_evt & 0x02) {
+
+            buf_evt &= ~0x02;
+            FillHalf(&i2s_buf[MONO_SAMPLES * 2]);
+        }
+    }
+
+    HAL_Delay(10);
+
+    HAL_I2S_DMAStop(&hi2s3);
+    f_close(&wav_file);
+
+    printf("Play end\r\n");
+}
 /* USER CODE END 0 */
 
 /**
@@ -193,20 +286,17 @@ int main(void)
   MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
 	uint8_t buf[512];
-
 	if (sd_init() == 0) {
 		printf("SD init OK\r\n");
 
-		if (sd_read_block(0, buf) == 0){
+		if (sd_read_block(0, buf) == 0) {
 			printf("Read OK\r\n");
 
-			hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4; // or _4
+			hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
 			HAL_SPI_Init(&hspi2);
 		}
 	}
-
 	FRESULT res;
-
 	res = f_mount(&USERFatFS, USERPath, 1);
 	printf("mount = %d\r\n", res);
 
@@ -214,7 +304,13 @@ int main(void)
 
 	printf("voice start\r\n");
 
-	PlayWav("voice_1.wav");
+//	PlayWav_DMA("jojo.wav");
+	PlayWav_DMA("voice_1.wav");
+	printf("i2s err cnt: %d\r\n", i2s_err_cnt);
+
+	printf("I2S ERR=%lu, MISS=%lu\r\n",
+	       i2s_err_cnt,
+	       miss_fill_cnt);
   /* USER CODE END 2 */
 
   /* Infinite loop */
