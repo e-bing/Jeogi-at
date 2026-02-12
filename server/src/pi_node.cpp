@@ -5,6 +5,8 @@
 
 using json = nlohmann::json;
 
+extern volatile sig_atomic_t stop_flag;
+
 class PiMqttCallback : public virtual mqtt::callback {
  public:
   void message_arrived(mqtt::const_message_ptr msg) override {
@@ -28,23 +30,12 @@ class PiMqttCallback : public virtual mqtt::callback {
 
 PiNode::PiNode(const std::string& ip) : pi_ip(ip) {}
 
-PiNode::~PiNode() {
-  if (frame) av_frame_free(&frame);
-  if (pkt) av_packet_free(&pkt);
-  if (codecCtx) avcodec_free_context(&codecCtx);
-  if (fmtCtx) avformat_close_input(&fmtCtx);
-  if (mqtt_client) {
-    mqtt_client->disconnect();
-    delete mqtt_client;
-  }
-}
-
 void PiNode::run() {
   // 1. MQTT 초기화 (지역변수 client 대신 멤버변수 mqtt_client 사용)
   mqtt_client =
       new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_Server_Pi");
-  PiMqttCallback* cb = new PiMqttCallback();
-  mqtt_client->set_callback(*cb);
+  this->cb = new PiMqttCallback();
+  mqtt_client->set_callback(*(PiMqttCallback*)this->cb);
 
   mqtt::connect_options connOpts;
   connOpts.set_clean_session(true);
@@ -100,7 +91,7 @@ void PiNode::process_loop() {
     return;
   }
 
-  while (true) {
+  while (!stop_flag) {
     // av_read_frame 결과값 체크 강화
     int ret = av_read_frame(fmtCtx, pkt);
     if (ret < 0) {
@@ -134,4 +125,17 @@ void PiNode::process_loop() {
     // 너무 빠르게 돌지 않도록 아주 미세한 휴식 (스레드 점유 조절)
     std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
+  std::cout << "[Pi Node] 루프 종료 중..." << std::endl;
+}
+
+PiNode::~PiNode() {
+  if (frame) av_frame_free(&frame);
+  if (pkt) av_packet_free(&pkt);
+  if (codecCtx) avcodec_free_context(&codecCtx);
+  if (fmtCtx) avformat_close_input(&fmtCtx);
+  if (mqtt_client) {
+    mqtt_client->disconnect();
+    delete mqtt_client;
+  }
+  if (cb) delete (PiMqttCallback*)cb;
 }
