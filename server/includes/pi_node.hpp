@@ -3,6 +3,7 @@
 
 #include <mqtt/async_client.h>
 
+#include <csignal>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -56,6 +57,7 @@ class PiNode {
 
   // MQTT 클라이언트 및 콜백은 내부 클래스로 구현하거나 멤버로 관리
   mqtt::async_client* mqtt_client = nullptr;
+  void* cb = nullptr;
 };
 
 #endif  // PI_NODE_HPP
