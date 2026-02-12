@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 
+#include "../includes/config_manager.hpp"
 #include "../includes/hanwha_node.hpp"
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
@@ -38,6 +39,12 @@ int main() {
   // 1. TLS 및 포트 초기화
   init_tls();
   kill_process_using_port(PORT);
+
+  auto config = ConfigManager::load();
+  if (config.empty()) {
+    std::cerr << "Config file missing! Run ./setup first.\n";
+    return -1;
+  }
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
   thread sensor_thread([]() {
@@ -91,9 +98,16 @@ int main() {
   }
 
   // 1. 노드 객체 생성
-  PiNode piNode("192.168.0.34");  // 라즈베리 파이 IP
-  HanwhaNode hwNode(
-      "rtsp://admin:5hanwha!@192.168.0.14/profile2/media.smp");  // 한화 CCTV IP
+  std::string hw_ip = config["hanwha"]["ip"];
+  std::string hw_id = config["hanwha"]["user"];
+  std::string hw_pw = config["hanwha"]["pw"];
+  std::string hw_profile = config["hanwha"]["profile"];
+  std::string hw_url = "rtsp://" + hw_id + ":" + hw_pw + "@" + hw_ip + "/" +
+                       hw_profile + "/media.smp";
+  std::string pi_ip = config["pi"]["ip"];
+
+  HanwhaNode hwNode(hw_url);
+  PiNode piNode(pi_ip);
 
   // 3. SDL 메인 렌더링 루프 (UI 스레드)
   // SDL 초기화 및 윈도우 생성
@@ -212,6 +226,26 @@ int main() {
     }
 
     SDL_RenderPresent(renderer);
+
+    // === 인구 수 터미널에 출력 ===
+    int pi_count = 0;
+    int hw_count = 0;
+    {
+      std::lock_guard<std::mutex> lock(g_pi_data_mutex);
+      pi_count = g_pi_shared_objects.size();
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(g_hw_data_mutex);
+      hw_count = g_hw_objects.size();
+    }
+
+    std::cout << "\r[실시간 카운트] Hanwha: " << hw_count
+              << "명 | Pi: " << pi_count << "명 | 합계: " << hw_count + pi_count
+              << "명" << std::flush;
+
+    // === 인구 수 터미널에 출력 끝 ===
+
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 

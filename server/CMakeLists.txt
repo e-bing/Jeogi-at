@@ -9,6 +9,7 @@ find_package(PahoMqttCpp REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # FFmpeg 및 MariaDB 클라이언트 라이브러리 추가
 pkg_check_modules(AVCODEC REQUIRED libavcodec)
@@ -41,6 +42,9 @@ add_executable(server
     src/parser.cpp
 )
 
+# 3-1. 설정용 실행 파일 생성
+add_executable(setup src/setup.cpp)
+
 # 4. 라이브러리 링크
 target_link_libraries(server
     ${OpenCV_LIBS}
@@ -55,3 +59,5 @@ target_link_libraries(server
     pthread
     tinyxml2
 )
+
+target_link_libraries(setup PRIVATE nlohmann_json::nlohmann_json)
