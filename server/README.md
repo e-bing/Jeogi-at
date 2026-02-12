@@ -15,6 +15,21 @@ chmod +x setup_server.sh
 ```
 
 
+* **시스템 설정 (Unified AI Monitor Setup):**
+빌드가 완료되면 아래 명령어를 실행하여 카메라 IP, ID/PW 및 라즈베리 파이 카메라 설정을 진행하세요. 이 과정에서 `config.json` 파일이 자동으로 생성됩니다.
+```bash
+cd build
+chmod +x setup
+./setup
+
+```
+
+
+> **참고:** 한화 카메라 설정(IP, 계정 정보), 라즈베리 파이 카메라 IP를 미리 준비해 주세요.
+> RTSP Profile과 MQTT Topic은 줄바꿈 문자(엔터)를 입력하여 넘겨 주세요.
+
+
+
 * **인증서 설정:**
 서버 보안(SSL/TLS)을 위해 `config` 폴더에 아래 두 파일을 반드시 위치시켜야 합니다.
 * `config/server.crt`
@@ -58,3 +73,4 @@ cd build
 
 * 스크립트 실행 권한 에러 발생 시 `chmod +x *.sh`를 입력하여 권한을 부여할 수 있습니다.
 
+* **설정 파일:** `./setup`을 통해 생성된 `config.json`에는 민감한 비밀번호가 포함되어 있으므로 외부에 유출되지 않도록 주의해 주세요.
