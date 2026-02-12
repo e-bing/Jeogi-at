@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Main.qml</file>
+        <file>Style.qml</file>
+        <file>qmldir</file>
+        <file>components/Sidebar.qml</file>
+        <file>components/Header.qml</file>
+        <file>components/Footer.qml</file>
+        <file>pages/Dashboard.qml</file>
+        <file>pages/Statistics.qml</file>
+        <file>pages/CameraManagement.qml</file>
+        <file>logo/logo.png</file>
+        <file>logo/clock_logo.png</file>
+        <file>logo/main_logo.png</file>
+        <file>logo/camera_logo.png</file>
+        <file>logo/chart_logo.png</file>
+        <file>logo/manual_logo.png</file>
+        <file>logo/device_logo.png</file>
+        <file>logo/reverse_camera_logo.png</file>
+        <file>logo/reverse_chart_logo.png</file>
+        <file>logo/reverse_device_logo.png</file>
+    </qresource>
+</RCC>

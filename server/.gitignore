@@ -72,3 +72,7 @@ dkms.conf
 # Executables
 build/
 /build/*
+
+# key
+*.key
+*.crt
