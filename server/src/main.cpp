@@ -15,9 +15,9 @@
 #include "../includes/shared_data.hpp"
 
 // 센서 및 DB 관련 헤더
-#include "../includes/Database.h"
-#include "../includes/Qt.h"
-#include "../includes/Sensor.h"
+#include "../includes/database.h"
+#include "../includes/qt.h"
+#include "../includes/sensor.h"
 
 using namespace std;
 

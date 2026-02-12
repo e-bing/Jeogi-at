@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(unified_cctv_server)
+project(cctv_server)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -30,19 +30,19 @@ include_directories(
 )
 
 # 3. 통합 실행 파일 생성
-add_executable(unified_server 
+add_executable(server 
     src/main.cpp 
     # src/hanwha_node.cpp 
     src/pi_node.cpp 
     src/shared_data.cpp
     # src/database.cpp
-    src/Database.cpp
-    src/Sensor.cpp
-    src/Qt.cpp
+    src/database.cpp
+    src/sensor.cpp
+    src/qt.cpp
 )
 
 # 4. 라이브러리 링크
-target_link_libraries(unified_server
+target_link_libraries(server
     ${OpenCV_LIBS}
     PahoMqttCpp::paho-mqttpp3
     ${SDL2_LIBRARIES}
