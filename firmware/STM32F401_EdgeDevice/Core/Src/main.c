@@ -22,12 +22,16 @@
 #include "fatfs.h"
 #include "i2s.h"
 #include "spi.h"
+#include "adc.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "mq135.h"
+#include "mq7.h"
+#include "communication.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,13 +69,19 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3;
+extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart6;
 
+uint8_t timer_flag = 0;
+float alpha = 0.2; // EMA ?•„?„° ê°?ì¤‘ì¹˜
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -87,13 +97,13 @@ int _write(int file, char *ptr, int len) {
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
-int main(void) {
-	/* USER CODE BEGIN 1 */
-
-	/* USER CODE END 1 */
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+  /* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
 
@@ -113,23 +123,57 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	MX_DMA_Init();
+  MX_DMA_Init();
 	MX_USART2_UART_Init();
 	MX_SPI2_Init();
 	MX_FATFS_Init();
 	MX_I2S3_Init();
-	/* USER CODE BEGIN 2 */
-	Audio_PlayWav("voice_1.wav");
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  MX_USART6_UART_Init();
+  /* USER CODE BEGIN 2 */
 
-	/* USER CODE END 2 */
+  // ?™¸ë¶? ëª¨ë“ˆ?—?„œ ? •?˜?œ ì´ˆê¸°?™” ?•¨?ˆ˜ ?˜¸ì¶?
+  extern void MX_ADC1_Init(void);
+  extern void MX_TIM3_Init(void);
+  extern void MX_USART6_UART_Init(void);
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
-	while (1) {
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  MX_USART6_UART_Init();
 
-		HAL_Delay(500);
-		/* USER CODE END WHILE */
+  // ?„¼?„œ ì´ˆê¸°?™”
+  MQ135_Init();
+  MQ7_Init();
+
+  // ???´ë¨? ?‹œ?ž‘
+  HAL_TIM_Base_Start_IT(&htim3);
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+      // LED ?† ê¸? (ê¸°ì¡´ ê¸°ëŠ¥ ?œ ì§?)
+      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+      HAL_Delay(500);
+
+      // ?„¼?„œ ?°?´?„° ì²˜ë¦¬
+      if(timer_flag == 1)
+      {
+          timer_flag = 0;
+
+          // MQ-135 (CO2) ?„¼?„œ ?½ê¸?
+          float co2 = MQ135_ReadCO2(&hadc1, alpha);
+
+          // MQ-7 (CO) ?„¼?„œ ?½ê¸?
+          float co = MQ7_ReadCO(&hadc1, alpha);
+
+          // ?¼ì¦ˆë² ë¦¬íŒŒ?´ ? „?†¡ (JSON - UART6)
+          Send_Data_to_RaspberryPi(&huart6, co2, co);
+      }
+    /* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -180,6 +224,17 @@ void SystemClock_Config(void) {
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+  * @brief  ???´ë¨? ?¸?„°?Ÿ½?Š¸ ì½œë°± (1ì´ˆë§ˆ?‹¤ ?˜¸ì¶?)
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if(htim->Instance == TIM3)
+    {
+        timer_flag = 1;  // ë©”ì¸ ë£¨í”„?—?„œ ì²˜ë¦¬?•˜?„ë¡? ?”Œ?ž˜ê·? ?„¤? •
+    }
+}
 
 /* USER CODE END 4 */
 
