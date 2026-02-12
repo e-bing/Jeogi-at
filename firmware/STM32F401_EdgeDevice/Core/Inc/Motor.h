@@ -3,15 +3,17 @@
 
 #include "main.h"
 
-// 모터 제어 상태 정의
-typedef enum {
-    MOTOR_STOP = 0,
-    MOTOR_SPEED_50,
-    MOTOR_SPEED_100
-} MotorState_t;
+/* Function Prototypes */
 
-// 함수 프로토타입
+/**
+ * @brief Initializes the motor hardware and PWM settings.
+ */
 void Motor_Init(void);
+
+/**
+ * @brief Sets the motor speed based on percentage.
+ * @param speed_percent: Speed value (0 to 100).
+ */
 void Motor_SetSpeed(uint8_t speed_percent);
 
 #endif /* __MOTOR_H */

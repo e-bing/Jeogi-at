@@ -54,7 +54,7 @@ extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart6;
 
 uint8_t timer_flag = 0;
-float alpha = 0.2; // EMA ?��?�� �?중치
+float alpha = 0.2; // EMA (Exponential Moving Average) weighting factor
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,6 +75,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -83,7 +84,9 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  void Update_Remote_Monitoring(float co2, float co);
+  void Update_Motor_Control(float co2, float co);
+  void Run_Environmental_System_Cycle(void);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -101,52 +104,23 @@ int main(void)
   MX_USART6_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
-  // ?��?�� 초기?��
+  // Initialize Sensors and Actuators
   MQ135_Init();
   MQ7_Init();
   Motor_Init();
 
-  // ???���? ?��?��
+  // Start Timer with Interrupt
   HAL_TIM_Base_Start_IT(&htim3);
 
+  // Start UART Reception with Interrupt (for receiving commands from Raspberry Pi)
+  Start_UART_Receive_IT(&huart2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-      // ?��?�� ?��?��?�� 처리
-      if(timer_flag == 1)
-      {
-          timer_flag = 0;
-
-          // MQ-135 (CO2) ?��?�� ?���?
-          float co2 = MQ135_ReadCO2(&hadc1, alpha);
-
-          // MQ-7 (CO) ?��?�� ?���?
-          float co = MQ7_ReadCO(&hadc1, alpha);
-
-          // Motor control - 공기질에 ?��?�� ?��?���? ?��?�� ?��?��
-          if(co2 > 600.0f || co > 25.0f)
-          {
-              // ?��?��: 최�? ?��?��
-              Motor_SetSpeed(100);
-          }
-          else if (co2 > 400.0f || co > 9.0f)
-          {
-              // 경고: 중간 ?��?��
-              Motor_SetSpeed(60);
-          }
-          else
-          {
-              // ?��?��: ?���?
-              Motor_SetSpeed(0);
-          }
-
-          // ?��즈베리파?�� ?��?�� (JSON - UART6)
-          Send_Data_to_RaspberryPi(&huart6, co2, co);
-      }
+	  Run_Environmental_System_Cycle();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -201,18 +175,65 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+  * @brief  Handles data synchronization with the external monitoring system.
+  * @details Formats the sensor values into a JSON string and transmits
+  * them to the Raspberry Pi via the UART6 interface.
+  * @param  co2: Filtered CO2 concentration in ppm.
+  * @param  co:  Filtered CO concentration in ppm.
+  */
+void Update_Remote_Monitoring(float co2, float co) {
+    Send_Data_to_RaspberryPi(&huart6, co2, co);
+}
 
 /**
-  * @brief  ???���? ?��?��?��?�� 콜백 (1초마?�� ?���?)
+  * @brief  Executes automatic motor speed control based on air quality levels.
+  * @details Evaluates the gas concentrations against predefined safety thresholds:
+  * - DANGER (>600ppm CO2 or >25ppm CO): 100% Speed
+  * - WARNING (>400ppm CO2 or >9ppm CO): 60% Speed
+  * - NORMAL (Below thresholds): Motor STOP
+  * @param  co2: Filtered CO2 concentration in ppm.
+  * @param  co:  Filtered CO concentration in ppm.
+  */
+void Update_Motor_Control(float co2, float co) {
+    if(co2 > 600.0f || co > 25.0f) Motor_SetSpeed(100);
+    else if (co2 > 400.0f || co > 9.0f) Motor_SetSpeed(60);
+    else Motor_SetSpeed(0);
+}
+
+/**
+  * @brief  Manages the entire system cycle: Sensor -> Communication -> Control.
+  * @note   This function is called repeatedly in the while loop.
+  */
+void Run_Environmental_System_Cycle(void)
+{
+    // Check if the 1-second timer flag is set
+    if (timer_flag == 1)
+    {
+        timer_flag = 0; // Clear the flag
+
+        // 1. Data Acquisition
+        float current_co2 = MQ135_ReadCO2(&hadc1, alpha);
+        float current_co = MQ7_ReadCO(&hadc1, alpha);
+
+        // 2. Separate Logic Execution
+        Update_Remote_Monitoring(current_co2, current_co);
+        Update_Motor_Control(current_co2, current_co);
+    }
+}
+
+/**
+  * @brief  Timer Period Elapsed Callback (Triggered every 1 second)
+  * @param  htim: Timer handle
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if(htim->Instance == TIM3)
     {
-        timer_flag = 1;  // 메인 루프?��?�� 처리?��?���? ?��?���? ?��?��
+        // Set flag to process data in the main loop
+        timer_flag = 1;
     }
 }
-
 /* USER CODE END 4 */
 
 /**

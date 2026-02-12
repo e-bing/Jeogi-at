@@ -1,10 +1,29 @@
 /* communication.h */
-#ifndef COMMUNICATION_H
-#define COMMUNICATION_H
+#ifndef __COMMUNICATION_H
+#define __COMMUNICATION_H
 
 #include "main.h"
 
-// 통신 함수 선언
+#define RX_BUFFER_SIZE 128
+
+/**
+  * @brief  Sends sensor data to Raspberry Pi in JSON format.
+  * @param  huart: UART handle used for transmission.
+  * @param  co2: Measured CO2 concentration value.
+  * @param  co: Measured CO concentration value.
+  */
 void Send_Data_to_RaspberryPi(UART_HandleTypeDef *huart, float co2, float co);
 
-#endif /* COMMUNICATION_H */
+/**
+  * @brief  Starts UART reception in Interrupt mode.
+  * @param  huart: UART handle to enable reception.
+  */
+void Start_UART_Receive_IT(UART_HandleTypeDef *huart);
+
+/**
+  * @brief  Parses the received JSON string and executes commands.
+  * @param  json_str: Pointer to the buffer containing the received JSON data.
+  */
+void Handle_Received_Command(char *json_str);
+
+#endif
