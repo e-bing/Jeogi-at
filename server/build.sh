@@ -15,8 +15,7 @@ cd $BUILD_DIR
 
 # 3. CMake 및 Make 실행
 echo "Starting build..."
-cmake ..
-if [ $? -eq 0 ]; then
+if cmake .. && make -j$(nproc); then
     make -j$(nproc)
     echo "---------------------------"
     echo "Build Success!"
