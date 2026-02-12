@@ -12,8 +12,8 @@ class PiMqttCallback : public virtual mqtt::callback {
   void message_arrived(mqtt::const_message_ptr msg) override {
     try {
       auto j = json::parse(msg->get_payload_str());
-      std::lock_guard<std::mutex> lock(g_data_mutex);
-      g_shared_objects.clear();
+      std::lock_guard<std::mutex> lock(g_pi_data_mutex);
+      g_pi_shared_objects.clear();
       for (auto& obj : j["blocks"]) {
         DetectedObject res;
         res.x = obj["x"].get<float>();
@@ -21,7 +21,7 @@ class PiMqttCallback : public virtual mqtt::callback {
         res.w = obj["w"].get<float>();
         res.h = obj["h"].get<float>();
         res.typeName = "Person";
-        g_shared_objects.push_back(res);
+        g_pi_shared_objects.push_back(res);
       }
     } catch (...) {
     }
@@ -108,7 +108,7 @@ void PiNode::process_loop() {
           size_t uv_size = (w / 2) * (h / 2);
 
           {
-            std::lock_guard<std::mutex> lock(g_frame_mutex);
+            std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
             g_pi_frame_buffer.resize(y_size + uv_size * 2);
 
             // Y, U, V 플레인을 하나의 벡터에 순서대로 복사

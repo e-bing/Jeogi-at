@@ -129,7 +129,7 @@ int main() {
     bool frame_updated = false;
 
     {
-      std::lock_guard<std::mutex> lock(g_frame_mutex);
+      std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
       if (!g_pi_frame_buffer.empty()) {
         int w = 640;
         int h = 480;
@@ -167,8 +167,8 @@ int main() {
 
     SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // 초록색 박스
     {
-      std::lock_guard<std::mutex> lock(g_data_mutex);  // MQTT 데이터 뮤텍스
-      for (const auto& obj : g_shared_objects) {
+      std::lock_guard<std::mutex> lock(g_pi_data_mutex);  // MQTT 데이터 뮤텍스
+      for (const auto& obj : g_pi_shared_objects) {
         SDL_Rect r = {
             (int)(obj.x + 640),  // 영상이 오른쪽 절반에 있으므로 640 더하기
             (int)obj.y, (int)obj.w, (int)obj.h};
