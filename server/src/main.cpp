@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-// #include "hanwha_node.hpp"  // 기존 한화 노드 헤더
+#include "../includes/hanwha_node.hpp"
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
 
@@ -92,7 +92,8 @@ int main() {
 
   // 1. 노드 객체 생성
   PiNode piNode("192.168.0.34");  // 라즈베리 파이 IP
-  // HanwhaNode hwNode("192.168.0.50");  // 한화 CCTV IP
+  HanwhaNode hwNode(
+      "rtsp://admin:5hanwha!@192.168.0.14/profile2/media.smp");  // 한화 CCTV IP
 
   // 3. SDL 메인 렌더링 루프 (UI 스레드)
   // SDL 초기화 및 윈도우 생성
@@ -102,13 +103,15 @@ int main() {
                        SDL_WINDOWPOS_CENTERED, 1280, 480, SDL_WINDOW_SHOWN);
   SDL_Renderer* renderer =
       SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  SDL_Texture* hwTexture = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, 1920, 1080);
   SDL_Texture* piTexture = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, 640, 480);
 
   // 2. 각 노드를 개별 스레드에서 실행
   // 영상 수신 및 데이터 파싱을 병렬로 처리합니다.
   std::thread piThread([&piNode]() { piNode.run(); });
-  // std::thread hwThread(&HanwhaNode::run, &hwNode);
+  std::thread hwThread([&hwNode]() { hwNode.run(); });
 
   bool running = true;
   SDL_Event ev;
@@ -127,7 +130,39 @@ int main() {
 
     // FPS 측정용
     bool frame_updated = false;
+    // --- [A] 한화 카메라 렌더링 (왼쪽) ---
+    {
+      std::lock_guard<std::mutex> lock(g_hw_frame_mutex);
+      if (!g_hw_frame_buffer.empty()) {
+        int real_w = 1920;
+        int real_h = 1080;
+        if (g_hw_frame_buffer.size() >= (real_w * real_h * 3 / 2)) {
+          SDL_UpdateYUVTexture(
+              hwTexture, nullptr, g_hw_frame_buffer.data(), real_w,  // Y pitch
+              g_hw_frame_buffer.data() + (real_w * real_h),
+              real_w / 2,  // U pitch
+              g_hw_frame_buffer.data() + (real_w * real_h * 5 / 4),
+              real_w / 2  // V pitch
+          );
+        }
+        g_hw_frame_buffer.clear();
+      }
+    }
+    SDL_Rect hwRect = {0, 0, 640, 480};
+    SDL_RenderCopy(renderer, hwTexture, nullptr, &hwRect);
 
+    // 한화 객체 박스
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // 빨간색
+    {
+      std::lock_guard<std::mutex> lock(g_hw_data_mutex);
+      for (const auto& obj : g_hw_objects) {
+        SDL_Rect r = {(int)(obj.x * 640), (int)(obj.y * 480),
+                      (int)(obj.w * 640), (int)(obj.h * 480)};
+        SDL_RenderDrawRect(renderer, &r);
+      }
+    }
+
+    // --- [B] 라즈베리 파이 렌더링 (오른쪽) ---
     {
       std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
       if (!g_pi_frame_buffer.empty()) {
@@ -146,20 +181,20 @@ int main() {
     }
 
     // === FPS 측정 로직 시작 ===
-    if (frame_updated) {
-      frame_count++;
-      auto now = std::chrono::steady_clock::now();
-      std::chrono::duration<double> elapsed = now - last_time;
+    // if (frame_updated) {
+    //   frame_count++;
+    //   auto now = std::chrono::steady_clock::now();
+    //   std::chrono::duration<double> elapsed = now - last_time;
 
-      if (elapsed.count() >= 1.0) {  // 1초마다 출력
-        current_fps = frame_count / elapsed.count();
-        std::cout << "[Live Monitor] PI Node FPS: " << std::fixed
-                  << std::setprecision(1) << current_fps << std::endl;
+    //   if (elapsed.count() >= 1.0) {  // 1초마다 출력
+    //     current_fps = frame_count / elapsed.count();
+    //     std::cout << "[Live Monitor] PI Node FPS: " << std::fixed
+    //               << std::setprecision(1) << current_fps << std::endl;
 
-        frame_count = 0;
-        last_time = now;
-      }
-    }
+    //     frame_count = 0;
+    //     last_time = now;
+    //   }
+    // }
     // === FPS 측정 로직 끝 ===
 
     SDL_Rect piRect = {640, 0, 640, 480};
@@ -184,7 +219,7 @@ int main() {
   if (piThread.joinable()) {
     piThread.join();  // detach 대신 join으로 스레드가 끝날 때까지 기다려줌
   }
-  // hwThread.detach();
+  if (hwThread.joinable()) hwThread.join();
 
   close(server_fd);
   cleanup_tls();

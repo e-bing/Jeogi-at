@@ -32,13 +32,13 @@ include_directories(
 # 3. 통합 실행 파일 생성
 add_executable(server 
     src/main.cpp 
-    # src/hanwha_node.cpp 
+    src/hanwha_node.cpp 
     src/pi_node.cpp 
     src/shared_data.cpp
-    # src/database.cpp
     src/database.cpp
     src/sensor.cpp
     src/qt.cpp
+    src/parser.cpp
 )
 
 # 4. 라이브러리 링크
@@ -53,4 +53,5 @@ target_link_libraries(server
     ${MARIADB_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     pthread
+    tinyxml2
 )
