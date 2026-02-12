@@ -8,6 +8,7 @@ find_package(OpenCV REQUIRED)
 find_package(PahoMqttCpp REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # FFmpeg 및 MariaDB 클라이언트 라이브러리 추가
 pkg_check_modules(AVCODEC REQUIRED libavcodec)
@@ -19,6 +20,7 @@ pkg_check_modules(MARIADB REQUIRED libmariadb) # DB 저장용
 # 2. 헤더 경로 포함
 include_directories(
     include
+    includes
     ${AVCODEC_INCLUDE_DIRS}
     ${AVFORMAT_INCLUDE_DIRS}
     ${AVUTIL_INCLUDE_DIRS}
@@ -34,6 +36,9 @@ add_executable(unified_server
     src/pi_node.cpp 
     src/shared_data.cpp
     # src/database.cpp
+    src/Database.cpp
+    src/Sensor.cpp
+    src/Qt.cpp
 )
 
 # 4. 라이브러리 링크
@@ -46,5 +51,6 @@ target_link_libraries(unified_server
     ${AVUTIL_LIBRARIES}
     ${SWSCALE_LIBRARIES}
     ${MARIADB_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
     pthread
 )
