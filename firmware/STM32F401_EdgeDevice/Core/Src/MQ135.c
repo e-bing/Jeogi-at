@@ -5,6 +5,7 @@
 uint32_t adc_value_co2 = 0;
 float co2_ppm = 0;
 float ema_co2 = 0;
+
 uint8_t first_run_co2 = 1;
 
 /**
