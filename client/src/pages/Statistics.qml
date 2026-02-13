@@ -24,7 +24,7 @@ ColumnLayout {
         repeat: false
         onTriggered: {
             console.log("Statistics - Auto-connecting...");
-            client.connectToServer("aboy.local", 12345);
+            client.connectToServer("192.168.0.18", 12345);
         }
     }
 
@@ -109,7 +109,7 @@ ColumnLayout {
                 if (client.isConnected)
                     client.disconnectFromServer();
                 else
-                    client.connectToServer("aboy.local", 12345);
+                    client.connectToServer("192.168.0.18", 12345);
             }
         }
     }
