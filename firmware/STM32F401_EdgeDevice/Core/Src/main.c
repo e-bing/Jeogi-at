@@ -32,6 +32,8 @@
 #include "mq135.h"
 #include "mq7.h"
 #include "communication.h"
+#include "Motor.h"
+#include "Environmental_system.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,8 +76,8 @@ extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart6;
 
+float alpha = 0.2; // EMA (Exponential Moving Average) weighting factor
 uint8_t timer_flag = 0;
-float alpha = 0.2; // EMA ??��????��? ê°?ì¤?��?¹??
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,59 +122,36 @@ int main(void) {
 
 	/* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_DMA_Init();
-	MX_USART2_UART_Init();
-	MX_ADC1_Init();
-	MX_TIM3_Init();
-	MX_USART6_UART_Init();
-	MX_I2S3_Init();
-	MX_SPI2_Init();
-	MX_FATFS_Init();
-	/* USER CODE BEGIN 2 */
-
-	// ??��¸ë¶? ëª¨ë?��???��???��? ? ??????œ ì´?�ê¸�???��?? ??��???��? ??�¸�?¶?
-	extern void MX_ADC1_Init(void);
-	extern void MX_TIM3_Init(void);
-	extern void MX_USART6_UART_Init(void);
-
-	MX_ADC1_Init();
-	MX_TIM3_Init();
-	MX_USART6_UART_Init();
-
-	// ??��???��? ì´?�ê¸�???��??
-	MQ135_Init();
-	MQ7_Init();
-
-	// ???´ë¨? ??��??ž??
-	HAL_TIM_Base_Start_IT(&htim3);
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  MX_USART6_UART_Init();
+  MX_TIM4_Init();
+  /* USER CODE BEGIN 2 */
 
 
-	// test: audio run
-//	Audio_Init();
-//	Audio_PlayWav("jojo.wav");
+  // test: sensor & motor
+  // Start Timer with Interrupt
+//  HAL_TIM_Base_Start_IT(&htim3);
+//  MQ135_Init();
+//  MQ7_Init();
+//  Motor_Init();
 
-	/* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
-	while (1) {
 
-		// ??��???��? ?°?´??��? ì²?�ë¦�?
-		if (timer_flag == 1) {
-			timer_flag = 0;
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+	  // test: Run the entire system task cycle (motor, sensor)
+	   Run_environmental_system_cycle();
 
-			// MQ-135 (CO2) ??��???��? ?½ê¸?
-			float co2 = MQ135_ReadCO2(&hadc1, alpha);
 
-			// MQ-7 (CO) ??��???��? ?½ê¸?
-			float co = MQ7_ReadCO(&hadc1, alpha);
+    /* USER CODE END WHILE */
 
-			// ?¼ì¦?�ë² ë¦�?íŒŒ?´ ? ????��? (JSON - UART6)
-			Send_Data_to_RaspberryPi(&huart6, co2, co);
 		}
-		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -225,14 +204,17 @@ void SystemClock_Config(void) {
 /* USER CODE BEGIN 4 */
 
 /**
- * @brief  ???´ë¨? ?¸??��??Ÿ½?Š¸ ì½œë°± (1ì´?�ë§�???��? ??�¸�?¶?)
- */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	if (htim->Instance == TIM3) {
-		timer_flag = 1; // ë©?��?¸ ë£¨í?��????��???��? ì²?�ë¦�???��???�ë�?? ??��??ž?�ê�?? ??��?? ??
-	}
+  * @brief  Timer Period Elapsed Callback (Triggered every 1 second)
+  * @param  htim: Timer handle
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if(htim->Instance == TIM3)
+    {
+        // Set flag to process data in the main loop
+        timer_flag = 1;
+    }
 }
-
 /* USER CODE END 4 */
 
 /**
