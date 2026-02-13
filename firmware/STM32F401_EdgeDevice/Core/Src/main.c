@@ -142,7 +142,7 @@ int main(void)
   MQ135_Init();
   MQ7_Init();
   Motor_Init();
-
+  Start_UART_Receive_IT(&huart6);
   /* USER CODE END 2 */
 
   /* Infinite loop */

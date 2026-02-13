@@ -12,6 +12,7 @@ char rx_buffer[RX_BUFFER_SIZE]; // Buffer to accumulate received data until newl
 int rx_index = 0;               // Current index in rx_buffer
 
 extern UART_HandleTypeDef huart6;
+extern SystemMode_t g_system_mode;
 
 /**
   * @brief  Starts UART interrupt reception
@@ -55,55 +56,51 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   * @param  json_str: Null-terminated JSON string to parse
   */
 void Handle_Received_Command(char *json_str) {
-    char debug_msg[128];
+    // 1. ❌ Remove the initial uninitialized debug_msg transmission
+    // (This was the cause of garbage value like <U+0002>)
+    // Delete the existing HAL_UART_Transmit(...) line.
 
-    // Debug: Echo received command back to Raspberry Pi
-    sprintf(debug_msg, "[RX] %s\r\n", json_str);
-    HAL_UART_Transmit(&huart6, (uint8_t*)debug_msg, strlen(debug_msg), 100);
-
-    // ===== Mode Control Command =====
+    // 2. ===== Mode control command (processed regardless of order) =====
     if (strstr(json_str, "\"type\":\"mode_control\"")) {
         if (strstr(json_str, "\"action\":\"auto\"")) {
             g_system_mode = MODE_AUTO;
-            HAL_UART_Transmit(&huart6, (uint8_t*)"[MODE] Auto mode activated\r\n", 28, 100);
         }
         else if (strstr(json_str, "\"action\":\"manual\"")) {
             g_system_mode = MODE_MANUAL;
-            HAL_UART_Transmit(&huart6, (uint8_t*)"[MODE] Manual mode activated\r\n", 30, 100);
         }
-        return; // Exit after processing mode command
+        return;
     }
 
-    // ===== Motor Control Command (Manual mode only) =====
+    // 3. ===== Motor control command (manual mode only) =====
     if (strstr(json_str, "\"type\":\"motor_control\"")) {
-        // Reject motor commands in auto mode
+        // Exit immediately if not in manual mode
         if (g_system_mode != MODE_MANUAL) {
-            HAL_UART_Transmit(&huart6, (uint8_t*)"[WARN] Auto mode - command ignored\r\n", 37, 100);
             return;
         }
 
-        char action[20] = {0};
-        int speed = 0;
+        // Determine action: check if it is start/on or stop/off
+        if (strstr(json_str, "\"action\":\"start\"") || strstr(json_str, "\"action\":\"on\"")) {
+            int speed = 100; // Default value
 
-        // Parse JSON: extract action and speed fields
-        if (sscanf(json_str, "{\"type\":\"motor_control\",\"action\":\"%[^\"]\",\"speed\":%d}", action, &speed) >= 1) {
-            if (strcmp(action, "start") == 0 || strcmp(action, "on") == 0) {
-                // Motor start command
-                g_manual_motor_speed = (speed > 0) ? speed : 100; // Use speed or default to 100
-                Motor_SetSpeed(g_manual_motor_speed);
+            // Find the position of the "speed" field and parse the number after it
+            char *speed_ptr = strstr(json_str, "\"speed\":");
+            if (speed_ptr) {
+                sscanf(speed_ptr, "\"speed\":%d", &speed);
+            }
 
-                sprintf(debug_msg, "[MOTOR] ON - Speed: %d%%\r\n", g_manual_motor_speed);
-                HAL_UART_Transmit(&huart6, (uint8_t*)debug_msg, strlen(debug_msg), 100);
-            }
-            else if (strcmp(action, "stop") == 0 || strcmp(action, "off") == 0) {
-                // Motor stop command
-                g_manual_motor_speed = 0;
-                Motor_SetSpeed(0);
-                HAL_UART_Transmit(&huart6, (uint8_t*)"[MOTOR] OFF\r\n", 13, 100);
-            }
+            g_manual_motor_speed = (speed > 0) ? speed : 100;
+            Motor_SetSpeed(g_manual_motor_speed);
+
+            // ❌ Remove plain text transmissions like [MOTOR] ON
+            // that cause JSON errors on the server side
+        }
+        else if (strstr(json_str, "\"action\":\"stop\"") || strstr(json_str, "\"action\":\"off\"")) {
+            g_manual_motor_speed = 0;
+            Motor_SetSpeed(0);
         }
     }
 }
+
 
 /**
   * @brief  Sends sensor data to Raspberry Pi via UART6

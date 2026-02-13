@@ -43,7 +43,7 @@ void Update_Motor_Control(float co2, float co) {
         Motor_SetSpeed(100);
         printf(" -> Motor: 100%%\r\n");
     }
-    else if (co2 > 400.0f || co > 9.0f) {
+    else if (co2 > 300.0f || co > 9.0f) {
         Motor_SetSpeed(60);
         printf(" -> Motor: 60%%\r\n");
     }
