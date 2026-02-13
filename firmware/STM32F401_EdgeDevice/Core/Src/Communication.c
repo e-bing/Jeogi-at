@@ -14,7 +14,7 @@ void Send_Data_to_RaspberryPi(UART_HandleTypeDef *huart, float co2, float co)
     char json_data[150];
 
     // JSON 형식으로 데이터 생성 (두 센서 데이터 모두 포함)
-    sprintf(json_data, "{\"sensors\":[{\"type\":\"MQ135\",\"co2\":%.2f},{\"type\":\"MQ7\",\"co\":%.2f}]}\r\n",
+    sprintf(json_data, "{\"sensors\":[{\"type\":\"MQ135\",\"co2\":%.2f},{\"type\":\"MQ7\",\"co\":%.2f}]}\r\n", // @suppress("Float formatting support")
             co2, co);
 
     // UART로 전송 (라즈베리파이)
