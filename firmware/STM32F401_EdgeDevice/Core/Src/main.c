@@ -142,6 +142,7 @@ int main(void)
   MQ135_Init();
   MQ7_Init();
   Motor_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -154,7 +155,12 @@ int main(void)
 
     /* USER CODE END WHILE */
 
+
     /* USER CODE BEGIN 3 */
+
+
+
+		/* USER CODE BEGIN 3 */
 	}
   /* USER CODE END 3 */
 }

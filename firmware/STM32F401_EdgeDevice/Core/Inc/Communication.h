@@ -6,6 +6,10 @@
 
 #define RX_BUFFER_SIZE 128
 
+extern uint8_t rx_byte;
+extern char rx_buffer[RX_BUFFER_SIZE];
+extern int rx_index;
+
 /**
   * @brief  Sends sensor data to Raspberry Pi in JSON format.
   * @param  huart: UART handle used for transmission.
