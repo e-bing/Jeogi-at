@@ -13,9 +13,8 @@ Window {
     title: qsTr("Smart Subway Management System")
     color: Style.colorBackground
 
-    // Global server settings (change here to affect all pages)
-    // 팝업으로 편집 가능
-    property string serverIp: "192.168.0.48"
+    // Global server settings (editable via header)
+    property string serverIp: "192.168.0.18"
     property int serverPort: 12345
 
     RowLayout {
@@ -71,46 +70,6 @@ Window {
                 Layout.preferredHeight: 50
                 source: "components/Footer.qml"
             }
-        }
-    }
-
-    // Floating server settings button + dialog
-    Button {
-        id: serverSettingsButton
-        text: "서버 설정"
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 12
-        onClicked: serverDialog.open()
-    }
-
-    Dialog {
-        id: serverDialog
-        title: "서버 설정"
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        modal: true
-        contentItem: ColumnLayout {
-            spacing: 8
-            width: 360
-            TextField {
-                id: ipField
-                placeholderText: "Server IP"
-                text: mainWindow.serverIp
-            }
-            TextField {
-                id: portField
-                placeholderText: "Server Port"
-                text: mainWindow.serverPort.toString()
-                inputMethodHints: Qt.ImhDigitsOnly
-            }
-        }
-        onAccepted: {
-            // Apply changes globally
-            if (ipField.text && ipField.text.length > 0)
-                mainWindow.serverIp = ipField.text;
-            var p = parseInt(portField.text);
-            if (!isNaN(p))
-                mainWindow.serverPort = p;
         }
     }
 }
