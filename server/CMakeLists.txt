@@ -39,6 +39,7 @@ add_executable(server
     src/database.cpp
     src/sensor.cpp
     src/qt.cpp
+    src/motor.cpp
 )
 
 # 4. 라이브러리 링크
