@@ -12,7 +12,8 @@
   * @param  co:  Filtered CO concentration in ppm (unused for transmission currently).
   */
 void Update_Remote_Monitoring(float co2, float co) {
-    Send_Data_to_RaspberryPi(co2);
+    Send_Data_to_RaspberryPi(co2, "MQ135");
+    Send_Data_to_RaspberryPi(co, "MQ7");
 }
 
 /**

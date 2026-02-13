@@ -103,24 +103,24 @@ int main(void)
   MX_USART6_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  // Initialize Sensors and Actuators
-  MQ135_Init();
-  MQ7_Init();
-  Motor_Init();
 
+
+  // test: sensor & motor
   // Start Timer with Interrupt
-  HAL_TIM_Base_Start_IT(&htim3);
+//  HAL_TIM_Base_Start_IT(&htim3);
+//  MQ135_Init();
+//  MQ7_Init();
+//  Motor_Init();
 
-  // Start UART Reception with Interrupt (for receiving commands from Raspberry Pi)
-  Start_UART_Receive_IT(&huart2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // Run the entire system task cycle (motor, sensor)
-	  Run_environmental_system_cycle();
+	  // test: Run the entire system task cycle (motor, sensor)
+	   Run_environmental_system_cycle();
 
 
     /* USER CODE END WHILE */

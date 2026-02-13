@@ -12,7 +12,7 @@
   * @param  co2: Measured CO2 concentration value.
   * @param  co: Measured CO concentration value.
   */
-void Send_Data_to_RaspberryPi(float co2);
+void Send_Data_to_RaspberryPi(float value, char* sensor_type);
 
 /**
   * @brief  Starts UART reception in Interrupt mode.

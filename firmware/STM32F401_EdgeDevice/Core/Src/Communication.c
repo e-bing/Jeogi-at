@@ -12,6 +12,7 @@ int rx_index = 0;
 
 extern UART_HandleTypeDef huart6;
 
+// 예찬 확인 해야함
 // 1. Start Receive Interrupt (Call once in main.c)
 void Start_UART_Receive_IT(UART_HandleTypeDef *huart) {
     HAL_UART_Receive_IT(huart, &rx_byte, 1);
@@ -58,12 +59,12 @@ void Handle_Received_Command(char *json_str) {
  * @note   Simplified version: Send_Data_to_RaspberryPi(value);
  * @param  co2: The CO2 concentration value to transmit.
  */
-void Send_Data_to_RaspberryPi(float co2) {
+void Send_Data_to_RaspberryPi(float value, char* sensor_type) {
     char json_data[64]; // Reduced size for single value efficiency
 
     // JSON Format: {"type":"MQ135","value":400.12}
     // huart6 and "MQ135" are fixed inside to simplify the call.
-    sprintf(json_data, "{\"type\":\"MQ135\",\"value\":%.2f}\r\n", co2);
+    sprintf(json_data, "{\"type\":\"%s\",\"value\":%.2f}\r\n", sensor_type, value);
 
     HAL_UART_Transmit(&huart6, (uint8_t*)json_data, strlen(json_data), 100);
 }
