@@ -93,85 +93,15 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-	//Microsecond delay initialization
-	DWT_Init();
 
-	//HUB75 initialization
-	HUB75_Init();
-
-	//clear screen
-	HUB75_Clear();
-	HUB75_Display();
-	printf("Display graphics.\n");
-
-
-	Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
-	Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
-
-
-	Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-
-	Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-
-
-	HUB75_Display();
-	HUB75_Clear();
-	printf("Display string.\n");
-
-	Paint_DrawString_EN(6, 3, "CO-2", &Font16, BLACK, YELLOW);
-	Paint_DrawString_EN(40, 16, "ppm", &Font8, WHITE, BLUE);
-	Paint_DrawNum(10, 18, 330.57, &Font8, 2, FONT_BACKGROUND, WHITE);
-	//Paint_DrawString_EN(5, 10, "WARNING", &Font8, BLACK, RED);
-	//Paint_DrawString_EN(10, 10, "STOP", &Font16, BLACK, BLUE);
-	//HUB75_Display();
-
-
-	HUB75_Display();
-	HUB75_Clear();
-
-	Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
-		Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
-		Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
-
-
-		Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		//Paint_DrawPoint(, 10, YELLOW, DOT_PIXEL_5X5, DOT_STYLE_DFT);
-
-		Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-
-	//Paint_DrawString_EN(1, 3, "e-bing", &Font16, BLUE, WHITE);
-	//int scroll = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+		DWT_Init();
+
+		//HUB75 initialization
+		HUB75_Init();
 		while (1) {
 		    // ==========================================
 		    // 화면 1: 그래픽 및 숫자 리스트 표시
@@ -209,14 +139,22 @@ int main(void)
 		    // ==========================================
 		    HUB75_Clear(); // 이전 잔상 제거
 
-		    Paint_DrawString_EN(6, 3, "CO-2", &Font16, BLACK, YELLOW);
-		    Paint_DrawString_EN(40, 16, "ppm", &Font8, WHITE, BLUE);
+		    Paint_DrawString_EN(10, 3, "CO-2", &Font16, BLACK, YELLOW);
+		    Paint_DrawString_EN(40, 16, "ppm", &Font8, BLACK, RED);
 
-		    // 아까 확인한 DrawNum 호출 (소수점 2자리)
 		    Paint_DrawNum(10, 18, 330.57, &Font8, 2, FONT_BACKGROUND, WHITE);
 
 		    HUB75_Display();  // 화면 업데이트
 		    HAL_Delay(10);  // 2초 동안 대기
+		    HUB75_Clear(); // 이전 잔상 제거
+		    Paint_DrawString_EN(6, 3, "GO", &Font16, BLACK, RED);
+		    Paint_DrawString_EN(15, 16, "Number", &Font8, BLACK, BLUE);
+		    Paint_DrawString_EN(52, 16, "8", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(58, 16, "!", &Font8, BLACK, RED);
+
+
+		    HUB75_Display();  // 화면 업데이트
+		    HAL_Delay(10);
 		}
 
 
