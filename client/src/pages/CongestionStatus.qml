@@ -19,7 +19,7 @@ ScrollView {
         repeat: false
         onTriggered: {
             console.log("Congestion Status - Auto-connecting...");
-            client.connectToServer("192.168.0.18", 12345);
+            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
         }
     }
 

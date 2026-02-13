@@ -58,7 +58,7 @@ ColumnLayout {
         }
         Component.onCompleted: {
             console.log("Dashboard - Connecting to server...");
-            connectToServer("192.168.0.18", 12345);
+            connectToServer(mainWindow.serverIp, mainWindow.serverPort);
         }
     }
 

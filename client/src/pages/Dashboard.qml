@@ -24,7 +24,7 @@ ColumnLayout {
         repeat: false
         onTriggered: {
             console.log("Dashboard - Auto-connecting...");
-            client.connectToServer("192.168.0.18", 12345);
+            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
         }
     }
 
@@ -140,7 +140,7 @@ ColumnLayout {
                 if (client.isConnected)
                     client.disconnectFromServer();
                 else
-                    client.connectToServer("192.168.0.18", 12345);
+                    client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }
