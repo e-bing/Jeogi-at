@@ -72,3 +72,11 @@ dkms.conf
 # Executables
 build/
 /build/*
+
+### Custom Rules ###
+# Individual certificate files
+*.key
+*.crt
+
+# Configuration files
+config.json
