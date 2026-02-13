@@ -545,7 +545,7 @@ ColumnLayout {
                                 spacing: 2
                                 Text {
                                     text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
-                                    color: "#0F172A"
+                                    color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
                                     font.bold: true
                                     font.pixelSize: 10
                                 }
