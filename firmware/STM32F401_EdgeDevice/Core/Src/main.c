@@ -101,76 +101,123 @@ int main(void)
 
 	//clear screen
 	HUB75_Clear();
+	HUB75_Display();
 	printf("Display graphics.\n");
 
 
-	Paint_DrawString_EN(6, 19, "1", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(12, 19, "2", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(18, 19, "3", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(24, 19, "4", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(30, 19, "5", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(36, 19, "6", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(42, 19, "7", &Font8, BLACK, WHITE);
-	Paint_DrawString_EN(48, 19, "8", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
+	Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
+	Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
 
 
-	Paint_DrawPoint(12, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(18, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(24, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(30, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(36, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(42, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	Paint_DrawPoint(48, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-	//Paint_DrawPoint(, 10, YELLOW, DOT_PIXEL_5X5, DOT_STYLE_DFT);
-	//Paint_DrawLine(20, 11, 20, 31, WHITE, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-	//Paint_DrawLine(10, 21, 30, 21, WHITE, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-	//Paint_DrawCircle(20, 21, 10, GREEN, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+	Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+	Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
 
-	//Paint_DrawLine(44, 11, 44, 31, WHITE, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-	//Paint_DrawLine(34, 21, 54, 22, WHITE, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-//	Paint_DrawCircle(44, 21, 10, BLUE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+	Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
 
-	//Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
 
 	HUB75_Display();
-
 	HUB75_Clear();
 	printf("Display string.\n");
 
-	Paint_DrawString_EN(1, 3, "Co-2i", &Font16, BLACK, RED);
-	Paint_DrawString_EN(14, 16, "330ppm", &Font8, BLACK, BLUE);
-
+	Paint_DrawString_EN(6, 3, "CO-2", &Font16, BLACK, YELLOW);
+	Paint_DrawString_EN(40, 16, "ppm", &Font8, WHITE, BLUE);
+	Paint_DrawNum(10, 18, 330.57, &Font8, 2, FONT_BACKGROUND, WHITE);
 	//Paint_DrawString_EN(5, 10, "WARNING", &Font8, BLACK, RED);
 	//Paint_DrawString_EN(10, 10, "STOP", &Font16, BLACK, BLUE);
-	//Paint_DrawNum(0, 33, 23.456789, &Font16, 3, CYAN, BLACK);
+	//HUB75_Display();
+
+
 	HUB75_Display();
+	HUB75_Clear();
 
-	//HUB75_Clear();
+	Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
+		Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
+		Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
 
-	printf("Display Chinese and scroll down left.\n");
+
+		Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		//Paint_DrawPoint(, 10, YELLOW, DOT_PIXEL_5X5, DOT_STYLE_DFT);
+
+		Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+
 	//Paint_DrawString_EN(1, 3, "e-bing", &Font16, BLUE, WHITE);
 	//int scroll = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-while (1)
-{
-    RGBMatrixWriteData();   // ? ?? ???, ?? ?? ?? X
+		while (1) {
+		    // ==========================================
+		    // 화면 1: 그래픽 및 숫자 리스트 표시
+		    // ==========================================
+		    HUB75_Clear(); // 이전 잔상 제거
 
-    /*
-    if(scroll > SCROLL_SPEED)
-    {
-        scroll = 0;
-        scrollLeft();
-        //scrollRight();
-        //scrollUp();
-        scrollDown();
-    }
+		    // 숫자 표시 (1~8)
+		    Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
+		    Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
+		    Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
 
-    scroll++;
-    */
-}
+		    // 포인트 점들 표시
+		    Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
+		    // 외곽 사각형
+		    Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+
+		    HUB75_Display();  // 화면 업데이트
+		    HAL_Delay(10);  // 2초 동안 대기
+
+		    // ==========================================
+		    // 화면 2: CO-2 센서 값 표시
+		    // ==========================================
+		    HUB75_Clear(); // 이전 잔상 제거
+
+		    Paint_DrawString_EN(6, 3, "CO-2", &Font16, BLACK, YELLOW);
+		    Paint_DrawString_EN(40, 16, "ppm", &Font8, WHITE, BLUE);
+
+		    // 아까 확인한 DrawNum 호출 (소수점 2자리)
+		    Paint_DrawNum(10, 18, 330.57, &Font8, 2, FONT_BACKGROUND, WHITE);
+
+		    HUB75_Display();  // 화면 업데이트
+		    HAL_Delay(10);  // 2초 동안 대기
+		}
 
 
     /* USER CODE END WHILE */
