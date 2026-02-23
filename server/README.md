@@ -11,14 +11,28 @@
 ```bash
 chmod +x setup_server.sh
 ./setup_server.sh
+```
+* **보안 인증서 자동 생성:**
 
+SSL/TLS 보안 통신을 위한 인증서를 생성합니다. 실행 시 현재 서버 IP를 자동으로 감지하여 config/ 폴더에 저장합니다.
+
+```bash
+chmod +x get_cert.sh
+./get_cert.sh
+```
+⚠️ 주의: 생성 완료 후, 안내되는 IP 주소를 확인하여 클라이언트에서 서버 IP 값을 해당 IP로 수정해야 정상적으로 동작합니다.
+
+* **시스템 설정 (Unified AI Monitor Setup):**
+빌드가 완료되면 아래 명령어를 실행하여 카메라 IP, ID/PW 및 라즈베리 파이 카메라 설정을 진행하세요. 이 과정에서 `config.json` 파일이 자동으로 생성됩니다.
+```bash
+cd build
+chmod +x setup
+./setup
 ```
 
 
-* **인증서 설정:**
-서버 보안(SSL/TLS)을 위해 `config` 폴더에 아래 두 파일을 반드시 위치시켜야 합니다.
-* `config/server.crt`
-* `config/server.key`
+> **참고:** 한화 카메라 설정(IP, 계정 정보), 라즈베리 파이 카메라 IP를 미리 준비해 주세요.
+> RTSP Profile과 MQTT Topic은 줄바꿈 문자(엔터)를 입력하여 넘겨 주세요.
 
 
 
@@ -29,7 +43,6 @@ chmod +x setup_server.sh
 * **일반 빌드:**
 ```bash
 ./build.sh
-
 ```
 
 
@@ -37,7 +50,6 @@ chmod +x setup_server.sh
 기존 빌드 내역을 삭제하고 깨끗한 상태에서 다시 빌드합니다.
 ```bash
 ./build.sh clean
-
 ```
 
 
@@ -49,7 +61,6 @@ chmod +x setup_server.sh
 ```bash
 cd build
 ./server
-
 ```
 
 ---
@@ -58,3 +69,4 @@ cd build
 
 * 스크립트 실행 권한 에러 발생 시 `chmod +x *.sh`를 입력하여 권한을 부여할 수 있습니다.
 
+* **설정 파일:** `./setup`을 통해 생성된 `config.json`에는 민감한 비밀번호가 포함되어 있으므로 외부에 유출되지 않도록 주의해 주세요.

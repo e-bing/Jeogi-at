@@ -17,7 +17,7 @@ ColumnLayout {
         repeat: false
         onTriggered: {
             console.log("CameraManagement - Auto-connecting...");
-            client.connectToServer("aboy.local", 12345);
+            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
         }
     }
 
@@ -76,7 +76,7 @@ ColumnLayout {
                 if (client.isConnected)
                     client.disconnectFromServer();
                 else
-                    client.connectToServer("aboy.local", 12345);
+                    client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }

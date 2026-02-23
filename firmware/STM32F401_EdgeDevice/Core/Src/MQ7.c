@@ -1,19 +1,19 @@
 /* mq7.c */
 #include "MQ7.h"
 
-// MQ-7 관련 변수
+// MQ-7 Related Variables
 uint32_t adc_value_co = 0;
 float co_ppm = 0;
 float ema_co = 0;
 uint8_t first_run_co = 1;
 
-// MQ-7 캘리브레이션 상수
-float Vc = 5.0f;      // 공급 전압
-float RL = 10.0f;     // 부하 저항 10k (센서 보드 사양 확인)
-float R0 = 15.0f;     // 깨끗한 공기에서 측정한 Rs 값 (미리 측정해야 함)
+// MQ-7 Calibration Constants
+float Vc = 5.0f;      // Supply voltage
+float RL = 10.0f;     // Load resistance 10k (Verify sensor board specifications)
+float R0 = 15.0f;     // Rs value measured in clean air (Must be pre-measured)
 
 /**
-  * @brief  MQ-7 초기화
+  * @brief  MQ-7 Initialization
   */
 void MQ7_Init(void)
 {
@@ -22,39 +22,39 @@ void MQ7_Init(void)
 }
 
 /**
-  * @brief  ADC 값을 CO ppm으로 변환 (MQ-7)
-  * @param  adc_val: ADC 읽은 값 (0~4095)
-  * @retval CO 농도 (ppm)
+  * @brief  Convert ADC value to CO ppm (MQ-7)
+  * @param  adc_val: Read ADC value (0~4095)
+  * @retval CO concentration (ppm)
   */
 float ADC_to_CO(uint32_t adc_val)
 {
-    float voltage = (adc_val / 4095.0f) * 3.3f; // STM32 ADC 전압 (3.3V 기준)
+    float voltage = (adc_val / 4095.0f) * 3.3f; // STM32 ADC voltage (3.3V reference)
 
-    // 1. 센서 저항 Rs 계산
+    // 1. Calculate sensor resistance Rs
     if (voltage == 0) return 0;
     float rs = ((3.3f - voltage) / voltage) * RL;
 
-    // 2. Rs/R0 비 계산
+    // 2. Calculate Rs/R0 ratio
     float ratio = rs / R0;
 
-    // 3. 데이터시트 곡선 기반 ppm 계산 (pow 함수 사용)
+    // 3. Calculate ppm based on datasheet curve (Using pow function)
     float co_ppm = 98.322f * pow(ratio, -1.458f);
 
     return co_ppm;
 }
 
 /**
-  * @brief  MQ-7 CO 센서 읽기 (오버샘플링 + EMA 필터)
-  * @param  hadc: ADC 핸들
-  * @param  alpha: EMA 필터 계수
-  * @retval 필터링된 CO 값 (ppm)
+  * @brief  Read MQ-7 CO sensor (Oversampling + EMA Filter)
+  * @param  hadc: ADC handle
+  * @param  alpha: EMA filter coefficient
+  * @retval Filtered CO value (ppm)
   */
 float MQ7_ReadCO(ADC_HandleTypeDef *hadc, float alpha)
 {
-    // 1. 오버샘플링 (32번 평균)
+    // 1. Oversampling (Average of 32 samples)
     uint32_t adc_sum_co = 0;
 
-    // ADC 채널 1로 설정
+    // Configure to ADC Channel 1
     ADC_ChannelConfTypeDef sConfig = {0};
     sConfig.Channel = ADC_CHANNEL_1;
     sConfig.Rank = 1;
@@ -67,14 +67,14 @@ float MQ7_ReadCO(ADC_HandleTypeDef *hadc, float alpha)
             adc_sum_co += HAL_ADC_GetValue(hadc);
         }
         HAL_ADC_Stop(hadc);
-        HAL_Delay(1); // ADC 안정화
+        HAL_Delay(1); // ADC stabilization
     }
     adc_value_co = adc_sum_co / 32;
 
-    // 2. 원시 값 PPM 변환
+    // 2. Convert raw value to PPM
     float current_co = ADC_to_CO(adc_value_co);
 
-    // 3. EMA 필터 적용
+    // 3. Apply EMA Filter
     if(first_run_co) {
         ema_co = current_co;
         first_run_co = 0;
