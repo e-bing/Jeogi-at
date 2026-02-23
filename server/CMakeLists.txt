@@ -5,10 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 
 # 1. 패키지 탐색
 find_package(OpenCV REQUIRED)
-find_package(PahoMqttCpp REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(OpenSSL REQUIRED)
+
+find_library(PAHO_CPP_LIB paho-mqttpp3 REQUIRED)
+find_library(PAHO_C_LIB paho-mqtt3as REQUIRED)
+find_path(PAHO_INCLUDE_DIR mqtt/async_client.h REQUIRED)
 
 # FFmpeg 및 MariaDB 클라이언트 라이브러리 추가
 pkg_check_modules(AVCODEC REQUIRED libavcodec)
@@ -21,6 +24,7 @@ pkg_check_modules(MARIADB REQUIRED libmariadb) # DB 저장용
 include_directories(
     include
     includes
+    ${PAHO_INCLUDE_DIR}    
     ${AVCODEC_INCLUDE_DIRS}
     ${AVFORMAT_INCLUDE_DIRS}
     ${AVUTIL_INCLUDE_DIRS}
@@ -45,7 +49,8 @@ add_executable(server
 # 4. 라이브러리 링크
 target_link_libraries(server
     ${OpenCV_LIBS}
-    PahoMqttCpp::paho-mqttpp3
+    ${PAHO_CPP_LIB}      # ✅ PahoMqttCpp::paho-mqttpp3 대신 직접 찾은 경로 사용
+    ${PAHO_C_LIB}        # ✅ 의존성인 C 라이브러리도 함께 링크 
     ${SDL2_LIBRARIES}
     ${AVCODEC_LIBRARIES}
     ${AVFORMAT_LIBRARIES}

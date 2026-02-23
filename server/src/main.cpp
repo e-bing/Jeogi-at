@@ -14,10 +14,11 @@
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
 
-// 센서 및 DB 관련 헤더
+// 센서, 모터 및 DB 관련 헤더
 #include "../includes/database.h"
 #include "../includes/qt.h"
 #include "../includes/sensor.h"
+#include "../includes/motor.h"
 
 using namespace std;
 
@@ -41,7 +42,7 @@ int main() {
   
   extern int g_uart_fd;
   g_uart_fd = init_uart("/dev/ttyS0");
-
+  init_mqtt_motor();
   if (g_uart_fd < 0) {
 	  cerr << "UART 초기화 실패 - 센서 데이터 수신 불가, 모터 제어 불가" << endl;
   } else {

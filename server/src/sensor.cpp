@@ -102,10 +102,11 @@ void receive_sensor_data(int uart_fd, MYSQL *conn) {
                     if (has_co && has_co2) {
                         auto diff = chrono::duration_cast<chrono::milliseconds>(
                             last_co_time > last_co2_time ? last_co_time - last_co2_time : last_co2_time - last_co_time).count();
-
+			  
                         if (diff <= WINDOW_MS) {
                             cout << "📊 [통합 데이터] CO: " << last_co << " ppm | CO2: " << last_co2 << " ppm" << endl;
                             save_sensor_data(conn, last_co, last_co2);
+			    publish_sensor_mqtt(last_co, last_co2);
                             has_co = has_co2 = false;
                         }
                     }
