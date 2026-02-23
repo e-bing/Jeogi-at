@@ -97,61 +97,45 @@ void handle_qt_command(const string& cmd_str) {
             string action = cmdData.value("action", "");
 
             // 1️⃣ 모드 제어 (자동/수동 전환)
-            if (device == "mode_control") {
-                string uart_cmd = "";
-
-                if (action == "auto") {
-                    g_auto_mode = true;
-                    cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
-                    uart_cmd = "{\"type\":\"mode_control\",\"action\":\"auto\"}\n";
-                }
-                else if (action == "manual") {
-                    g_auto_mode = false;
-                    cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
-                    uart_cmd = "{\"type\":\"mode_control\",\"action\":\"manual\"}\n";
-                }
-
-                // ✅ STM32로 모드 변경 즉시 전송
-                if (g_uart_fd >= 0 && !uart_cmd.empty()) {
-                    write(g_uart_fd, uart_cmd.c_str(), uart_cmd.length());
-                    cout << "📤 [UART] STM32 모드 변경 명령 전송 완료" << endl;
-                }
-                return;
-            }
+        if (device == "mode_control") {
+    		if (action == "auto") {
+       		 g_auto_mode = true;
+        	 cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
+       	 	send_mode_command("auto");
+   	 }
+   	 else if (action == "manual") {
+       		 g_auto_mode = false;
+      	 	 cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
+       		 send_mode_command("manual");
+          }
+	  return;
+	}
 
             // 2️⃣ 장치 제어 (수동 모드일 때만 동작)
-            if (!g_auto_mode) {
-                if (device == "motor") {
-                    int speed = cmdData.value("speed", 100);
-                    string motor_uart_cmd;
+    if (!g_auto_mode) {
+      if (device == "motor") {
+        int speed = cmdData.value("speed", 100);
 
-                    if (action == "start" || action == "on") {
-                        cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
-                        // ✅ STM32가 인식할 수 있도록 JSON 끝에 \n 추가하여 직접 전송
-                        motor_uart_cmd = "{\"type\":\"motor_control\",\"action\":\"start\",\"speed\":" + to_string(speed) + "}\n";
-                    }
-                    else if (action == "stop" || action == "off") {
-                        cout << "🛑 [STATUS] MOTOR OFF" << endl;
-                        motor_uart_cmd = "{\"type\":\"motor_control\",\"action\":\"stop\",\"speed\":0}\n";
-                    }
-
-                    if (g_uart_fd >= 0 && !motor_uart_cmd.empty()) {
-                        write(g_uart_fd, motor_uart_cmd.c_str(), motor_uart_cmd.length());
-                        cout << "📤 [UART] STM32 모터 명령 전송: " << motor_uart_cmd;
-                    }
-                }
-                else if (device == "speaker") {
-                    cout << "🔊 [STATUS] SPEAKER " << (action == "on" ? "ON" : "OFF") << endl;
-                }
-                else if (device == "lighting") {
-                    cout << "💡 [STATUS] LIGHTING " << (action == "on" ? "ON" : "OFF") << endl;
-                }
-            } 
-            else {
-                // 자동 모드일 때 Qt에서 제어 명령이 온 경우
-                cout << "⚠️ [AUTO MODE] Qt 수동 명령 무시됨 (현재 자동 모드 활성화 중)" << endl;
-            }
+        if (action == "start" || action == "on") {
+            cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
+            send_motor_command("start", speed);
         }
+        else if (action == "stop" || action == "off") {
+            cout << "🛑 [STATUS] MOTOR OFF" << endl;
+            send_motor_command("stop", 0);
+        }
+    }
+    else if (device == "speaker") {
+        cout << "🔊 [STATUS] SPEAKER " << (action == "on" ? "ON" : "OFF") << endl;
+    }
+    else if (device == "lighting") {
+        cout << "💡 [STATUS] LIGHTING " << (action == "on" ? "ON" : "OFF") << endl;
+    }
+}
+else {
+    cout << "⚠️ [AUTO MODE] Qt 수동 명령 무시됨 (현재 자동 모드 활성화 중)" << endl;
+}
+}  // if (type == "device_command") 닫기
     } catch (json::exception& e) {
         cerr << "❌ Qt 명령 파싱 에러: " << e.what() << endl;
     }

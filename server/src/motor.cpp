@@ -8,7 +8,7 @@ using namespace std;
 
 bool g_auto_mode = true;
 
-static const string MQTT_BROKER = "tcp://192.168.0.18:1883";
+static const string MQTT_BROKER = "tcp://192.168.0.53:1883";
 static const string MQTT_TOPIC  = "motor/control";
 static const string CLIENT_ID   = "server_motor_pub";
 
