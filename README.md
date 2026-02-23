@@ -2,6 +2,10 @@
 
 # 🚉 저기어때?
 
+<p align="center">
+  <img width="80%" height="10%" alt="Image" src="https://github.com/user-attachments/assets/c686c0df-a90f-4926-a6c7-a962c37c98cb" />
+</p>
+
 **지하철 승강장 구역별 혼잡도 안내 및 환경 관리 시스템** 
 > 실시간 인원 카운팅을 통해 승객을 분산시키고, 역사 내 공기 질을 관리하는 지능형 관제 솔루션입니다.
 
