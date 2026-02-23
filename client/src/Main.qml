@@ -13,6 +13,9 @@ Window {
     title: qsTr("Smart Subway Management System")
     color: Style.colorBackground
 
+    property string serverIp: "192.168.0.48"
+    property int serverPort: 12345
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
