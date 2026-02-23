@@ -4,6 +4,7 @@
 
 #include <openssl/ssl.h>
 #include <mariadb/mysql.h>
+#include <string>
 
 // TLS 초기화 및 정리
 void init_tls();
@@ -15,6 +16,9 @@ void handle_client(int client_socket);
 
 // 유틸리티
 bool kill_process_using_port(int port);
+
+// Qt에서 입력 받기
+void handle_qt_command(const std::string& cmd_str);
 
 #endif // QT_COMM_H
 

@@ -5,6 +5,8 @@
 #include <mariadb/mysql.h>
 #include <string>
 
+extern int g_uart_fd;
+
 using namespace std;
 
 // UART 초기화 및 관리
