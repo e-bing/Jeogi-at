@@ -73,6 +73,10 @@ dkms.conf
 build/
 /build/*
 
-# key
+### Custom Rules ###
+# Individual certificate files
 *.key
 *.crt
+
+# Configuration files
+config.json
