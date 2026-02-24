@@ -1,19 +1,12 @@
-// sensor_comm.h
-#ifndef SENSOR_COMM_H
-#define SENSOR_COMM_H
+#ifndef SENSOR_H
+#define SENSOR_H
 
 #include <mariadb/mysql.h>
-#include <string>
 
-extern int g_uart_fd;
+/**
+ * @brief aboy로부터 MQTT로 센서값을 수신해서 DB에 저장합니다.
+ * @param conn DB 연결 핸들
+ */
+void receive_sensor_data(MYSQL* conn);
 
-using namespace std;
-
-// UART 초기화 및 관리
-int init_uart(const char* device);
-void close_uart(int uart_fd);
-
-// 센서 데이터 수신 스레드 함수
-void receive_sensor_data(int uart_fd, MYSQL* conn);
-
-#endif // SENSOR_COMM_H
+#endif // SENSOR_H

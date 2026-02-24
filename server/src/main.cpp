@@ -40,15 +40,7 @@ int main() {
   // 1. TLS 및 포트 초기화
   init_tls();
   kill_process_using_port(PORT);
-  
-  extern int g_uart_fd;
-  g_uart_fd = init_uart("/dev/ttyS0");
   init_mqtt_motor();
-  if (g_uart_fd < 0) {
-	  cerr << "UART 초기화 실패 - 센서 데이터 수신 불가, 모터 제어 불가" << endl;
-  } else {
-    cout << "✅ STM32 UART 연결 성공: /dev/ttyS0" << endl;
-  }
 
   auto config = ConfigManager::load();
   if (config.empty()) {
@@ -58,12 +50,6 @@ int main() {
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
   thread sensor_thread([]() {
-    extern int g_uart_fd;
-    
-    if (g_uart_fd < 0) {
-      cerr << "⚠️ UART 미연결 - 센서 스레드 종료" << endl;
-      return;
-    }
 
     DBConfig config;
     MYSQL* sensor_conn = connect_db(config);
@@ -72,7 +58,8 @@ int main() {
       return;
     }
 
-    receive_sensor_data(g_uart_fd, sensor_conn);
+    receive_sensor_data(sensor_conn);
+
     close_db(sensor_conn);
   });
   sensor_thread.detach();

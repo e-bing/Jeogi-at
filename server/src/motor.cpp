@@ -66,14 +66,3 @@ void send_mode_command(const string& mode) {
         cerr << "❌ MQTT 모드 명령 전송 실패: " << e.what() << endl;
     }
 }
-
-void publish_sensor_mqtt(float co, float co2) {
-    if (!g_mqtt_connected) return;
-    try {
-        json payload = {{"co", co}, {"co2", co2}};
-        g_mqtt_client.publish("sensor/data", payload.dump(), 1, false)->wait();
-        cout << "📤 센서값 MQTT 전송 CO: " << co << " | CO2: " << co2 << endl;
-    } catch (const mqtt::exception& e) {
-        cerr << "❌ 센서 MQTT 전송 실패: " << e.what() << endl;
-    }
-}
