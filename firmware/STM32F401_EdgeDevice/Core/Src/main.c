@@ -25,6 +25,8 @@
 /* USER CODE BEGIN Includes */
 #include "RGBMatrix_device.h"
 #include "GUI_Paint.h"
+#include "Display_Screens.h"
+#include "Data_Manager.h"
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -46,7 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint32_t last_tick = 0;
+int screen_state = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,97 +70,65 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
-
-//  Paint_Clear(0xff);
-	//memset(BlackImage, 0xff, 8192);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
-  /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+
   /* USER CODE BEGIN 2 */
+
+  DWT_Init();
+  HUB75_Init();
+  Data_Manager_Init();   // 데이터 구조체 초기화
+
+  // 초기 값 설정 (DB 연동 전 테스트용)
+  g_db_data.co2_val = 330.57;
+  g_db_data.target_num = 9;
+
+  last_tick = HAL_GetTick();   // 타이머 기준값 초기화
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-		DWT_Init();
+  while (1)
+  {
+    /* 5초마다 화면 전환 (비차단 방식) */
+    if (HAL_GetTick() - last_tick > 5000)
+    {
+      last_tick = HAL_GetTick();
 
-		//HUB75 initialization
-		HUB75_Init();
-		while (1) {
-		    // ==========================================
-		    // 화면 1: 그래픽 및 숫자 리스트 표시
-		    // ==========================================
-		    HUB75_Clear(); // 이전 잔상 제거
+      switch (screen_state)
+      {
+        case 0:
+          Screen_Show_Dashboard();
+          screen_state = 1;
+          break;
 
-		    // 숫자 표시 (1~8)
-		    Paint_DrawString_EN(8, 19, "1", &Font8, FONT_BACKGROUND, WHITE);
-		    Paint_DrawString_EN(14, 19, "2", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(20, 19, "3", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(26, 19, "4", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(32, 19, "5", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(38, 19, "6", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(44, 19, "7", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(50, 19, "8", &Font8, BLACK, WHITE);
+        case 1:
+          Screen_Show_CO2(&g_db_data);
+          screen_state = 2;
+          break;
 
-		    // 포인트 점들 표시
-		    Paint_DrawPoint(14, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(20, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(26, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(32, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(38, 11, RED, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(44, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(50, 11, YELLOW, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(56, 11, GREEN, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    Paint_DrawPoint(62, 11, BLACK, DOT_PIXEL_6X6, DOT_STYLE_DFT);
-		    // 외곽 사각형
-		    Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-
-		    HUB75_Display();  // 화면 업데이트
-		    HAL_Delay(10);  // 2초 동안 대기
-
-		    // ==========================================
-		    // 화면 2: CO-2 센서 값 표시
-		    // ==========================================
-		    HUB75_Clear(); // 이전 잔상 제거
-
-		    Paint_DrawString_EN(10, 3, "CO-2", &Font16, BLACK, YELLOW);
-		    Paint_DrawString_EN(40, 16, "ppm", &Font8, BLACK, RED);
-
-		    Paint_DrawNum(10, 18, 330.57, &Font8, 2, FONT_BACKGROUND, WHITE);
-
-		    HUB75_Display();  // 화면 업데이트
-		    HAL_Delay(10);  // 2초 동안 대기
-		    HUB75_Clear(); // 이전 잔상 제거
-		    Paint_DrawString_EN(6, 3, "GO", &Font16, BLACK, RED);
-		    Paint_DrawString_EN(15, 16, "Number", &Font8, BLACK, BLUE);
-		    Paint_DrawString_EN(52, 16, "8", &Font8, BLACK, WHITE);
-		    Paint_DrawString_EN(58, 16, "!", &Font8, BLACK, RED);
-
-
-		    HUB75_Display();  // 화면 업데이트
-		    HAL_Delay(10);
-		}
-
-
+        case 2:
+          Screen_Show_Alert(&g_db_data);
+          screen_state = 0;
+          break;
+      }
+    }
+  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -214,7 +185,7 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 int __io_putchar(int ch)
 {
-    // &huart2�??? ?��?�� 1바이?�� ?��?��
+    // printf 출력을 UART2로 내보냄
     HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
     return ch;
 }
