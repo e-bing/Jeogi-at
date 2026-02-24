@@ -10,13 +10,9 @@ extern ADC_HandleTypeDef hadc1;
 extern uint8_t timer_flag;
 extern float alpha;
 
-// mode control
-typedef enum {
-		MODE_AUTO = 0,
-		MODE_MANUAL = 1
-};
 /* Function Prototypes */
 void Send_Data_to_RaspberryPi(float value, char* sensor_type);
 void Run_environmental_system_cycle(void);
+void Update_Remote_Monitoring(float co2, float co);
 
 #endif
