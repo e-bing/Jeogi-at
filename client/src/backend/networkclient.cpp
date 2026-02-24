@@ -2,9 +2,8 @@
 
 #include <QDebug>
 
-NetworkClient::NetworkClient(QObject* parent)
-    : QObject(parent),
-      m_isConnected(false),
+NetworkClient::NetworkClient(QObject *parent)
+    : QObject(parent), m_isConnected(false),
       m_statusMessage("Ready to connect") {
   socket = new QSslSocket(this);
 
@@ -14,7 +13,7 @@ NetworkClient::NetworkClient(QObject* parent)
           &NetworkClient::onDisconnected);
   connect(socket, &QSslSocket::readyRead, this, &NetworkClient::readData);
   connect(socket,
-          QOverload<const QList<QSslError>&>::of(&QSslSocket::sslErrors), this,
+          QOverload<const QList<QSslError> &>::of(&QSslSocket::sslErrors), this,
           &NetworkClient::onSslErrors);
   connect(socket, &QAbstractSocket::errorOccurred, this,
           &NetworkClient::onErrorOccurred);
@@ -30,7 +29,7 @@ bool NetworkClient::isConnected() const { return m_isConnected; }
 
 QString NetworkClient::statusMessage() const { return m_statusMessage; }
 
-void NetworkClient::connectToServer(const QString& host, quint16 port) {
+void NetworkClient::connectToServer(const QString &host, quint16 port) {
   if (socket->state() != QAbstractSocket::UnconnectedState) {
     socket->disconnectFromHost();
   }
@@ -60,9 +59,9 @@ void NetworkClient::onDisconnected() {
   setIsConnected(false);
 }
 
-void NetworkClient::onSslErrors(const QList<QSslError>& errors) {
+void NetworkClient::onSslErrors(const QList<QSslError> &errors) {
   QString errMsg = "SSL Errors: ";
-  for (const QSslError& err : errors) {
+  for (const QSslError &err : errors) {
     errMsg += err.errorString() + "; ";
   }
   qDebug() << errMsg;
@@ -81,7 +80,8 @@ void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
 void NetworkClient::readData() {
   while (socket->canReadLine()) {
     QByteArray line = socket->readLine().trimmed();
-    if (line.isEmpty()) continue;
+    if (line.isEmpty())
+      continue;
 
     QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
     if (jsonDoc.isNull() || !jsonDoc.isObject()) {
@@ -115,9 +115,9 @@ void NetworkClient::readData() {
   }
 }
 
-void NetworkClient::processRealtimeData(const QJsonArray& data) {
+void NetworkClient::processRealtimeData(const QJsonArray &data) {
   QJsonArray modifiedData;
-  for (const QJsonValue& val : data) {
+  for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
     int count = obj["count"].toInt();
     QString status;
@@ -134,14 +134,15 @@ void NetworkClient::processRealtimeData(const QJsonArray& data) {
   emit realtimeDataReceived(modifiedData.toVariantList());
 }
 
-void NetworkClient::processRealtimeAirData(const QJsonArray& data) {
-  if (data.isEmpty()) return;
+void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
+  if (data.isEmpty())
+    return;
 
   // Find the most recent record by recorded_at across all stations
   QJsonObject latestObj;
   QString latestTime = "";
 
-  for (const QJsonValue& val : data) {
+  for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
     // Support multiple field names for timestamp
     QString recordedAt = obj.contains("recorded_at")
@@ -155,7 +156,8 @@ void NetworkClient::processRealtimeAirData(const QJsonArray& data) {
     }
   }
 
-  if (latestObj.isEmpty()) latestObj = data.at(0).toObject();
+  if (latestObj.isEmpty())
+    latestObj = data.at(0).toObject();
 
   // Support both "co2_ppm" (new) and "toxic_gas_level" (old/backup)
   double co2 = 0.0;
@@ -183,7 +185,7 @@ void NetworkClient::processRealtimeAirData(const QJsonArray& data) {
   if (co < 9.0)
     coStatus = "🟢 양호";
   else if (co < 25.0)
-    coStatus = "🟡 보통";
+    coStatus = "🟡 주의";
   else
     coStatus = "🔴 위험";
 
@@ -191,7 +193,7 @@ void NetworkClient::processRealtimeAirData(const QJsonArray& data) {
   if (co2 < 400.0)
     gasStatus = "🟢 양호";
   else if (co2 < 600.0)
-    gasStatus = "🟡 보통";
+    gasStatus = "🟡 주의";
   else
     gasStatus = "🔴 위험";
 
@@ -200,21 +202,21 @@ void NetworkClient::processRealtimeAirData(const QJsonArray& data) {
 
   emit realtimeAirReceived(latestObj.toVariantMap());
 }
-void NetworkClient::processAirStatsData(const QJsonArray& data) {
+void NetworkClient::processAirStatsData(const QJsonArray &data) {
   QJsonArray modifiedData;
-  for (const QJsonValue& val : data) {
+  for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
     double co = obj["co"].toDouble();
-    double co2 = obj["co2"].toDouble();  // Server changed "gas" to "co2"
+    double co2 = obj["co2"].toDouble(); // Server changed "gas" to "co2"
 
     // CO status: <9.0 (Good), <25.0 (Moderate), >=25.0 (Poor)
     QString coStatus;
     if (co < 9.0) {
       coStatus = "🟢 양호";
     } else if (co < 25.0) {
-      coStatus = "🟡 보통";
+      coStatus = "🟡 주의";
     } else {
-      coStatus = "🔴 나쁨";
+      coStatus = "🔴 위험";
     }
 
     // CO2 (Gas) status: <400 (Good), <600 (Moderate), >=600 (Poor)
@@ -222,23 +224,23 @@ void NetworkClient::processAirStatsData(const QJsonArray& data) {
     if (co2 < 400.0) {
       gasStatus = "🟢 양호";
     } else if (co2 < 600.0) {
-      gasStatus = "🟡 보통";
+      gasStatus = "🟡 주의";
     } else {
-      gasStatus = "🔴 나쁨";
+      gasStatus = "🔴 위험";
     }
 
     obj["co_status"] = coStatus;
     obj["gas_status"] = gasStatus;
     obj["gas"] =
-        co2;  // Map server "co2" back to QML "gas" for backward compatibility
+        co2; // Map server "co2" back to QML "gas" for backward compatibility
     modifiedData.append(obj);
   }
   emit airStatsReceived(modifiedData.toVariantList());
 }
 
-void NetworkClient::processFlowStatsData(const QJsonArray& data) {
+void NetworkClient::processFlowStatsData(const QJsonArray &data) {
   QJsonArray modifiedData;
-  for (const QJsonValue& val : data) {
+  for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
     int count = obj["avg_count"].toInt();
     QString status;
@@ -255,8 +257,8 @@ void NetworkClient::processFlowStatsData(const QJsonArray& data) {
   emit flowStatsReceived(modifiedData.toVariantList());
 }
 
-void NetworkClient::sendDeviceCommand(const QString& device,
-                                      const QString& action) {
+void NetworkClient::sendDeviceCommand(const QString &device,
+                                      const QString &action) {
   if (socket->state() != QAbstractSocket::ConnectedState) {
     setStatus("Cannot send command: not connected");
     return;
@@ -276,7 +278,7 @@ void NetworkClient::sendDeviceCommand(const QString& device,
   setStatus(QString("Sent command: %1 -> %2").arg(device, action));
 }
 
-void NetworkClient::setStatus(const QString& message) {
+void NetworkClient::setStatus(const QString &message) {
   if (m_statusMessage != message) {
     m_statusMessage = message;
     emit statusMessageChanged();
