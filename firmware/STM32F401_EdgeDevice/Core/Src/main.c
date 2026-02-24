@@ -32,7 +32,6 @@
 #include "mq135.h"
 #include "mq7.h"
 #include "communication.h"
-#include "Motor.h"
 #include "Environmental_system.h"
 /* USER CODE END Includes */
 
@@ -133,7 +132,6 @@ int main(void)
   MX_I2S3_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
-  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   // test: sensor & motor
@@ -141,8 +139,6 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim3);
   MQ135_Init();
   MQ7_Init();
-  Motor_Init();
-  Start_UART_Receive_IT(&huart6);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -154,7 +150,6 @@ int main(void)
 
 
     /* USER CODE END WHILE */
-
 
     /* USER CODE BEGIN 3 */
 
