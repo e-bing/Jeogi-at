@@ -357,7 +357,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? dashboardRoot.airStatsData.co_level.toFixed(1) : "0"
+                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? dashboardRoot.airStatsData.co_level.toFixed(2) : "0"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }

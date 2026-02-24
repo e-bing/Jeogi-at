@@ -171,10 +171,14 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   double co = latestObj["co_level"].toDouble();
 
-  // DEBUG: log received values to console for easier troubleshooting
-  qDebug() << "Realtime Air Update - Station:"
-           << latestObj["station"].toString() << "CO2 (ppm):" << co2
-           << "CO (level):" << co << "recorded_at:" << latestTime;
+  // LOG: Print detailed debug information to identify value discrepancies
+  qDebug() << "-----------------------------------------";
+  qDebug() << "📡 [NETWORK_DATA] Realtime Air Update";
+  qDebug() << "📍 Station: " << latestObj["station"].toString();
+  qDebug() << "🕙 Recorded At: " << latestTime;
+  qDebug() << "🌫️ CO2: " << co2 << " (raw_ppm)";
+  qDebug() << "🌫️ CO:  " << co << " (raw_level)";
+  qDebug() << "-----------------------------------------";
 
   // Ensure both field names are present in the map for UI compatibility
   latestObj["co2_ppm"] = co2;
