@@ -158,7 +158,7 @@ void Audio_PlayWav(const char *filename)
     }
 
     /* Skip WAV header */
-    f_lseek(&wav_file, AUDIO_WAV_HEADER_SIZE);
+	f_lseek(&wav_file, AUDIO_WAV_HEADER_SIZE);
 
     /* Pre-fill buffers */
     Audio_FillHalf(&i2s_buf[0]);

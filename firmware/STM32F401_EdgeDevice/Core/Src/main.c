@@ -31,31 +31,12 @@
 /* USER CODE BEGIN Includes */
 #include "mq135.h"
 #include "mq7.h"
-#include "communication.h"
 #include "Motor.h"
-#include "Environmental_system.h"
+#include "uart_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-	char riff[4];
-	uint32_t size;
-	char wave[4];
-
-	char fmt[4];
-	uint32_t fmt_size;
-	uint16_t format;
-	uint16_t channels;
-	uint32_t sample_rate;
-	uint32_t byte_rate;
-	uint16_t align;
-	uint16_t bits;
-
-	char data[4];
-	uint32_t data_size;
-} WAV_Header;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -140,9 +121,8 @@ int main(void)
 //  Audio_Init();
 //  Audio_PlayWav("voice_1.wav");
 
-  //test: uart
-  Sensor_Init();
-  UART_CMD_Init(&huart2);
+  //test: uart_protocol
+  UART_CMD_Init(&huart6);
 
   printf("running..\r\n");
   /* USER CODE END 2 */
@@ -154,8 +134,9 @@ int main(void)
 	  //test: Run the entire system task cycle (motor, sensor)
 //	   Run_environmental_system_cycle();
 
-	  //test : uart
-	  UART_CMD_Process();
+	  //test : uart_protocol
+	  UART_Handler_Process();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
