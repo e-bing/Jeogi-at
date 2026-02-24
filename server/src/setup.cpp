@@ -30,7 +30,7 @@ int main() {
   std::string input;
 
   std::cout << "=================================\n";
-  std::cout << "    Unified AI Monitor Setup     \n";
+  std::cout << "     AI Camera Monitor Setup     \n";
   std::cout << "=================================\n\n";
 
   // 1. 한화 카메라 설정
@@ -64,23 +64,43 @@ int main() {
   std::cout << "\n";
 
   // 2. 라즈베리 파이 설정
+  json pi_list = json::array();
+  int camera_count = 1;
   std::cout << "[2] Raspberry Pi Settings\n";
   while (true) {
+    std::cout << "\n[Pi Node #" << pi_list.size() + 1
+              << " Settings] (Type 'q' in IP to finish)\n";
+    std::string ip, id, desc;
+
     std::cout << " - Pi IP: ";
-    std::cin >> input;
-    if (isValidIP(input)) {
-      config["pi"]["ip"] = input;
-      break;
+    std::cin >> ip;
+    if (ip == "q") break;
+    if (!isValidIP(ip)) {
+      std::cerr << "   [Error] Invalid IP format.\n";
+      continue;
     }
-    std::cerr << "   [Error] Invalid IP format.\n";
+
+    json pi_node;
+    pi_node["ip"] = ip;
+
+    char id_buf[10];
+    sprintf(id_buf, "CAM_%02d", camera_count);
+    pi_node["id"] = std::string(id_buf);
+
+    // 구역 정보 나중에 qt에서 받아오게 설정
+    pi_node["platforms"] = json::array();
+
+    char num_str[3];
+    sprintf(num_str, "%02d", camera_count);
+    pi_node["mqtt_topic"] = std::string("iot/pi") + num_str + "/sensor/camera";
+
+    pi_list.push_back(pi_node);
+    std::cout << "   [Added] " << pi_node["id"] << " (" << ip << ")\n";
+    camera_count++;
   }
 
-  std::cout << " - MQTT Topic (default: iot/pi01/sensor/camera): ";
-  std::cin.ignore();
-  std::getline(std::cin, input);
-  config["pi"]["mqtt_topic"] = input.empty() ? "iot/pi01/sensor/camera" : input;
-
   // 3. 파일 저장
+  config["pi_nodes"] = pi_list;
   ConfigManager::save(config);
 
   std::cout << "\n---------------------------------\n";
