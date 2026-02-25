@@ -6,6 +6,7 @@
 #include <termios.h>
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
+#include <chrono>
 
 using json = nlohmann::json;
 using namespace std;
@@ -17,6 +18,56 @@ static const string SENSOR_BROKER    = "tcp://192.168.0.53:1883";
 static const string SENSOR_CLIENT_ID = "motor_pi_sensor_pub";
 static mqtt::async_client g_sensor_mqtt(SENSOR_BROKER, SENSOR_CLIENT_ID);
 static bool g_sensor_mqtt_connected = false;
+
+// 프로토콜 상수
+static constexpr uint8_t PKT_STX         = 0xAA;
+static constexpr uint8_t PKT_ETX         = 0x55;
+static constexpr uint8_t CMD_GET_CO      = 0x01;
+static constexpr uint8_t CMD_RESP_SENSOR = 0x80;
+static constexpr uint8_t CMD_NACK        = 0xF1;
+static constexpr int     PKT_MAX_DATA    = 16;
+
+// 패킷 구조체
+struct Packet {
+    uint8_t cmd;
+    uint8_t len;
+    uint8_t data[PKT_MAX_DATA];
+    uint8_t crc;
+};
+
+// 상태머신
+typedef enum {
+    RX_WAIT_STX, RX_RECV_CMD, RX_RECV_LEN,
+    RX_RECV_DATA, RX_RECV_CRC, RX_WAIT_ETX
+} RxState;
+
+// CRC
+static uint8_t calc_crc(uint8_t cmd, uint8_t len, const uint8_t* data) {
+    uint8_t crc = cmd ^ len ^ PKT_ETX;
+    for (int i = 0; i < len; i++) crc ^= data[i];
+    return crc;
+}
+
+// 파싱
+static bool parse_byte(uint8_t byte, RxState& state, Packet& pkt, uint8_t& idx) {
+    switch (state) {
+        case RX_WAIT_STX: if (byte == PKT_STX) state = RX_RECV_CMD; break;
+        case RX_RECV_CMD: pkt.cmd = byte; state = RX_RECV_LEN; break;
+        case RX_RECV_LEN:
+            pkt.len = byte; idx = 0;
+            state = (byte > 0) ? RX_RECV_DATA : RX_RECV_CRC; break;
+        case RX_RECV_DATA:
+            if (idx < PKT_MAX_DATA) pkt.data[idx++] = byte;
+            if (idx >= pkt.len) state = RX_RECV_CRC; break;
+        case RX_RECV_CRC: pkt.crc = byte; state = RX_WAIT_ETX; break;
+        case RX_WAIT_ETX:
+            state = RX_WAIT_STX;
+            if (byte == PKT_ETX && calc_crc(pkt.cmd, pkt.len, pkt.data) == pkt.crc)
+                return true;
+            break;
+    }
+    return false;
+}
 
 /**
  * @brief STM32와의 UART 연결을 초기화합니다.
@@ -42,11 +93,12 @@ int init_uart(const char* device) {
     options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
     options.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL | INLCR);
     options.c_oflag &= ~OPOST;
-    options.c_cc[VMIN]  = 1;
-    options.c_cc[VTIME] = 10;
+    options.c_cc[VMIN]  = 0;
+    options.c_cc[VTIME] = 0;
     tcsetattr(fd, TCSANOW, &options);
     tcflush(fd, TCIOFLUSH);
-
+    
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     cout << "✅ UART 초기화 완료: " << device << " (115200 baud)" << endl;
     return fd;
 }
@@ -101,55 +153,35 @@ static void publish_to_server(float co, float co2) {
  *        항상 서버로 센서값을 MQTT로 전송합니다.
  * @param uart_fd UART 장치 파일 디스크립터
  */
+
 void receive_sensor_data(int uart_fd) {
-    char buffer[256];
-    string line_buffer = "";
-
-    init_sensor_mqtt();
-
-    cout << "🔌 STM32 센서 데이터 수신 시작" << endl;
-    cout << "--------------------------------------------------" << endl;
-
     if (uart_fd < 0) return;
 
-    float last_co  = 0.0f;
-    float last_co2 = 0.0f;
+    cout << "🔌 프로토콜 테스트 시작 - 1초마다 GET_CO 전송" << endl;
+
+    uint8_t byte;
+    RxState state   = RX_WAIT_STX;
+    Packet  pkt;
+    uint8_t dataIdx = 0;
 
     while (true) {
-        int bytes = read(uart_fd, buffer, sizeof(buffer) - 1);
-        if (bytes > 0) {
-            buffer[bytes] = '\0';
-            line_buffer += string(buffer);
+        // 1. GET_CO 패킷 전송 [AA][01][00][CRC][55]
+        // LEN=0 이므로 CRC = 0x01 ^ 0x00 ^ 0x55 = 0x54
+        uint8_t buf[] = {0xAA, 0x01, 0x00, 0x54, 0x55};
+        write(uart_fd, buf, sizeof(buf));
+        cout << "📤 GET_CO 전송" << endl;
 
-            size_t pos;
-            while ((pos = line_buffer.find('\n')) != string::npos) {
-                string line = line_buffer.substr(0, pos);
-                line_buffer.erase(0, pos + 1);
+        // 2. 1초 대기하며 응답 수신
+        auto deadline = chrono::steady_clock::now() + chrono::seconds(1);
+        while (chrono::steady_clock::now() < deadline) {
+            if (read(uart_fd, &byte, 1) <= 0) continue;
+            if (!parse_byte(byte, state, pkt, dataIdx)) continue;
 
-                try {
-                    json data = json::parse(line);
-                    string type  = data.value("type", "");
-                    float  value = data.value("value", 0.0f);
-
-                    if (type == "MQ135") {
-                        last_co2 = value;
-                        cout << "📊 CO2: " << last_co2 << " ppm" << endl;
-                    } else if (type == "MQ7") {
-                        last_co = value;
-                        cout << "📊 CO: " << last_co << " ppm" << endl;
-                    }
-
-                    // Forward to server
-                    publish_to_server(last_co, last_co2);
-
-                    // Auto mode: control motor based on sensor values
-                    if (g_auto_mode) {
-                        auto_motor_control(last_co2, last_co);
-                    }
-
-                } catch (json::exception& e) {
-                    cerr << "⚠️ JSON 에러: " << e.what() << endl;
-                }
+            // 패킷 완성
+            if (pkt.cmd == CMD_RESP_SENSOR) {
+                cout << "✅ RESP_SENSOR 수신!" << endl;
+            } else if (pkt.cmd == CMD_NACK) {
+                cout << "❌ NACK 수신" << endl;
             }
         }
     }
