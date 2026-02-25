@@ -23,6 +23,7 @@ static bool g_sensor_mqtt_connected = false;
 static constexpr uint8_t PKT_STX         = 0xAA;
 static constexpr uint8_t PKT_ETX         = 0x55;
 static constexpr uint8_t CMD_GET_CO      = 0x01;
+static constexpr uint8_t CMD_GET_CO2     = 0x02;
 static constexpr uint8_t CMD_RESP_SENSOR = 0x80;
 static constexpr uint8_t CMD_NACK        = 0xF1;
 static constexpr int     PKT_MAX_DATA    = 16;
@@ -157,32 +158,73 @@ static void publish_to_server(float co, float co2) {
 void receive_sensor_data(int uart_fd) {
     if (uart_fd < 0) return;
 
-    cout << "🔌 프로토콜 테스트 시작 - 1초마다 GET_CO 전송" << endl;
+    // 서버 전송을 위한 MQTT 클라이언트 연결 초기화
+    init_sensor_mqtt();
+
+    cout << "프로토콜 시작 - 1초마다 GET_CO, GET_CO2 전송 및 서버 발행" << endl;
 
     uint8_t byte;
-    RxState state   = RX_WAIT_STX;
+    RxState state;
     Packet  pkt;
-    uint8_t dataIdx = 0;
+    uint8_t dataIdx;
 
     while (true) {
-        // 1. GET_CO 패킷 전송 [AA][01][00][CRC][55]
-        // LEN=0 이므로 CRC = 0x01 ^ 0x00 ^ 0x55 = 0x54
-        uint8_t buf[] = {0xAA, 0x01, 0x00, 0x54, 0x55};
-        write(uart_fd, buf, sizeof(buf));
-        cout << "📤 GET_CO 전송" << endl;
+        float current_co = 0.0f;
+        float current_co2 = 0.0f;
 
-        // 2. 1초 대기하며 응답 수신
-        auto deadline = chrono::steady_clock::now() + chrono::seconds(1);
-        while (chrono::steady_clock::now() < deadline) {
-            if (read(uart_fd, &byte, 1) <= 0) continue;
-            if (!parse_byte(byte, state, pkt, dataIdx)) continue;
+        // 1. GET_CO 패킷 전송 및 응답 수신
+        // [AA][01][00][54][55] 전송
+        uint8_t req_co[] = {0xAA, CMD_GET_CO, 0x00, 0x54, 0x55};
+        write(uart_fd, req_co, sizeof(req_co));
 
-            // 패킷 완성
-            if (pkt.cmd == CMD_RESP_SENSOR) {
-                cout << "✅ RESP_SENSOR 수신!" << endl;
-            } else if (pkt.cmd == CMD_NACK) {
-                cout << "❌ NACK 수신" << endl;
+        state = RX_WAIT_STX; dataIdx = 0;
+        auto t_start = chrono::steady_clock::now();
+
+        // 300ms 동안 응답 대기
+        while (chrono::steady_clock::now() - t_start < chrono::milliseconds(300)) {
+            if (read(uart_fd, &byte, 1) > 0) {
+                if (parse_byte(byte, state, pkt, dataIdx)) {
+                    // 응답 패킷 식별 및 데이터 추출
+                    if (pkt.data[1] == CMD_GET_CO) {
+                        current_co = (float)((pkt.data[2] << 8) | pkt.data[3]) / 100.0f;
+                        break;
+                    }
+                }
             }
         }
+
+        // 2. GET_CO2 패킷 전송 및 응답 수신
+        // [AA][02][00][57][55] 전송 (CRC = 0x02 ^ 0x00 ^ 0x55 = 0x57)
+        uint8_t req_co2[] = {0xAA, CMD_GET_CO2, 0x00, 0x57, 0x55};
+        write(uart_fd, req_co2, sizeof(req_co2));
+
+        state = RX_WAIT_STX; dataIdx = 0;
+        t_start = chrono::steady_clock::now();
+
+        // 300ms 동안 응답 대기
+        while (chrono::steady_clock::now() - t_start < chrono::milliseconds(300)) {
+            if (read(uart_fd, &byte, 1) > 0) {
+                if (parse_byte(byte, state, pkt, dataIdx)) {
+                    // 응답 패킷 식별 및 데이터 추출
+                    if (pkt.data[1] == CMD_GET_CO2) {
+                        current_co2 = (float)((pkt.data[2] << 8) | pkt.data[3]) / 100.0f;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. 서버로 JSON 데이터 전송
+        publish_to_server(current_co, current_co2);
+	
+	// 4. 모터 제어 동작 수정
+        // g_auto_mode가 true(자동 모드)일 때만 센서값으로 모터를 제어한다.
+        extern bool g_auto_mode; // motor.cpp에 선언된 전역 변수를 참조
+        if (g_auto_mode) {
+            auto_motor_control(current_co2, current_co);
+        }
+	
+        // 약 1초 주기를 맞추기 위해 남은 시간(400ms) 대기
+        this_thread::sleep_for(chrono::milliseconds(400));
     }
 }
