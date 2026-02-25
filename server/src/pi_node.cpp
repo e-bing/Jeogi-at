@@ -54,9 +54,10 @@ void PiNode::run() {
   try {
     mqtt_client->connect(connOpts)->wait();
     mqtt_client->subscribe(mqtt_topic, 1)->wait();
-    std::cout << "[Pi " + node_id + "] MQTT 연결 성공!" << std::endl;
+    std::cout << "[Pi Node " + node_id + "] MQTT 연결 성공!" << std::endl;
   } catch (const mqtt::exception& exc) {
-    std::cerr << "[Pi " + node_id + "] MQTT 에러: " << exc.what() << std::endl;
+    std::cerr << "[Pi Node " + node_id + "] MQTT 에러: " << exc.what()
+              << std::endl;
     return;
   }
 
@@ -73,7 +74,7 @@ void PiNode::run() {
   AVInputFormat* ifmt = av_find_input_format("h264");
 
   if (avformat_open_input(&this->fmtCtx, url.c_str(), ifmt, &opts) < 0) {
-    std::cerr << "[Pi " + node_id + "] 영상 접속 실패" << std::endl;
+    std::cerr << "[Pi Node " + node_id + "] 영상 접속 실패" << std::endl;
     return;
   }
 
@@ -98,7 +99,7 @@ void PiNode::run() {
 
 void PiNode::process_loop() {
   if (!fmtCtx || !codecCtx || !pkt || !frame) {
-    std::cerr << "[Pi " + node_id + "] 에러: 유효하지 않은 자원 참조"
+    std::cerr << "[Pi Node " + node_id + "] 에러: 유효하지 않은 자원 참조"
               << std::endl;
     return;
   }
@@ -141,7 +142,7 @@ void PiNode::process_loop() {
     // 너무 빠르게 돌지 않도록 아주 미세한 휴식 (스레드 점유 조절)
     std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
-  std::cout << "[Pi " + node_id + "] 루프 종료 중..." << std::endl;
+  std::cout << "[Pi Node " + node_id + "] 루프 종료 중..." << std::endl;
 }
 
 PiNode::~PiNode() {
