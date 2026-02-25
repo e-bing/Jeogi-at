@@ -35,26 +35,26 @@ QtObject {
     property color colorTableHeadFlow: "#2196F3"
     property color colorTableBorder: isDarkMode ? "#334155" : "#EEEEEE"
 
-    // Fonts (Approximation)
+    // Fonts
     property font fontLarge: Qt.font({
-        family: "Segoe UI",
+        family: "Pretendard",
         pointSize: 18,
         weight: Font.Bold
     })
     property font fontNormal: Qt.font({
-        family: "Segoe UI",
+        family: "Pretendard",
         pointSize: 10
     })
     property font fontRegular: Qt.font({
-        family: "Segoe UI",
+        family: "Pretendard",
         pointSize: 10
     })
     property font fontSmall: Qt.font({
-        family: "Segoe UI",
+        family: "Pretendard",
         pointSize: 9
     })
     property font fontBold: Qt.font({
-        family: "Segoe UI",
+        family: "Pretendard",
         pointSize: 10,
         weight: Font.Bold
     })

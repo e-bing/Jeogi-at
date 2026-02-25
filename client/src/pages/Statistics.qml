@@ -302,7 +302,7 @@ ColumnLayout {
                         width: parent.width
                         spacing: 0
                         Repeater {
-                            model: ["요일", "시간", "CO (ppm)", "CO2 (ppm)", "상태"]
+                            model: ["요일", "시간", "CO (ppm)\n(임계값: 25)", "CO2 (ppm)\n(임계값: 600)", "상태"]
                             Rectangle {
                                 Layout.fillWidth: true
                                 height: 40
