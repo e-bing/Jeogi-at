@@ -58,7 +58,7 @@ void UART_CMD_Init(UART_HandleTypeDef *huart)
 ───────────────────────────────────────── */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    if (huart->Instance == uart) {
+    if (huart->Instance == uart->Instance) {
         for (int i = 0; i < Size; i++) {
             UART_RxCallback(rx_buf[i]);
         }
