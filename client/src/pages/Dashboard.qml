@@ -16,6 +16,7 @@ ColumnLayout {
     property var sectionAverages: []
     property var sectionSums: []
     property int grandTotalOccupants: 0
+    property bool isManualMode: false
 
     Timer {
         id: connectionTimer
@@ -23,7 +24,7 @@ ColumnLayout {
         repeat: false
         onTriggered: {
             console.log("Dashboard - Auto-connecting...");
-            client.connectToServer("aboy.local", 12345);
+            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
         }
     }
 
@@ -139,7 +140,7 @@ ColumnLayout {
                 if (client.isConnected)
                     client.disconnectFromServer();
                 else
-                    client.connectToServer("aboy.local", 12345);
+                    client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }
@@ -530,10 +531,58 @@ ColumnLayout {
                         anchors.margins: 20
                         spacing: 15
 
-                        Text {
-                            text: "👆 디바이스 통합 제어"
-                            font: Style.fontBold
-                            color: Style.colorSlate800
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "👆 디바이스 통합 제어"
+                                font: Style.fontBold
+                                color: Style.colorSlate800
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                            ColumnLayout {
+                                spacing: 2
+                                Text {
+                                    text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
+                                    color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
+                                    font.bold: true
+                                    font.pixelSize: 10
+                                }
+                                Rectangle {
+                                    width: 48
+                                    height: 24
+                                    radius: 12
+                                    color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
+
+                                    Rectangle {
+                                        id: modeKnob
+                                        x: dashboardRoot.isManualMode ? 26 : 2
+                                        y: 2
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        color: "white"
+                                        Behavior on x {
+                                            NumberAnimation {
+                                                duration: 200
+                                            }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
+                                            console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
+                                            if (client && client.sendDeviceCommand) {
+                                                client.sendDeviceCommand("mode_control", dashboardRoot.isManualMode ? "manual" : "auto");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // ROI Box
@@ -590,21 +639,25 @@ ColumnLayout {
                                 model: [
                                     {
                                         name: "환기 팬",
+                                        device: "motor",
                                         icon: "🍃",
-                                        active: true
+                                        active: false
                                     },
                                     {
                                         name: "안내 방송",
+                                        device: "speaker",
                                         icon: "🔊",
                                         active: false
                                     },
                                     {
                                         name: "디지털",
+                                        device: "digital_display",
                                         icon: "🖥️",
-                                        active: true
+                                        active: false
                                     },
                                     {
                                         name: "야간 조명",
+                                        device: "lighting",
                                         icon: "💡",
                                         active: false
                                     }
@@ -636,7 +689,9 @@ ColumnLayout {
                                             height: 20
                                             radius: 10
                                             color: modelData.active ? Style.colorPrimary : Style.colorSlate300
+
                                             Rectangle {
+                                                id: knob
                                                 x: modelData.active ? 18 : 2
                                                 y: 2
                                                 width: 16
@@ -646,6 +701,19 @@ ColumnLayout {
                                                 Behavior on x {
                                                     NumberAnimation {
                                                         duration: 200
+                                                    }
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    var next = !modelData.active;
+                                                    modelData.active = next;
+                                                    console.log("Device control:", modelData.name, "->", next ? "on" : "off");
+                                                    if (client && client.sendDeviceCommand) {
+                                                        client.sendDeviceCommand(modelData.device, next ? "on" : "off");
                                                     }
                                                 }
                                             }
