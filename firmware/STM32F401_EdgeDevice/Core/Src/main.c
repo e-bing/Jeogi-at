@@ -18,6 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "dma.h"
+#include "fatfs.h"
+#include "i2s.h"
+#include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -28,15 +34,18 @@
 #include "Display_Screens.h"
 #include "Data_Manager.h"
 #include <stdio.h>
+#include "mq135.h"
+#include "mq7.h"
+#include "uart_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,16 +58,31 @@
 /* USER CODE BEGIN PV */
 uint32_t last_tick = 0;
 int screen_state = 0;
+extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3;
+extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart6;
+
+float alpha = 0.2; // EMA (Exponential Moving Average) weighting factor
+uint8_t timer_flag = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/* ================= UART printf ================= */
+
+int _write(int file, char *ptr, int len)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, 2000);
+  return len;
+}
 
 /* USER CODE END 0 */
 
@@ -84,10 +108,16 @@ int main(void)
   /* USER CODE END SysInit */
 
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
 
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  MX_USART6_UART_Init();
+  MX_I2S3_Init();
+  MX_SPI2_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-
   DWT_Init();
   HUB75_Init();
   Data_Manager_Init(); // Initialize data structure
@@ -100,12 +130,32 @@ int main(void)
 
   last_tick = HAL_GetTick(); // Initialize timer reference
 
+  // test: audio
+  //  Audio_Init();
+  //  Audio_PlayWav("voice_1.wav");
+
+  // test: sensor & motor
+  // Start Timer with Interrupt
+  //  HAL_TIM_Base_Start_IT(&htim3);
+  //  MQ135_Init();
+  //  MQ7_Init();
+
+  // test: uart_protocol
+  UART_CMD_Init(&huart6);
+
+  printf("running..\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // test: Run the entire system task cycle (motor, sensor)
+    //	   Run_environmental_system_cycle();
+
+    // test : uart_protocol
+    UART_Handler_Process();
+
     /* Switch screen every 5 seconds (non-blocking) */
     if (HAL_GetTick() - last_tick > 5000)
     {
@@ -154,8 +204,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
    * in the RCC_OscInitTypeDef structure.
    */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
@@ -182,11 +233,18 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-int __io_putchar(int ch)
+
+/**
+ * @brief  Timer Period Elapsed Callback (Triggered every 1 second)
+ * @param  htim: Timer handle
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  // Redirect printf output to UART2
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
-  return ch;
+  if (htim->Instance == TIM3)
+  {
+    // Set flag to process data in the main loop
+    timer_flag = 1;
+  }
 }
 /* USER CODE END 4 */
 
