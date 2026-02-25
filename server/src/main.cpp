@@ -33,7 +33,7 @@ int main() {
   signal(SIGINT, signal_handler);
 
   cout << "==================================================" << endl;
-  cout << "   Unified AI Monitor & Station Server Start" << endl;
+  cout << "    AI Camera Monitor & Station Server Start" << endl;
   cout << "==================================================" << endl;
 
   // -- 서버 초기화 영역 --
@@ -100,10 +100,28 @@ int main() {
   std::string hw_profile = config["hanwha"]["profile"];
   std::string hw_url = "rtsp://" + hw_id + ":" + hw_pw + "@" + hw_ip + "/" +
                        hw_profile + "/media.smp";
-  std::string pi_ip = config["pi"]["ip"];
 
   HanwhaNode hwNode(hw_url);
-  PiNode piNode(pi_ip);
+  std::vector<std::shared_ptr<PiNode>> pi_nodes;
+  std::vector<std::thread> pi_threads;
+
+  if (config.contains("pi_nodes") && config["pi_nodes"].is_array()) {
+    for (const auto& item : config["pi_nodes"]) {
+      std::string ip = item["ip"];
+      std::string id = item["id"];
+      std::string topic = item["mqtt_topic"];
+
+      {
+        std::lock_guard<std::mutex> lock(g_node_map_mutex);
+        g_pi_node_map[id] = std::make_shared<CameraData>();
+      }
+
+      auto node = std::make_shared<PiNode>(ip, topic, id);
+      pi_nodes.push_back(node);
+
+      pi_threads.emplace_back([node]() { node->run(); });
+    }
+  }
 
   // 3. SDL 메인 렌더링 루프 (UI 스레드)
   // SDL 초기화 및 윈도우 생성
@@ -118,9 +136,6 @@ int main() {
   SDL_Texture* piTexture = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, 640, 480);
 
-  // 2. 각 노드를 개별 스레드에서 실행
-  // 영상 수신 및 데이터 파싱을 병렬로 처리합니다.
-  std::thread piThread([&piNode]() { piNode.run(); });
   std::thread hwThread([&hwNode]() { hwNode.run(); });
 
   bool running = true;
@@ -174,19 +189,24 @@ int main() {
 
     // --- [B] 라즈베리 파이 렌더링 (오른쪽) ---
     {
-      std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
-      if (!g_pi_frame_buffer.empty()) {
-        int w = 640;
-        int h = 480;
-        const uint8_t* y_plane = g_pi_frame_buffer.data();
-        const uint8_t* u_plane = y_plane + (w * h);
-        const uint8_t* v_plane = u_plane + (w * h / 4);
+      std::lock_guard<std::mutex> lock(g_node_map_mutex);
+      if (g_pi_node_map.count("CAM_01")) {
+        auto& camData = g_pi_node_map["CAM_01"];
+        std::lock_guard<std::mutex> dataLock(camData->data_mutex);
 
-        SDL_UpdateYUVTexture(piTexture, nullptr, y_plane, w, u_plane, w / 2,
-                             v_plane, w / 2);
+        if (!camData->frame_buffer.empty()) {
+          int w = 640;
+          int h = 480;
+          const uint8_t* y_plane = camData->frame_buffer.data();
+          const uint8_t* u_plane = y_plane + (w * h);
+          const uint8_t* v_plane = u_plane + (w * h / 4);
 
-        frame_updated = true;       // FPS 측정용
-        g_pi_frame_buffer.clear();  // FPS 측정용
+          SDL_UpdateYUVTexture(piTexture, nullptr, y_plane, w, u_plane, w / 2,
+                               v_plane, w / 2);
+
+          frame_updated = true;           // FPS 측정용
+          camData->frame_buffer.clear();  // FPS 측정용
+        }
       }
     }
 
@@ -207,28 +227,46 @@ int main() {
     // }
     // === FPS 측정 로직 끝 ===
 
-    SDL_Rect piRect = {640, 0, 640, 480};
-    SDL_RenderCopy(renderer, piTexture, nullptr, &piRect);
+    // === 화면에 박스 그리기 ===
+    // SDL_Rect piRect = {640, 0, 640, 480};
+    // SDL_RenderCopy(renderer, piTexture, nullptr, &piRect);
 
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // 초록색 박스
-    {
-      std::lock_guard<std::mutex> lock(g_pi_data_mutex);  // MQTT 데이터 뮤텍스
-      for (const auto& obj : g_pi_shared_objects) {
-        SDL_Rect r = {
-            (int)(obj.x + 640),  // 영상이 오른쪽 절반에 있으므로 640 더하기
-            (int)obj.y, (int)obj.w, (int)obj.h};
-        SDL_RenderDrawRect(renderer, &r);
-      }
-    }
+    // SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // 초록색 박스
+    // {
+    //   std::lock_guard<std::mutex> lock(g_pi_data_mutex);  // MQTT 데이터
+    //   뮤텍스 for (const auto& obj : g_pi_shared_objects) {
+    //     SDL_Rect r = {
+    //         (int)(obj.x + 640),  // 영상이 오른쪽 절반에 있으므로 640 더하기
+    //         (int)obj.y, (int)obj.w, (int)obj.h};
+    //     SDL_RenderDrawRect(renderer, &r);
+    //   }
+    // }
 
-    SDL_RenderPresent(renderer);
+    // SDL_RenderPresent(renderer);
 
     // === 인구 수 터미널에 출력 ===
     int pi_count = 0;
     int hw_count = 0;
+    std::string pi_debug_info = "";  // 디버그용 문자열
     {
-      std::lock_guard<std::mutex> lock(g_pi_data_mutex);
-      pi_count = g_pi_shared_objects.size();
+      std::lock_guard<std::mutex> lock(g_node_map_mutex);
+      for (auto const& [id, camData] : g_pi_node_map) {
+        std::lock_guard<std::mutex> dataLock(camData->data_mutex);
+        pi_count += camData->objects.size();
+
+        pi_debug_info +=
+            id + ": " + std::to_string(camData->objects.size()) + " ";
+        // (선택 사항) SDL 화면에 모든 노드의 박스를 다 그리고 싶다면 여기서
+        // DrawRect 실행
+        if (id == "CAM_01") {  // 일단 CAM_01 박스만 화면에 표시
+          SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+          for (const auto& obj : camData->objects) {
+            SDL_Rect r = {(int)(obj.x + 640), (int)obj.y, (int)obj.w,
+                          (int)obj.h};
+            SDL_RenderDrawRect(renderer, &r);
+          }
+        }
+      }
     }
 
     {
@@ -236,9 +274,13 @@ int main() {
       hw_count = g_hw_objects.size();
     }
 
-    std::cout << "\r[실시간 카운트] Hanwha: " << hw_count
-              << "명 | Pi: " << pi_count << "명 | 합계: " << hw_count + pi_count
-              << "명" << std::flush;
+    // std::cout << "\r[실시간 카운트] Hanwha: " << hw_count
+    //           << "명 | Pi: " << pi_count << "명 | 합계: " << hw_count +
+    //           pi_count
+    //           << "명" << std::flush;
+    std::cout << "\r[실시간] Hanwha: " << hw_count << " | "
+              << pi_debug_info  // 여기서 CAM_02가 계속 0인지 확인 가능
+              << "| 합계: " << hw_count + pi_count << "명" << std::flush;
 
     // === 인구 수 터미널에 출력 끝 ===
 
@@ -246,8 +288,8 @@ int main() {
   }
 
   running = false;  // 루프 종료 신호
-  if (piThread.joinable()) {
-    piThread.join();  // detach 대신 join으로 스레드가 끝날 때까지 기다려줌
+  for (auto& t : pi_threads) {
+    if (t.joinable()) t.join();
   }
   if (hwThread.joinable()) hwThread.join();
 

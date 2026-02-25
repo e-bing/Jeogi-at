@@ -122,7 +122,7 @@ Rectangle {
                             text: modelData.name
                             color: index === currentIndex ? "white" : Style.colorSlate500
                             font: Style.fontNormal
-                            renderType: Text.NativeRendering
+                            renderType: Text.QtRendering
                             Layout.fillWidth: true
                         }
                     }

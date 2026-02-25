@@ -8,12 +8,21 @@ using json = nlohmann::json;
 extern volatile sig_atomic_t stop_flag;
 
 class PiMqttCallback : public virtual mqtt::callback {
+ private:
+  std::string node_id;
+
  public:
+  PiMqttCallback(const std::string& id) : node_id(id) {}
   void message_arrived(mqtt::const_message_ptr msg) override {
     try {
       auto j = json::parse(msg->get_payload_str());
-      std::lock_guard<std::mutex> lock(g_pi_data_mutex);
-      g_pi_shared_objects.clear();
+      auto it = g_pi_node_map.find(node_id);
+      if (it == g_pi_node_map.end()) return;
+
+      auto& camData = it->second;
+      std::lock_guard<std::mutex> lock(camData->data_mutex);
+      camData->objects.clear();
+
       for (auto& obj : j["blocks"]) {
         DetectedObject res;
         res.x = obj["x"].get<float>();
@@ -21,20 +30,22 @@ class PiMqttCallback : public virtual mqtt::callback {
         res.w = obj["w"].get<float>();
         res.h = obj["h"].get<float>();
         res.typeName = "Person";
-        g_pi_shared_objects.push_back(res);
+        camData->objects.push_back(res);
       }
     } catch (...) {
     }
   }
 };
 
-PiNode::PiNode(const std::string& ip) : pi_ip(ip) {}
+PiNode::PiNode(const std::string& ip, const std::string& topic,
+               const std::string& id)
+    : pi_ip(ip), mqtt_topic(topic), node_id(id) {}
 
 void PiNode::run() {
   // 1. MQTT 초기화 (지역변수 client 대신 멤버변수 mqtt_client 사용)
   mqtt_client =
-      new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_Server_Pi");
-  this->cb = new PiMqttCallback();
+      new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_" + node_id);
+  this->cb = new PiMqttCallback(node_id);
   mqtt_client->set_callback(*(PiMqttCallback*)this->cb);
 
   mqtt::connect_options connOpts;
@@ -42,10 +53,10 @@ void PiNode::run() {
 
   try {
     mqtt_client->connect(connOpts)->wait();
-    mqtt_client->subscribe("iot/pi01/sensor/camera", 1)->wait();
-    std::cout << "[Pi Node] MQTT 연결 성공!" << std::endl;
+    mqtt_client->subscribe(mqtt_topic, 1)->wait();
+    std::cout << "[Pi " + node_id + "] MQTT 연결 성공!" << std::endl;
   } catch (const mqtt::exception& exc) {
-    std::cerr << "[Pi Node] MQTT 에러: " << exc.what() << std::endl;
+    std::cerr << "[Pi " + node_id + "] MQTT 에러: " << exc.what() << std::endl;
     return;
   }
 
@@ -62,7 +73,7 @@ void PiNode::run() {
   AVInputFormat* ifmt = av_find_input_format("h264");
 
   if (avformat_open_input(&this->fmtCtx, url.c_str(), ifmt, &opts) < 0) {
-    std::cerr << "[Pi Node] 영상 접속 실패" << std::endl;
+    std::cerr << "[Pi " + node_id + "] 영상 접속 실패" << std::endl;
     return;
   }
 
@@ -87,7 +98,8 @@ void PiNode::run() {
 
 void PiNode::process_loop() {
   if (!fmtCtx || !codecCtx || !pkt || !frame) {
-    std::cerr << "[Pi Node] 에러: 유효하지 않은 자원 참조" << std::endl;
+    std::cerr << "[Pi " + node_id + "] 에러: 유효하지 않은 자원 참조"
+              << std::endl;
     return;
   }
 
@@ -107,15 +119,19 @@ void PiNode::process_loop() {
           size_t y_size = w * h;
           size_t uv_size = (w / 2) * (h / 2);
 
-          {
-            std::lock_guard<std::mutex> lock(g_pi_frame_mutex);
-            g_pi_frame_buffer.resize(y_size + uv_size * 2);
+          auto it = g_pi_node_map.find(node_id);
+          if (it != g_pi_node_map.end()) {
+            auto& camData = it->second;
+            std::lock_guard<std::mutex> lock(camData->data_mutex);
+
+            camData->frame_buffer.resize(y_size + uv_size * 2);
 
             // Y, U, V 플레인을 하나의 벡터에 순서대로 복사
-            memcpy(g_pi_frame_buffer.data(), frame->data[0], y_size);
-            memcpy(g_pi_frame_buffer.data() + y_size, frame->data[1], uv_size);
-            memcpy(g_pi_frame_buffer.data() + y_size + uv_size, frame->data[2],
+            memcpy(camData->frame_buffer.data(), frame->data[0], y_size);
+            memcpy(camData->frame_buffer.data() + y_size, frame->data[1],
                    uv_size);
+            memcpy(camData->frame_buffer.data() + y_size + uv_size,
+                   frame->data[2], uv_size);
           }
         }
       }
@@ -125,7 +141,7 @@ void PiNode::process_loop() {
     // 너무 빠르게 돌지 않도록 아주 미세한 휴식 (스레드 점유 조절)
     std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
-  std::cout << "[Pi Node] 루프 종료 중..." << std::endl;
+  std::cout << "[Pi " + node_id + "] 루프 종료 중..." << std::endl;
 }
 
 PiNode::~PiNode() {
