@@ -1,5 +1,6 @@
 /* mq7.c */
 #include "MQ7.h"
+#include "sensor_app.h"
 
 // MQ-7 Related Variables
 uint32_t adc_value_co = 0;
@@ -83,4 +84,17 @@ float MQ7_ReadCO(ADC_HandleTypeDef *hadc, float alpha)
     }
 
     return ema_co;
+}
+
+/**
+ * @brief 통신용 2바이트 데이터를 생성합니다.
+ * @param buffer 데이터를 저장할 2바이트 배열
+ */
+void MQ7_GetProtocolData(uint8_t* buffer)
+{
+    float co_val = MQ7_ReadCO(&hadc1, SENSOR_ALPHA);
+    uint16_t ppm = (uint16_t)co_val;
+
+    buffer[0] = (uint8_t)(ppm >> 8);   // High Byte
+    buffer[1] = (uint8_t)(ppm & 0xFF); // Low Byte
 }

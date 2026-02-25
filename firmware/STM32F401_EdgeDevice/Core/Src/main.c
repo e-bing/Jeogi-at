@@ -123,8 +123,8 @@ int main(void)
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
-  //  MQ135_Init();
-  //  MQ7_Init();
+    MQ135_Init();
+    MQ7_Init();
 
   // test: uart_protocol
   UART_CMD_Init(&huart6);

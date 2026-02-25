@@ -1,5 +1,6 @@
 /* mq135.c */
 #include "MQ135.h"
+#include "sensor_app.h"
 
 // MQ-135 Related Variables
 uint32_t adc_value_co2 = 0;
@@ -77,4 +78,13 @@ float MQ135_ReadCO2(ADC_HandleTypeDef *hadc, float alpha)
     }
 
     return ema_co2;
+}
+
+void MQ135_GetProtocolData(uint8_t* buffer)
+{
+    float co2_val = MQ135_ReadCO2(&hadc1, SENSOR_ALPHA);
+    uint16_t ppm = (uint16_t)co2_val;
+
+    buffer[0] = (uint8_t)(ppm >> 8);
+    buffer[1] = (uint8_t)(ppm & 0xFF);
 }
