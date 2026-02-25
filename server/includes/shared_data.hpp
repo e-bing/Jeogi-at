@@ -2,6 +2,8 @@
 #define SHARED_DATA_HPP
 
 #include <cstdint>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -14,10 +16,14 @@ struct DetectedObject {
 };
 
 // --- 라즈베리 파이용 ---
-extern std::vector<DetectedObject> g_pi_shared_objects;
-extern std::vector<uint8_t> g_pi_frame_buffer;
-extern std::mutex g_pi_data_mutex;
-extern std::mutex g_pi_frame_mutex;
+struct CameraData {
+  std::vector<uint8_t> frame_buffer;
+  std::vector<DetectedObject> objects;
+  std::mutex data_mutex;
+};
+
+extern std::map<std::string, std::shared_ptr<CameraData>> g_pi_node_map;
+extern std::mutex g_node_map_mutex;
 
 // --- 한화 카메라용 ---
 extern std::vector<uint8_t> g_hw_frame_buffer;
