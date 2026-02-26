@@ -29,13 +29,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "RGBMatrix_device.h"
-#include "GUI_Paint.h"
-#include "Display_Screens.h"
-#include "Data_Manager.h"
 #include <stdio.h>
 #include "mq135.h"
 #include "mq7.h"
+#include "app_task.h"
 #include "uart_handler.h"
 /* USER CODE END Includes */
 
@@ -56,8 +53,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint32_t last_tick = 0;
-int screen_state = 0;
 extern ADC_HandleTypeDef hadc1;
 extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart2;
@@ -77,7 +72,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN 0 */
 
 /* ================= UART printf ================= */
-
 int _write(int file, char *ptr, int len)
 {
   HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, 2000);
@@ -87,9 +81,9 @@ int _write(int file, char *ptr, int len)
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -97,38 +91,32 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
   /* USER CODE END Init */
 
+  /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
 
+  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
-
   MX_ADC1_Init();
   MX_TIM3_Init();
-  MX_USART6_UART_Init();
   MX_I2S3_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-  DWT_Init();
-  HUB75_Init();
-  Data_Manager_Init(); // Initialize data structure
 
-  // Set initial values (for testing before DB integration)
-  g_db_data.co2_val = 330.57;
-  g_db_data.target_num = 8;
-  Screen_Show_Dashboard();
-  screen_state = 1;
-
-  last_tick = HAL_GetTick(); // Initialize timer reference
+  // test: LED panel
+  AppTask_Init();
 
   // test: audio
   //  Audio_Init();
@@ -140,9 +128,6 @@ int main(void)
   //  MQ135_Init();
   //  MQ7_Init();
 
-  // test: uart_protocol
-  UART_CMD_Init(&huart6);
-
   printf("running..\r\n");
   /* USER CODE END 2 */
 
@@ -150,68 +135,42 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // test: Run the entire system task cycle (motor, sensor)
-    //	   Run_environmental_system_cycle();
-
-    // test : uart_protocol
     UART_Handler_Process();
-
-    /* Switch screen every 5 seconds (non-blocking) */
-    if (HAL_GetTick() - last_tick > 5000)
-    {
-      last_tick = HAL_GetTick();
-
-      switch (screen_state)
-      {
-      case 0:
-        Screen_Show_Dashboard();
-        screen_state = 1;
-        break;
-
-      case 1:
-        Screen_Show_Alert(&g_db_data);
-        screen_state = 2;
-        break;
-
-      case 2:
-        Screen_Show_CO2(&g_db_data);
-        screen_state = 0;
-        break;
-      }
-    }
+    AppTask_Run();
   }
-  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-  /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 }
 
-/* USER CODE END 3 */
+  /* USER CODE END 3 */
+
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-   */
+  */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
+  * in the RCC_OscInitTypeDef structure.
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 72;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -219,8 +178,9 @@ void SystemClock_Config(void)
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -249,9 +209,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -263,14 +223,14 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */

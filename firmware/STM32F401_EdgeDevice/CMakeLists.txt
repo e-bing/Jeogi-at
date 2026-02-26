@@ -53,6 +53,8 @@ set(COMMON_INCLUDES
 set(C_SOURCES
   Core/Src/gpio.c
   Core/Src/main.c
+  Core/Src/Matrixrun.c
+  Core/Src/app_task.c
   Core/Src/stm32f4xx_hal_msp.c
   Core/Src/stm32f4xx_it.c
   Core/Src/syscalls.c
@@ -138,3 +140,4 @@ add_custom_command(TARGET ${TARGET} POST_BUILD
   COMMAND arm-none-eabi-objcopy -O binary $<TARGET_FILE:${TARGET}> ${BIN_FILE}
   COMMENT "Generating size, HEX and BIN artifacts"
 )
+
