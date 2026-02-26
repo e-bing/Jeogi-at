@@ -52,11 +52,18 @@ void Screen_Show_Dashboard(void)
 void Screen_Show_CO2(DB_Data_t *data)
 {
     HUB75_Clear();
-    Paint_DrawString_EN(10, 3, "CO-2", &Font16, BLACK, YELLOW);
-    Paint_DrawString_EN(40, 16, "ppm", &Font8, BLACK, RED);
+
+    Paint_DrawString_EN(1, 5, "CO", &Font8, BLACK, YELLOW);
+    Paint_DrawString_EN(45, 3, "ppm", &Font8, BLACK, RED);
 
     // DB에서 온 실제 값 출력
-    Paint_DrawNum(10, 18, data->co2_val, &Font8, 2, FONT_BACKGROUND, WHITE);
+    Paint_DrawNum(15, 5, data->co_val, &Font8, 2, FONT_BACKGROUND, WHITE);
+
+    Paint_DrawString_EN(1, 20, "CO2", &Font8, BLACK, YELLOW);
+    Paint_DrawString_EN(45, 18, "ppm", &Font8, BLACK, RED);
+
+    // DB에서 온 실제 값 출력
+    Paint_DrawNum(15, 20, data->co2_val, &Font8, 2, FONT_BACKGROUND, WHITE);
     HUB75_Display();
 }
 

@@ -5,9 +5,10 @@
 #include "Display_Screens.h"
 #include "RGBMatrix_device.h"
 
-#define DASHBOARD_REFRESH_INTERVAL_MS 200U
+#define SCREEN_SWITCH_INTERVAL_MS 5000U
 
 static uint32_t last_tick = 0;
+static int screen_state = 0;
 static uint8_t congestion_status[8] = {2,  2, 2, 2, 2, 2, 1, 0};
 
 static void MatrixRun_ShowDashboard(void)
@@ -21,18 +22,37 @@ static void MatrixRun_ShowDashboard(void)
 void MatrixRun_Init(void)
 {
   MatrixRun_ShowDashboard();
+  screen_state = 1;
   last_tick = HAL_GetTick();
 }
 
 void MatrixRun_Run(void)
 {
-  if ((HAL_GetTick() - last_tick) <= DASHBOARD_REFRESH_INTERVAL_MS)
+  if ((HAL_GetTick() - last_tick) <= SCREEN_SWITCH_INTERVAL_MS)
   {
     return;
   }
 
   last_tick = HAL_GetTick();
-  MatrixRun_ShowDashboard();
+
+  switch (screen_state)
+  {
+  case 0:
+    MatrixRun_ShowDashboard();
+    screen_state = 1;
+    break;
+  case 1:
+    Screen_Show_Alert(&g_db_data);
+    screen_state = 2;
+    break;
+  case 2:
+    Screen_Show_CO2(&g_db_data);
+    screen_state = 0;
+    break;
+  default:
+    screen_state = 0;
+    break;
+  }
 }
 
 void MatrixRun_SetCongestionBulk(const uint8_t data[8])
@@ -41,8 +61,4 @@ void MatrixRun_SetCongestionBulk(const uint8_t data[8])
   {
     congestion_status[i] = data[i];
   }
-
-  // Update immediately when new UART data arrives.
-  MatrixRun_ShowDashboard();
-  last_tick = HAL_GetTick();
 }
