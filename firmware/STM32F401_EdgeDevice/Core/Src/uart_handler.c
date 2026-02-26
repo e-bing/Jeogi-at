@@ -2,7 +2,7 @@
 #include "uart_protocol.h"
 #include "usart.h"      // CubeMX 생성 파일 (huart2 등)
 // 실제 장치 헤더로 교체
-#include "i2s_audio.h"
+#include <drivers/audio/audio_out.h>
 // #include "led_panel.h"
 // #include "mq7.h"
 // #include "mq135.h"

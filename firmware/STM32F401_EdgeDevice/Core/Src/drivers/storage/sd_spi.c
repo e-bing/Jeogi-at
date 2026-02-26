@@ -1,7 +1,6 @@
-#include "spi_sdcard.h"
+#include <drivers/storage/sd_spi.h>
 #include "spi.h"
 #include "gpio.h"
-#include "fatfs.h"
 #include <string.h>
 
 /* ================= CS CONTROL ================= */
@@ -211,7 +210,7 @@ static inline uint32_t sd_addr(uint32_t lba)
 
 /* ================= READ SINGLE (CMD17) ================= */
 
-uint8_t sd_read_block(uint32_t lba, uint8_t *buf)
+static int sd_read_block(uint32_t lba, uint8_t *buf)
 {
     uint8_t r;
 
@@ -246,6 +245,8 @@ uint8_t sd_read_block(uint32_t lba, uint8_t *buf)
 
 int sd_read_multi(uint32_t lba, uint8_t *buf, uint32_t count)
 {
+	if(count <= 1) return sd_read_block(lba, buf);
+
     uint8_t r;
 
     SD_CS_LOW();
@@ -285,16 +286,3 @@ int sd_read_multi(uint32_t lba, uint8_t *buf, uint32_t count)
 
 /* ================= FATFS helper ================= */
 
-void sd_files(void)
-{
-    DIR dir;
-    FILINFO fno;
-
-    if (f_opendir(&dir, "/") == FR_OK) {
-        while (1) {
-            if (f_readdir(&dir, &fno) != FR_OK) break;
-            if (fno.fname[0] == 0) break;
-            printf("%s\r\n", fno.fname);
-        }
-    }
-}

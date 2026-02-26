@@ -1,5 +1,5 @@
-#ifndef __I2S_AUDIO_H
-#define __I2S_AUDIO_H
+#ifndef AUDIO_OUT_H
+#define AUDIO_OUT_H
 
 #include "main.h"
 #include "fatfs.h"
@@ -40,4 +40,4 @@ typedef struct {
 	uint32_t data_size;
 } WAV_Header;
 
-#endif /* __I2S_AUDIO_H */
+#endif /* AUDIO_OUT_H */

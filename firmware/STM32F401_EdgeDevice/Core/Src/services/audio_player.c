@@ -1,5 +1,5 @@
-#include "spi_sdcard.h"
-#include "i2s_audio.h"
+#include <drivers/audio/audio_out.h>
+#include <drivers/storage/sd_spi.h>
 #include "spi.h"
 #include "i2s.h"
 

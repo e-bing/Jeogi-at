@@ -36,7 +36,7 @@
 #include <string.h>
 #include "ff_gen_drv.h"
 
-#include "spi_sdcard.h"
+#include <drivers/storage/sd_spi.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -132,17 +132,8 @@ DRESULT USER_read (
   /* USER CODE BEGIN READ */
     if (pdrv != 0) return RES_PARERR;
 
-    uint32_t t0 = HAL_GetTick();
-
     int ret;
-    if (count > 1) {
-        ret = sd_read_multi(sector, buff, count);
-    } else {
-        ret = sd_read_block(sector, buff);
-    }
-
-//    printf("USER_read %luB: %lums\r\n", (uint32_t)count * 512UL, HAL_GetTick() - t0);
-
+    ret = sd_read_multi(sector, buff, count);
     return (ret == 0) ? RES_OK : RES_ERROR;
 
     // end
