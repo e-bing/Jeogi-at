@@ -16,6 +16,7 @@ class PiMqttCallback : public virtual mqtt::callback {
   void message_arrived(mqtt::const_message_ptr msg) override {
     try {
       auto j = json::parse(msg->get_payload_str());
+
       auto it = g_pi_node_map.find(node_id);
       if (it == g_pi_node_map.end()) return;
 
@@ -25,14 +26,16 @@ class PiMqttCallback : public virtual mqtt::callback {
 
       for (auto& obj : j["blocks"]) {
         DetectedObject res;
-        res.x = obj["x"].get<float>();
-        res.y = obj["y"].get<float>();
-        res.w = obj["w"].get<float>();
-        res.h = obj["h"].get<float>();
+        res.x = obj.value("x", 0.0f);
+        res.y = obj.value("y", 0.0f);
+        res.w = obj.value("w", 0.0f);
+        res.h = obj.value("h", 0.0f);
         res.typeName = "Person";
         camData->objects.push_back(res);
       }
-    } catch (...) {
+    } catch (const std::exception& e) {
+      std::cerr << "[" << node_id << "] JSON Parsing Error: " << e.what()
+                << std::endl;
     }
   }
 };
