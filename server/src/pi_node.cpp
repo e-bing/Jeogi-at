@@ -42,6 +42,7 @@ PiNode::PiNode(const std::string& ip, const std::string& topic,
     : pi_ip(ip), mqtt_topic(topic), node_id(id) {}
 
 void PiNode::run() {
+  av_log_set_level(AV_LOG_FATAL);
   // 1. MQTT 초기화 (지역변수 client 대신 멤버변수 mqtt_client 사용)
   mqtt_client =
       new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_" + node_id);
@@ -66,10 +67,10 @@ void PiNode::run() {
   AVDictionary* opts = nullptr;
   std::string url = "tcp://" + pi_ip + ":5000";
 
-  av_dict_set(&opts, "probesize", "32", 0);       // 축소 테스트 중
-  av_dict_set(&opts, "analyzeduration", "0", 0);  // 분석 시간 0
-  av_dict_set(&opts, "fflags", "nobuffer", 0);    // 버퍼링 제거
-  av_dict_set(&opts, "flags", "low_delay", 0);    // 저지연 모드 활성화
+  av_dict_set(&opts, "probesize", "1000000", 0);
+  av_dict_set(&opts, "analyzeduration", "1000000", 0);
+  av_dict_set(&opts, "fflags", "nobuffer", 0);  // 버퍼링 제거
+  av_dict_set(&opts, "flags", "low_delay", 0);  // 저지연 모드 활성화
   av_dict_set(&opts, "err_detect", "ignore_err", 0);
   AVInputFormat* ifmt = av_find_input_format("h264");
 
