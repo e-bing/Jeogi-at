@@ -4,7 +4,9 @@
 using json = nlohmann::json;
 using namespace std;
 
+extern CongestionAnalyzer g_analyzer;
 extern int g_uart_fd;
+extern int get_total_people_count();
 
 SSL_CTX* g_ssl_ctx = nullptr;
 std::mutex g_ssl_send_mutex;
@@ -170,10 +172,10 @@ void handle_client(int client_socket) {
   string cmd_buffer = "";
 
   bool client_connected = true;
+  int db_tick = 0;
 
   // 영상 전송 전담 스레드 시작
   thread v_thread(video_streaming_worker, ssl, &client_connected);
-  v_thread.detach();
 
   while (client_connected) {
     // ========== 1. Qt로부터 명령 수신 (논블로킹) ==========
@@ -205,47 +207,64 @@ void handle_client(int client_socket) {
       }
     }
 
-    // ========== 2. Qt로 실시간 데이터 전송 (DB 기반) ==========
+    // [실시간 데이터 전송] - 매 루프마다 (약 10ms ~ 20ms 주기로)
     try {
-      // 메시지들을 순차적으로 생성 및 전송
-      json msg_realtime = {{"type", "realtime"},
-                           {"title", "🚉 실시간 혼잡도"},
-                           {"data", get_realtime_congestion(conn)}};
-      json msg_air = {{"type", "realtime_air"},
-                      {"title", "🌫️ 실시간 공기질"},
-                      {"data", get_realtime_air_quality(conn)}};
-      json msg_air_stats = {{"type", "air_stats"},
-                            {"camera", "CAM-01"},
-                            {"title", "📊 공기질 통계"},
-                            {"data", get_air_quality_stats(conn, "CAM-01")}};
-      json msg_flow = {{"type", "flow_stats"},
-                       {"camera", "CAM-01"},
-                       {"title", "👥 승객 흐름 통계"},
-                       {"data", get_passenger_flow_stats(conn, "CAM-01")}};
+      std::vector<int> zone_levels = g_analyzer.getCongestionLevels();
+      json msg_zones = {{"type", "zone_congestion"},
+                        {"zones", zone_levels},
+                        {"total_count", get_total_people_count()}};
+      string s_zones = msg_zones.dump() + "\n";
 
-      // 하나라도 전송 실패 시 루프 종료(disconnect)
-      string s1 = msg_realtime.dump() + "\n";
-      string s2 = msg_air.dump() + "\n";
-      string s3 = msg_air_stats.dump() + "\n";
-      string s4 = msg_flow.dump() + "\n";
+      lock_guard<mutex> lock(g_ssl_send_mutex);
+      SSL_write(ssl, s_zones.c_str(), s_zones.length());
+    } catch (...) {
+    }
 
-      {
-        lock_guard<mutex> lock(g_ssl_send_mutex);
+    // [DB 기반 데이터 전송] - db_tick이 100이 될 때마다 (약 1~2초 간격)
+    if (++db_tick >= 100) {
+      db_tick = 0;
+      try {
+        // 메시지들을 순차적으로 생성 및 전송
+        json msg_realtime = {{"type", "realtime"},
+                             {"title", "🚉 실시간 혼잡도"},
+                             {"data", get_realtime_congestion(conn)}};
+        json msg_air = {{"type", "realtime_air"},
+                        {"title", "🌫️ 실시간 공기질"},
+                        {"data", get_realtime_air_quality(conn)}};
+        json msg_air_stats = {{"type", "air_stats"},
+                              {"camera", "CAM-01"},
+                              {"title", "📊 공기질 통계"},
+                              {"data", get_air_quality_stats(conn, "CAM-01")}};
+        json msg_flow = {{"type", "flow_stats"},
+                         {"camera", "CAM-01"},
+                         {"title", "👥 승객 흐름 통계"},
+                         {"data", get_passenger_flow_stats(conn, "CAM-01")}};
 
-        if (SSL_write(ssl, s1.c_str(), s1.length()) <= 0) break;
-        if (SSL_write(ssl, s2.c_str(), s2.length()) <= 0) break;
-        if (SSL_write(ssl, s3.c_str(), s3.length()) <= 0) break;
-        if (SSL_write(ssl, s4.c_str(), s4.length()) <= 0) break;
+        // 하나라도 전송 실패 시 루프 종료(disconnect)
+        string s1 = msg_realtime.dump() + "\n";
+        string s2 = msg_air.dump() + "\n";
+        string s3 = msg_air_stats.dump() + "\n";
+        string s4 = msg_flow.dump() + "\n";
+
+        {
+          lock_guard<mutex> lock(g_ssl_send_mutex);
+
+          if (SSL_write(ssl, s1.c_str(), s1.length()) <= 0) break;
+          if (SSL_write(ssl, s2.c_str(), s2.length()) <= 0) break;
+          if (SSL_write(ssl, s3.c_str(), s3.length()) <= 0) break;
+          if (SSL_write(ssl, s4.c_str(), s4.length()) <= 0) break;
+        }
+
+      } catch (const exception& e) {
+        cerr << "데이터 전송 에러: " << e.what() << endl;
       }
-
-    } catch (const exception& e) {
-      cerr << "데이터 전송 에러: " << e.what() << endl;
     }
 
     this_thread::sleep_for(chrono::milliseconds(10));
   }
 
   client_connected = false;
+  v_thread.join();
   SSL_shutdown(ssl);
   SSL_free(ssl);
   close_db(conn);
@@ -284,7 +303,6 @@ void video_streaming_worker(SSL* ssl, bool* client_connected) {
 
         if (!g_hw_frame_buffer.empty()) {
           // [Step A] YUV Raw -> OpenCV Mat 변환
-          // YUV420p는 높이가 1.5배(Y + U + V)인 구조입니다.
           int width = 1920;
           int height = 1080;
           cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
