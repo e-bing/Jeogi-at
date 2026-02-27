@@ -11,7 +11,8 @@
 #define CMD_GET_CO2         0x02
 #define CMD_GET_TEMP_HUM    0x03
 #define CMD_SET_LED         0x10
-#define CMD_SET_AUDIO       0x20
+#define CMD_GET_FILES       0x20
+#define CMD_SET_AUDIO       0x21
 #define CMD_RESP_SENSOR     0x80
 #define CMD_ACK             0xF0
 #define CMD_NACK            0xF1

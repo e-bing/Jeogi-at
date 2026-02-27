@@ -1,5 +1,12 @@
-#ifndef AUDIO_OUT_H
-#define AUDIO_OUT_H
+/*
+ * audio_player.h
+ *
+ *  Created on: 2026. 2. 27.
+ *      Author: Taewoo Yun
+ */
+
+#ifndef INC_SERVICES_AUDIO_OUT_H_
+#define INC_SERVICES_AUDIO_OUT_H_
 
 #include "main.h"
 #include "fatfs.h"
@@ -40,4 +47,4 @@ typedef struct {
 	uint32_t data_size;
 } WAV_Header;
 
-#endif /* AUDIO_OUT_H */
+#endif /* INC_SERVICES_AUDIO_OUT_H_ */

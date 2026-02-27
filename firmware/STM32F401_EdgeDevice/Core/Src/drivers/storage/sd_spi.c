@@ -210,7 +210,7 @@ static inline uint32_t sd_addr(uint32_t lba)
 
 /* ================= READ SINGLE (CMD17) ================= */
 
-static int sd_read_block(uint32_t lba, uint8_t *buf)
+int sd_read_block(uint32_t lba, uint8_t *buf)
 {
     uint8_t r;
 

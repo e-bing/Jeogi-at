@@ -1,10 +1,8 @@
-#include <drivers/audio/audio_out.h>
+#include <services/audio_player.h>
 #include <drivers/storage/sd_spi.h>
 #include "spi.h"
 #include "i2s.h"
 
-//#include <string.h>
-//#include <stdio.h>
 /* ================= Buffer ================= */
 
 /* Mono input buffer */

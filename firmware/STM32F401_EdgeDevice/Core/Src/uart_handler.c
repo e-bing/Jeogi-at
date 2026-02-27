@@ -2,7 +2,7 @@
 #include "uart_protocol.h"
 #include "usart.h"      // CubeMX 생성 파일 (huart2 등)
 // 실제 장치 헤더로 교체
-#include <drivers/audio/audio_out.h>
+#include <services/audio_player.h>
 // #include "led_panel.h"
 // #include "mq7.h"
 // #include "mq135.h"
@@ -50,6 +50,12 @@ void UART_CMD_Init(UART_HandleTypeDef *huart)
     uart = huart; // 정해놓은 uart 사용
     HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
     printf("__uart__ __init__\r\n");
+
+
+    //test : audio
+    Audio_Init();
+    Audio_PlayWav("voice_1.wav");
+
 }
 
 /* ─────────────────────────────────────────

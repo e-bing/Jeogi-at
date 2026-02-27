@@ -116,17 +116,13 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
-  // test: audio
-  //  Audio_Init();
-  //  Audio_PlayWav("voice_1.wav");
-
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
   //  MQ135_Init();
   //  MQ7_Init();
 
-  // test: uart_protocol
+  // init: uart_protocol
   UART_CMD_Init(&huart6);
 
   printf("running..\r\n");
@@ -139,7 +135,7 @@ int main(void)
     // test: Run the entire system task cycle (motor, sensor)
     //	   Run_environmental_system_cycle();
 
-    // test : uart_protocol
+    // start : uart_handler
     UART_Handler_Process();
 
     /* USER CODE END WHILE */
