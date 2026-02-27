@@ -31,9 +31,13 @@ QString NetworkClient::statusMessage() const { return m_statusMessage; }
 
 void NetworkClient::connectToServer(const QString &host, quint16 port) {
   if (socket->state() != QAbstractSocket::UnconnectedState) {
+    qDebug() << "🔄 Current socket state:" << socket->state()
+             << ". Disconnecting first...";
     socket->disconnectFromHost();
   }
 
+  qDebug() << "🌐 Attempting to connect to" << host << ":" << port
+           << "with TLS...";
   setStatus("Connecting to sensitive server...");
   socket->connectToHostEncrypted(host, port);
 }
@@ -41,16 +45,17 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
 
 void NetworkClient::onEncrypted() {
-  qDebug() << "TLS Handshake complete";
+  qDebug() << "✅ TLS Handshake complete!";
   QString certInfo = socket->peerCertificate()
                          .subjectInfo(QSslCertificate::CommonName)
                          .join(", ");
+  qDebug() << "🔒 Peer Certificate:" << certInfo;
   setStatus("🔒 Encrypted Connection Established: " + certInfo);
   setIsConnected(true);
 }
 
 void NetworkClient::onConnected() {
-  qDebug() << "Socket connected (waiting for encrypted)";
+  qDebug() << "📡 Socket state: Connected. Initiating TLS Handshake...";
 }
 
 void NetworkClient::onDisconnected() {
@@ -77,41 +82,115 @@ void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
   setStatus("Error: " + socket->errorString());
 }
 
+#include <QtEndian>
+
 void NetworkClient::readData() {
-  while (socket->canReadLine()) {
-    QByteArray line = socket->readLine().trimmed();
-    if (line.isEmpty())
-      continue;
+  QByteArray newData = socket->readAll();
+  m_buffer.append(newData);
 
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
-    if (jsonDoc.isNull() || !jsonDoc.isObject()) {
-      qDebug() << "Invalid JSON received:" << line;
-      continue;
-    }
+  // 패킷 헤더 시작 패턴 (\xDE\xAD\xBE\xEF in Big-Endian)
+  static const QByteArray magicPattern = QByteArray::fromHex("DEADBEEF");
 
-    QJsonObject jsonObj = jsonDoc.object();
-    QString type = jsonObj["type"].toString();
-    QJsonValue dataVal = jsonObj["data"];
+  while (m_buffer.size() >= 4) {
+    int magicPos = m_buffer.indexOf(magicPattern);
 
-    if (type == "realtime") {
-      processRealtimeData(dataVal.toArray());
-    } else if (type == "realtime_air") {
-      // Robust handling: handle both Array and Single Object
-      if (dataVal.isArray()) {
-        processRealtimeAirData(dataVal.toArray());
-      } else if (dataVal.isObject()) {
-        QJsonArray arr;
-        arr.append(dataVal);
-        processRealtimeAirData(arr);
-      } else {
-        // Try parsing root object if "data" is missing but type matches
-        processRealtimeAirData(QJsonArray{jsonObj});
+    if (magicPos != -1) {
+      // 1. 매직 쿠키를 찾음. 그 이전 데이터에 JSON 줄바꿈이 있는지 확인
+      if (magicPos > 0) {
+        QByteArray precedingData = m_buffer.left(magicPos);
+        int lastNewline = precedingData.lastIndexOf('\n');
+        if (lastNewline != -1) {
+          QByteArray jsonData = precedingData.left(lastNewline + 1);
+          for (const QByteArray &line : jsonData.split('\n')) {
+            if (!line.trimmed().isEmpty())
+              processJsonResponse(line.trimmed());
+          }
+        }
+        m_buffer.remove(
+            0, magicPos); // 매직 쿠키 이전의 쓰레기 데이터나 처리된 JSON 제거
       }
-    } else if (type == "air_stats") {
-      processAirStatsData(dataVal.toArray());
-    } else if (type == "flow_stats") {
-      processFlowStatsData(dataVal.toArray());
+
+      // 이제 m_buffer는 매직 쿠키로 시작함
+      if (m_buffer.size() <
+          static_cast<int>(sizeof(CamProtocol::PacketHeader))) {
+        break; // 헤더가 다 올 때까지 대기
+      }
+
+      CamProtocol::PacketHeader header;
+      memcpy(&header, m_buffer.constData(), sizeof(header));
+      uint32_t cam_id = qFromBigEndian<uint32_t>(header.camera_id);
+      uint32_t json_size = qFromBigEndian<uint32_t>(header.json_size);
+      uint32_t image_size = qFromBigEndian<uint32_t>(header.image_size);
+      int total_size = sizeof(header) + json_size + image_size;
+
+      if (m_buffer.size() >= total_size) {
+        int offset = sizeof(header);
+        QByteArray json_data = m_buffer.mid(offset, json_size);
+        offset += json_size;
+        QByteArray img_data = m_buffer.mid(offset, image_size);
+
+        QVariantMap metadata;
+        if (!json_data.isEmpty()) {
+          QJsonDocument metaDoc = QJsonDocument::fromJson(json_data);
+          if (!metaDoc.isNull() && metaDoc.isObject()) {
+            metadata = metaDoc.object().toVariantMap();
+          }
+        }
+
+        emit cameraFrameReceived(cam_id, img_data.toBase64(), metadata);
+        m_buffer.remove(0, total_size);
+        continue; // 다음 패킷 처리
+      } else {
+        break; // 전체 페이로드가 올 때까지 대기
+      }
+    } else {
+      // 2. 매직 쿠키를 못 찾음. 버퍼 내에 단순 JSON이 있는지 확인
+      int lastNewline = m_buffer.lastIndexOf('\n');
+      if (lastNewline != -1) {
+        QByteArray jsonData = m_buffer.left(lastNewline + 1);
+        for (const QByteArray &line : jsonData.split('\n')) {
+          if (!line.trimmed().isEmpty())
+            processJsonResponse(line.trimmed());
+        }
+        m_buffer.remove(0, lastNewline + 1);
+      }
+
+      // 쿠키도 없고 줄바꿈도 없는데 버퍼만 크다면(쓰레기 데이터) 정리
+      if (m_buffer.size() > 1024 * 1024) {
+        qDebug() << "⚠️ Buffer overflow protection triggered. Clearing...";
+        m_buffer.clear();
+      }
+      break;
     }
+  }
+}
+
+void NetworkClient::processJsonResponse(const QByteArray &line) {
+  QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
+  if (jsonDoc.isNull() || !jsonDoc.isObject()) {
+    return;
+  }
+
+  QJsonObject jsonObj = jsonDoc.object();
+  QString type = jsonObj["type"].toString();
+  QJsonValue dataVal = jsonObj["data"];
+
+  if (type == "realtime") {
+    processRealtimeData(dataVal.toArray());
+  } else if (type == "realtime_air") {
+    if (dataVal.isArray()) {
+      processRealtimeAirData(dataVal.toArray());
+    } else if (dataVal.isObject()) {
+      QJsonArray arr;
+      arr.append(dataVal);
+      processRealtimeAirData(arr);
+    } else {
+      processRealtimeAirData(QJsonArray{jsonObj});
+    }
+  } else if (type == "air_stats") {
+    processAirStatsData(dataVal.toArray());
+  } else if (type == "flow_stats") {
+    processFlowStatsData(dataVal.toArray());
   }
 }
 
