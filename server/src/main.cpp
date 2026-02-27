@@ -23,6 +23,7 @@
 using namespace std;
 
 volatile sig_atomic_t stop_flag = 0;
+CongestionAnalyzer g_analyzer;
 
 void signal_handler(int signum) { stop_flag = 1; }
 
@@ -48,8 +49,7 @@ int main() {
   }
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
-  CongestionAnalyzer analyzer;
-  analyzer.start();
+  g_analyzer.start();
 
   thread sensor_thread([]() {
     DBConfig config;
@@ -133,7 +133,8 @@ int main() {
 
     // === 인구 수 터미널에 출력 ===
     auto levels =
-        analyzer.getCongestionLevels();  // 현재 8개 구역의 레벨(0,1,2) 가져오기
+        g_analyzer
+            .getCongestionLevels();  // 현재 8개 구역의 레벨(0,1,2) 가져오기
 
     int total_pi = 0;
     {
@@ -157,7 +158,7 @@ int main() {
     if (t.joinable()) t.join();
   }
   if (hwThread.joinable()) hwThread.join();
-  analyzer.stop();
+  g_analyzer.stop();
 
   close(server_fd);
   cleanup_tls();
