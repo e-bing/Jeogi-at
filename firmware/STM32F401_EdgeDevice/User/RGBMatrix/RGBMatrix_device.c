@@ -95,7 +95,7 @@ void RGBMatrixWriteData()
  */
 void HUB75_Display()
 {
-	for(UBYTE i;i < 200;i++)
+	for (UBYTE i = 0; i < 200; i++)
 	{
 		RGBMatrixWriteData();
 	}

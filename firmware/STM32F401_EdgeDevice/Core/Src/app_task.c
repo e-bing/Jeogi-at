@@ -11,7 +11,7 @@
 
 static uint32_t s_sensor_tick = 0U;
 
-#define SENSOR_READ_INTERVAL_MS 1000U
+#define SENSOR_READ_INTERVAL_MS 10000U
 #define SENSOR_EMA_ALPHA        0.2f
 
 static void AppTask_UpdateGasSensors(void)

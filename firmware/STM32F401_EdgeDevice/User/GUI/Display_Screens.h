@@ -6,7 +6,6 @@
 #include "Data_Manager.h"
 
 // 화면 출력 함수들
-void Screen_Show_Dashboard(void);
 void Screen_Show_CO2(DB_Data_t* data);
 void Screen_Show_Alert(DB_Data_t* data);
 void Screen_Show_StatusRow(const uint8_t status[8]);

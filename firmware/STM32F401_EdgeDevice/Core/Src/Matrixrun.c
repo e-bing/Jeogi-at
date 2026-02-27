@@ -5,11 +5,16 @@
 #include "Display_Screens.h"
 #include "RGBMatrix_device.h"
 
-#define SCREEN_SWITCH_INTERVAL_MS 5000U
+static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
+static uint8_t dashboard_dirty = 1U;
+static uint8_t gas_dirty = 1U;
+static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2
+static uint32_t last_refresh_tick = 0U;
+static uint32_t last_switch_tick = 0U;
 
-static uint32_t last_tick = 0;
-static int screen_state = 0;
-static uint8_t congestion_status[8] = {2,  2, 2, 2, 2, 2, 1, 0};
+#define DASHBOARD_REFRESH_MS 100U
+#define DASHBOARD_SHOW_MS 10000U
+#define GAS_SHOW_MS 5000U
 
 static void MatrixRun_ShowDashboard(void)
 {
@@ -22,43 +27,74 @@ static void MatrixRun_ShowDashboard(void)
 void MatrixRun_Init(void)
 {
   MatrixRun_ShowDashboard();
-  screen_state = 1;
-  last_tick = HAL_GetTick();
+  dashboard_dirty = 0U;
+  gas_dirty = 1U;
+  current_screen = 0U;
+  last_refresh_tick = HAL_GetTick();
+  last_switch_tick = HAL_GetTick();
 }
 
 void MatrixRun_Run(void)
 {
-  if ((HAL_GetTick() - last_tick) <= SCREEN_SWITCH_INTERVAL_MS)
+  uint32_t now = HAL_GetTick();
+  uint8_t need_refresh;
+  uint32_t stay_ms = (current_screen == 0U) ? DASHBOARD_SHOW_MS : GAS_SHOW_MS;
+
+  if ((now - last_switch_tick) >= stay_ms)
+  {
+    current_screen = (current_screen == 0U) ? 1U : 0U;
+    last_switch_tick = now;
+
+    if (current_screen == 0U)
+    {
+      dashboard_dirty = 1U;
+    }
+    else
+    {
+      gas_dirty = 1U;
+    }
+  }
+
+  need_refresh = (current_screen == 0U) ? dashboard_dirty : gas_dirty;
+  if ((now - last_refresh_tick) >= DASHBOARD_REFRESH_MS)
+  {
+    need_refresh = 1U;
+  }
+
+  if (!need_refresh)
   {
     return;
   }
 
-  last_tick = HAL_GetTick();
-
-  switch (screen_state)
+  if (current_screen == 0U)
   {
-  case 0:
     MatrixRun_ShowDashboard();
-    screen_state = 1;
-    break;
-  case 1:
-    Screen_Show_Alert(&g_db_data);
-    screen_state = 2;
-    break;
-  case 2:
-    Screen_Show_CO2(&g_db_data);
-    screen_state = 0;
-    break;
-  default:
-    screen_state = 0;
-    break;
+    dashboard_dirty = 0U;
   }
+  else
+  {
+    Screen_Show_CO2(&g_db_data);
+    gas_dirty = 0U;
+  }
+
+  last_refresh_tick = now;
 }
 
 void MatrixRun_SetCongestionBulk(const uint8_t data[8])
 {
+  uint8_t changed = 0U;
+
   for (int i = 0; i < 8; i++)
   {
+    if (congestion_status[i] != data[i])
+    {
+      changed = 1U;
+    }
     congestion_status[i] = data[i];
+  }
+
+  if (changed)
+  {
+    dashboard_dirty = 1U;
   }
 }

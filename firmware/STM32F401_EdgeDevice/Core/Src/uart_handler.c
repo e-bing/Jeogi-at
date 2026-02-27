@@ -43,6 +43,7 @@ static uint8_t CalcCRC(const Packet_t *pkt)
     for (uint8_t i = 0; i < pkt->len; i++) {
         crc ^= pkt->data[i];
     }
+    crc ^= PKT_ETX;
     return crc;
 }
 
