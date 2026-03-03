@@ -41,7 +41,6 @@ set(COMMON_DEFINES
 set(COMMON_INCLUDES
   ${CMAKE_SOURCE_DIR}/Core/Inc
   ${CMAKE_SOURCE_DIR}/User/GUI
-  ${CMAKE_SOURCE_DIR}/User/image
   ${CMAKE_SOURCE_DIR}/User/RGBMatrix
   ${CMAKE_SOURCE_DIR}/User/Fonts
   ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -88,7 +87,6 @@ set(C_SOURCES
   User/GUI/Display_Screens.c
   User/GUI/GUI_Paint.c
   User/RGBMatrix/RGBMatrix_device.c
-  User/image/image.c
 )
 
 set(ASM_SOURCES
@@ -140,4 +138,3 @@ add_custom_command(TARGET ${TARGET} POST_BUILD
   COMMAND arm-none-eabi-objcopy -O binary $<TARGET_FILE:${TARGET}> ${BIN_FILE}
   COMMENT "Generating size, HEX and BIN artifacts"
 )
-

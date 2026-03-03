@@ -1,6 +1,7 @@
 #include "motor.h"
 #include "sensor.h"
 #include "system_monitor.h"
+#include "sht20.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -77,7 +78,16 @@ int main() {
         cerr << "❌ UART 초기화 실패 - 센서 수신 불가" << endl;
     }
 
-    // 2. MQTT 연결 및 명령 구독
+    // 2. SHT20 온습도 센서 초기화 및 스레드 시작 (추가된 부분)
+    int sht20_fd = init_sht20();
+    if (sht20_fd >= 0) {
+        thread([sht20_fd]() { run_sht20_monitor(sht20_fd); }).detach();
+        cout << "📡 SHT20 온습도 모니터링 시작" << endl;
+    } else {
+        cerr << "❌ SHT20 초기화 실패" << endl;
+    }
+
+    // 3. MQTT 연결 및 명령 구독
     mqtt::async_client client(BROKER, CLIENT_ID);
     MqttCallback cb;
     client.set_callback(cb);
