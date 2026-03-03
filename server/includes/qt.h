@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <condition_variable>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
@@ -22,6 +23,15 @@
 #include "database.h"
 #include "motor.h"
 #include "shared_data.hpp"
+
+struct SendPacket {
+  enum class Type { JSON, CAMERA } type;
+  std::vector<uint8_t> data;  // 전송할 원시 바이트
+};
+
+extern std::queue<SendPacket> g_send_queue;
+extern std::mutex g_send_queue_mutex;
+extern std::condition_variable g_send_cv;
 
 // TLS 초기화 및 정리
 void init_tls();
@@ -42,6 +52,7 @@ bool send_camera_packet(SSL* ssl, uint32_t cam_id, const string& json_str,
                         const vector<unsigned char>& img_data);
 
 // 영상 전송 전담 스레드 함수
-void video_streaming_worker(SSL* ssl, bool* client_connected);
+void video_streaming_worker(bool* client_connected, std::queue<SendPacket>& q,
+                            std::mutex& mtx, std::condition_variable& cv);
 
 #endif  // QT_COMM_H
