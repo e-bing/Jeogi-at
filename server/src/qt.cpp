@@ -1,6 +1,8 @@
 // qt.cpp
 #include "../includes/qt.h"
 
+#include "../includes/system_monitor.h"
+
 using json = nlohmann::json;
 using namespace std;
 
@@ -172,7 +174,8 @@ void handle_client(int client_socket) {
   string cmd_buffer = "";
 
   bool client_connected = true;
-  int db_tick = 0;
+  int db_tick  = 0;
+  int sys_tick = 0;
 
   // 영상 전송 전담 스레드 시작
   thread v_thread(video_streaming_worker, ssl, &client_connected);
@@ -260,6 +263,11 @@ void handle_client(int client_socket) {
       }
     }
 
+    if (++sys_tick >= 500) {  // 5초마다
+    sys_tick = 0;
+    lock_guard<mutex> lock(g_ssl_send_mutex);
+    send_system_monitor(ssl);
+}
     this_thread::sleep_for(chrono::milliseconds(10));
   }
 
