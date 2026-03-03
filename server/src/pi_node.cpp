@@ -16,6 +16,7 @@ class PiMqttCallback : public virtual mqtt::callback {
   void message_arrived(mqtt::const_message_ptr msg) override {
     try {
       auto j = json::parse(msg->get_payload_str());
+
       auto it = g_pi_node_map.find(node_id);
       if (it == g_pi_node_map.end()) return;
 
@@ -25,14 +26,16 @@ class PiMqttCallback : public virtual mqtt::callback {
 
       for (auto& obj : j["blocks"]) {
         DetectedObject res;
-        res.x = obj["x"].get<float>();
-        res.y = obj["y"].get<float>();
-        res.w = obj["w"].get<float>();
-        res.h = obj["h"].get<float>();
+        res.x = obj.value("x", 0.0f);
+        res.y = obj.value("y", 0.0f);
+        res.w = obj.value("w", 0.0f);
+        res.h = obj.value("h", 0.0f);
         res.typeName = "Person";
         camData->objects.push_back(res);
       }
-    } catch (...) {
+    } catch (const std::exception& e) {
+      std::cerr << "[" << node_id << "] JSON Parsing Error: " << e.what()
+                << std::endl;
     }
   }
 };
@@ -42,6 +45,7 @@ PiNode::PiNode(const std::string& ip, const std::string& topic,
     : pi_ip(ip), mqtt_topic(topic), node_id(id) {}
 
 void PiNode::run() {
+  av_log_set_level(AV_LOG_FATAL);
   // 1. MQTT 초기화 (지역변수 client 대신 멤버변수 mqtt_client 사용)
   mqtt_client =
       new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_" + node_id);
@@ -66,10 +70,10 @@ void PiNode::run() {
   AVDictionary* opts = nullptr;
   std::string url = "tcp://" + pi_ip + ":5000";
 
-  av_dict_set(&opts, "probesize", "32", 0);       // 축소 테스트 중
-  av_dict_set(&opts, "analyzeduration", "0", 0);  // 분석 시간 0
-  av_dict_set(&opts, "fflags", "nobuffer", 0);    // 버퍼링 제거
-  av_dict_set(&opts, "flags", "low_delay", 0);    // 저지연 모드 활성화
+  av_dict_set(&opts, "probesize", "1000000", 0);
+  av_dict_set(&opts, "analyzeduration", "1000000", 0);
+  av_dict_set(&opts, "fflags", "nobuffer", 0);  // 버퍼링 제거
+  av_dict_set(&opts, "flags", "low_delay", 0);  // 저지연 모드 활성화
   av_dict_set(&opts, "err_detect", "ignore_err", 0);
   AVInputFormat* ifmt = av_find_input_format("h264");
 

@@ -27,10 +27,13 @@ void HanwhaNode::run() {
   avformat_find_stream_info(fmtCtx, nullptr);
 
   for (int i = 0; i < fmtCtx->nb_streams; i++) {
-    if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+    if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
       video_idx = i;
-    else if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_DATA)
+      std::cout << "[DEBUG] Video Stream Found: " << i << std::endl;
+    } else if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_DATA) {
       data_idx = i;
+      std::cout << "[DEBUG] Metadata Stream Found: " << i << std::endl;
+    }
   }
 
   if (video_idx == -1) return;
@@ -75,9 +78,11 @@ void HanwhaNode::process_loop() {
       std::vector<MetadataResult> results = metaParser.getCompletedResults();
 
       if (!results.empty()) {
-        std::lock_guard<std::mutex> lock(g_hw_data_mutex);
-        // 가장 최신 데이터로 업데이트
-        g_hw_objects = results.back().objects;
+        auto latest_objects = results.back().objects;
+        if (!latest_objects.empty()) {
+          std::lock_guard<std::mutex> lock(g_hw_data_mutex);
+          g_hw_objects = latest_objects;
+        }
       }
     }
     av_packet_unref(pkt);
