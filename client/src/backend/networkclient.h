@@ -15,47 +15,54 @@ class NetworkClient : public QObject {
   Q_PROPERTY(
       QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
 
- public:
-  explicit NetworkClient(QObject* parent = nullptr);
+public:
+  explicit NetworkClient(QObject *parent = nullptr);
   ~NetworkClient();
 
   bool isConnected() const;
   QString statusMessage() const;
 
-  Q_INVOKABLE void connectToServer(const QString& host, quint16 port);
+  Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
-  Q_INVOKABLE void sendDeviceCommand(const QString& device,
-                                     const QString& action);
+  Q_INVOKABLE void sendDeviceCommand(const QString &device,
+                                     const QString &action);
 
- signals:
+signals:
   void isConnectedChanged();
   void statusMessageChanged();
   void realtimeDataReceived(QVariantList data);
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
+  void systemMonitorReceived(QVariantMap data);
+  void cameraFrameReceived(int cameraId, const QString &base64Image,
+                           const QVariantMap &metadata);
 
- private slots:
+private slots:
   void onEncrypted();
   void onConnected();
   void onDisconnected();
-  void onSslErrors(const QList<QSslError>& errors);
+  void onSslErrors(const QList<QSslError> &errors);
   void readData();
   void onErrorOccurred(QAbstractSocket::SocketError socketError);
 
- private:
-  QSslSocket* socket;
+private:
+  QSslSocket *socket;
   bool m_isConnected;
   QString m_statusMessage;
 
-  void setStatus(const QString& message);
+  void setStatus(const QString &message);
   void setIsConnected(bool connected);
 
   // Parsing helpers
-  void processRealtimeData(const QJsonArray& data);
-  void processRealtimeAirData(const QJsonArray& data);
-  void processAirStatsData(const QJsonArray& data);
-  void processFlowStatsData(const QJsonArray& data);
+  void processRealtimeData(const QJsonArray &data);
+  void processRealtimeAirData(const QJsonArray &data);
+  void processAirStatsData(const QJsonArray &data);
+  void processFlowStatsData(const QJsonArray &data);
+  void processSystemMonitorData(const QJsonObject &obj);
+  void processJsonResponse(const QByteArray &line);
+
+  QByteArray m_buffer;
 };
 
-#endif  // NETWORKCLIENT_H
+#endif // NETWORKCLIENT_H
