@@ -8,8 +8,10 @@
 #ifndef INC_SERVICES_SD_STORAGE_H_
 #define INC_SERVICES_SD_STORAGE_H_
 
+#include "fatfs.h"
 
-void sd_read_files(void);
+void sd_print_files();
+FRESULT sd_read_files(const char *path, uint8_t *data, uint8_t *len);
 
 
 #endif /* INC_SERVICES_SD_STORAGE_H_ */

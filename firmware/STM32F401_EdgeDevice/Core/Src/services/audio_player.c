@@ -32,24 +32,11 @@ static void Audio_FillHalf(int16_t *dst);
 
 void Audio_Init(void)
 {
-    uint8_t buf[512];
-
-    if (sd_init() == 0) {
-        printf("SD init OK\r\n");
-
-        if (sd_read_block(0, buf) == 0) {
-            printf("Read OK\r\n");
-
-            hspi2.Init.BaudRatePrescaler =
-                SPI_BAUDRATEPRESCALER_4;
-            HAL_SPI_Init(&hspi2);
-        }
-    }
 
     FRESULT res = f_mount(&USERFatFS, USERPath, 1);
     printf("FATFS mount = %d\r\n", res);
 
-    sd_files();
+    sd_read_files();
 
     printf("Audio Init Done\r\n");
 }

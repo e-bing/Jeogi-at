@@ -2,7 +2,8 @@
 #include "uart_protocol.h"
 #include "usart.h"      // CubeMX 생성 파일 (huart2 등)
 // 실제 장치 헤더로 교체
-#include <services/audio_player.h>
+#include "services/audio_player.h"
+#include "services/sd_storage.h"
 // #include "led_panel.h"
 // #include "mq7.h"
 // #include "mq135.h"
@@ -32,17 +33,6 @@ static volatile uint8_t pktReady = 0;               // 패킷 수신 완료 플�
 static Packet_t         pendingPkt;                  // 처리 대기 중인 패킷
 
 /* ─────────────────────────────────────────
-   CRC 계산 (CMD ^ LEN ^ DATA 바이트들 XOR)
-───────────────────────────────────────── */
-static uint8_t CalcCRC(Packet_t *pkt)
-{
-    uint8_t crc = pkt->cmd ^ pkt->len;
-    for (int i = 0; i < pkt->len; i++) crc ^= pkt->data[i];
-    crc ^= PKT_ETX;   // ETX 포함
-    return crc;
-}
-
-/* ─────────────────────────────────────────
    초기화 - DMA 수신 시작
 ───────────────────────────────────────── */
 void UART_CMD_Init(UART_HandleTypeDef *huart)
@@ -50,12 +40,6 @@ void UART_CMD_Init(UART_HandleTypeDef *huart)
     uart = huart; // 정해놓은 uart 사용
     HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
     printf("__uart__ __init__\r\n");
-
-
-    //test : audio
-    Audio_Init();
-    Audio_PlayWav("voice_1.wav");
-
 }
 
 /* ─────────────────────────────────────────
@@ -79,13 +63,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 ───────────────────────────────────────── */
 void UART_RxCallback(uint8_t byte)
 {
-
-	static int cnt = 0;
-	if (cnt++ < 30) {
-	  printf("rx byte = 0x%02X, state=%d\r\n", byte, rxState);
-	}
-
-
     switch (rxState) {
         case STATE_WAIT_STX:
             if (byte == PKT_STX) rxState = STATE_RECV_CMD;
@@ -117,7 +94,7 @@ void UART_RxCallback(uint8_t byte)
 
         case STATE_WAIT_ETX:
         	  if (byte == PKT_ETX) {
-        	    uint8_t c = CalcCRC(&rxPkt);
+        	    uint8_t c = Calc_CRC(&rxPkt);
         	    if (c == rxPkt.crc) {
         	      pktReady = 1;
         	      pendingPkt = rxPkt;
@@ -166,7 +143,7 @@ void UART_SendNACK(uint8_t cmd, uint8_t err) {
     SendPacket(CMD_NACK, data, 2);
 }
 
-void UART_SendSensorResp(uint8_t cmd, uint8_t *data, uint8_t len) {
+void UART_SendResp(uint8_t cmd, uint8_t *data, uint8_t len) {
     // RESP 패킷: [cmd 1B][data nB]
     uint8_t buf[PKT_MAX_DATA_LEN];
     buf[0] = cmd;
@@ -205,7 +182,7 @@ void UART_Handler_Process(void)
 //            uint16_t temp, hum;
 //            Device_ReadTempHum(&temp, &hum);
 //            uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
-//            UART_SendSensorResp(CMD_GET_TEMP_HUM, resp, 4);
+//            UART_SendResp(CMD_GET_TEMP_HUM, resp, 4);
             break;
         }
         case CMD_SET_LED:
@@ -217,11 +194,23 @@ void UART_Handler_Process(void)
 
         case CMD_SET_AUDIO:
             if (pkt.len < 1) { UART_SendNACK(pkt.cmd, ERR_INVALID_DATA); break; }
-
 //            Audio_PlayWav("voice_1.wav");
 //            Device_SetAudio(pkt.data[0]);
             UART_SendACK(pkt.cmd);
             break;
+        case CMD_GET_WAVES:
+			printf("[RECV] GET_WAVES\r\n");
+
+			uint8_t data[255];
+			uint8_t len;
+
+			sd_print_files();
+			sd_read_files("/", data, &len);
+//			if (sd_read_files("/", data, &len) != FR_OK) return;
+
+			SendPacket(CMD_RESP_WAVES, data, len);
+
+			break;
 
         default:
             UART_SendNACK(pkt.cmd, ERR_INVALID_CMD);
