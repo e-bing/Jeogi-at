@@ -9,4 +9,6 @@
  */
 void receive_sensor_data(MYSQL* conn);
 
+bool get_last_temp_humi(float& temp, float& humi);
+
 #endif // SENSOR_H

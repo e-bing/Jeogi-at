@@ -1,7 +1,7 @@
 // qt.cpp
 #include "../includes/qt.h"
-
 #include "../includes/system_monitor.h"
+#include "sensor.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -178,7 +178,7 @@ void handle_client(int client_socket) {
   int sys_tick = 0;
 
   // 영상 전송 전담 스레드 시작
-  thread v_thread(video_streaming_worker, ssl, &client_connected);
+  // thread v_thread(video_streaming_worker, ssl, &client_connected);
 
   while (client_connected) {
     // ========== 1. Qt로부터 명령 수신 (논블로킹) ==========
@@ -256,6 +256,18 @@ void handle_client(int client_socket) {
           if (SSL_write(ssl, s2.c_str(), s2.length()) <= 0) break;
           if (SSL_write(ssl, s3.c_str(), s3.length()) <= 0) break;
           if (SSL_write(ssl, s4.c_str(), s4.length()) <= 0) break;
+
+           // 온습도 전송 - 같은 lock 블록 안에 넣기
+            float temp = 0.0f, humi = 0.0f;
+            if (get_last_temp_humi(temp, humi)) {
+                json msg_temp_humi = {
+                    {"type",        "temp_humi"},
+                    {"temperature", temp},
+                    {"humidity",    humi}
+                };
+                string s5 = msg_temp_humi.dump() + "\n";
+                SSL_write(ssl, s5.c_str(), s5.length());
+            }
         }
 
       } catch (const exception& e) {
@@ -272,7 +284,7 @@ void handle_client(int client_socket) {
   }
 
   client_connected = false;
-  v_thread.join();
+  // v_thread.join();
   SSL_shutdown(ssl);
   SSL_free(ssl);
   close_db(conn);
