@@ -32,13 +32,22 @@ static void Audio_FillHalf(int16_t *dst);
 
 void Audio_Init(void)
 {
+	  uint8_t buf[512];
 
-    FRESULT res = f_mount(&USERFatFS, USERPath, 1);
-    printf("FATFS mount = %d\r\n", res);
+	  if (sd_init() == 0) {
+	      printf("SD init OK\r\n");
 
-    sd_read_files();
+	      if (sd_read_block(0, buf) == 0) {
+	          printf("Read OK\r\n");
 
-    printf("Audio Init Done\r\n");
+	          hspi2.Init.BaudRatePrescaler =
+	              SPI_BAUDRATEPRESCALER_4;
+	          HAL_SPI_Init(&hspi2);
+	      }
+
+	      FRESULT res = f_mount(&USERFatFS, USERPath, 1);
+		  printf("FATFS mount = %d\r\n", res);
+	  }
 }
 
 /* ================= Buffer Fill ================= */
@@ -156,7 +165,7 @@ void Audio_PlayWav(const char *filename)
         AUDIO_MONO_SAMPLES * 2 * 2
     );
 
-    printf("Play Start\r\n");
+    printf("Play Start: %s\r\n", filename);
 
     /* Playback loop */
     while (!wav_eof) {

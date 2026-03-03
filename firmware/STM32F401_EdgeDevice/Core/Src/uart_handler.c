@@ -1,6 +1,6 @@
 #include "uart_handler.h"
 #include "uart_protocol.h"
-#include "usart.h"      // CubeMX 생성 파일 (huart2 등)
+#include "usart.h" // CubeMX 생성 파일 (huart2 등)
 // 실제 장치 헤더로 교체
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
@@ -13,24 +13,25 @@
    내부 변수
 ───────────────────────────────────────── */
 
-static UART_HandleTypeDef *uart;            // Init 시 등록된 UART 핸들
-static uint8_t rx_buf[64];                  // DMA 수신 버퍼
+static UART_HandleTypeDef *uart; // Init 시 등록된 UART 핸들
+static uint8_t rx_buf[64];       // DMA 수신 버퍼
 
 // 수신 상태머신 상태 정의
-typedef enum {
-    STATE_WAIT_STX,   // STX 대기
-    STATE_RECV_CMD,   // CMD 수신
-    STATE_RECV_LEN,   // LEN 수신
-    STATE_RECV_DATA,  // DATA 수신
-    STATE_RECV_CRC,   // CRC 수신
-    STATE_WAIT_ETX    // ETX 대기 및 패킷 검증
+typedef enum
+{
+    STATE_WAIT_STX,  // STX 대기
+    STATE_RECV_CMD,  // CMD 수신
+    STATE_RECV_LEN,  // LEN 수신
+    STATE_RECV_DATA, // DATA 수신
+    STATE_RECV_CRC,  // CRC 수신
+    STATE_WAIT_ETX   // ETX 대기 및 패킷 검증
 } RxState_t;
 
-static RxState_t        rxState  = STATE_WAIT_STX;  // 현재 상태머신 상태
-static Packet_t         rxPkt;                       // 수신 중인 패킷
-static uint8_t          dataIdx;                     // DATA 필드 인덱스
-static volatile uint8_t pktReady = 0;               // 패킷 수신 완료 플래그
-static Packet_t         pendingPkt;                  // 처리 대기 중인 패킷
+static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
+static Packet_t rxPkt;                     // 수신 중인 패킷
+static uint8_t dataIdx;                    // DATA 필드 인덱스
+static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
+static Packet_t pendingPkt;                // 처리 대기 중인 패킷
 
 /* ─────────────────────────────────────────
    초기화 - DMA 수신 시작
@@ -48,8 +49,10 @@ void UART_CMD_Init(UART_HandleTypeDef *huart)
 ───────────────────────────────────────── */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    if (huart->Instance == uart->Instance) {
-        for (int i = 0; i < Size; i++) {
+    if (huart->Instance == uart->Instance)
+    {
+        for (int i = 0; i < Size; i++)
+        {
             UART_RxCallback(rx_buf[i]);
         }
         // 다음 수신을 위해 DMA 재시작
@@ -63,51 +66,65 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 ───────────────────────────────────────── */
 void UART_RxCallback(uint8_t byte)
 {
-    switch (rxState) {
-        case STATE_WAIT_STX:
-            if (byte == PKT_STX) rxState = STATE_RECV_CMD;
-            break;
+    switch (rxState)
+    {
+    case STATE_WAIT_STX:
+        if (byte == PKT_STX)
+            rxState = STATE_RECV_CMD;
+        break;
 
-        case STATE_RECV_CMD:
-            rxPkt.cmd = byte;
-            rxState = STATE_RECV_LEN;
-            break;
+    case STATE_RECV_CMD:
+        rxPkt.cmd = byte;
+        rxState = STATE_RECV_LEN;
+        break;
 
-        case STATE_RECV_LEN:
-            rxPkt.len = byte;
-            dataIdx = 0;
-            // DATA가 없으면 CRC로 바로 이동
-            rxState = (byte > 0) ? STATE_RECV_DATA : STATE_RECV_CRC;
-            break;
+    case STATE_RECV_LEN:
+        rxPkt.len = byte;
+        dataIdx = 0;
 
-        case STATE_RECV_DATA:
-            if (dataIdx < PKT_MAX_DATA_LEN)
-                rxPkt.data[dataIdx++] = byte;
-            if (dataIdx >= rxPkt.len)
-                rxState = STATE_RECV_CRC;
+        if (rxPkt.len > PKT_MAX_DATA_LEN) {
+            // 길이 오류: 즉시 리셋
+            printf("LEN FAIL len=%u max=%u\r\n", rxPkt.len, PKT_MAX_DATA_LEN);
+            rxState = STATE_WAIT_STX;
             break;
+        }
 
-        case STATE_RECV_CRC:
-            rxPkt.crc = byte;
-            rxState = STATE_WAIT_ETX;
-            break;
+        rxState = (rxPkt.len > 0) ? STATE_RECV_DATA : STATE_RECV_CRC;
+        break;
 
-        case STATE_WAIT_ETX:
-        	  if (byte == PKT_ETX) {
-        	    uint8_t c = Calc_CRC(&rxPkt);
-        	    if (c == rxPkt.crc) {
-        	      pktReady = 1;
-        	      pendingPkt = rxPkt;
-        	      printf("OK cmd=%02X len=%d\r\n", rxPkt.cmd, rxPkt.len);
-        	    } else {
-        	      printf("CRC FAIL calc=%02X rx=%02X cmd=%02X len=%d\r\n",
-        	             c, rxPkt.crc, rxPkt.cmd, rxPkt.len);
-        	    }
-        	  } else {
-        	    printf("ETX FAIL got=%02X\r\n", byte);
-        	  }
-        	  rxState = STATE_WAIT_STX;
-            break;
+    case STATE_RECV_DATA:
+        rxPkt.data[dataIdx++] = byte;   // len 검증을 앞에서 했으니 바로 저장
+        if (dataIdx >= rxPkt.len)
+            rxState = STATE_RECV_CRC;
+        break;
+
+    case STATE_RECV_CRC:
+        rxPkt.crc = byte;
+        rxState = STATE_WAIT_ETX;
+        break;
+
+    case STATE_WAIT_ETX:
+        if (byte == PKT_ETX)
+        {
+            uint8_t c = Calc_CRC(&rxPkt);
+            if (c == rxPkt.crc)
+            {
+                pktReady = 1;
+                pendingPkt = rxPkt;
+                printf("OK cmd=%02X len=%d\r\n", rxPkt.cmd, rxPkt.len);
+            }
+            else
+            {
+                printf("CRC FAIL calc=%02X rx=%02X cmd=%02X len=%d\r\n",
+                       c, rxPkt.crc, rxPkt.cmd, rxPkt.len);
+            }
+        }
+        else
+        {
+            printf("ETX FAIL got=%02X\r\n", byte);
+        }
+        rxState = STATE_WAIT_STX;
+        break;
     }
 }
 
@@ -122,11 +139,13 @@ static void SendPacket(uint8_t cmd, uint8_t *data, uint8_t len)
     buf[idx++] = PKT_STX;
     buf[idx++] = cmd;
     buf[idx++] = len;
-    for (int i = 0; i < len; i++) buf[idx++] = data[i];
+    for (int i = 0; i < len; i++)
+        buf[idx++] = data[i];
 
     // CRC: STX 제외 나머지 XOR => cmd ^ len ^ data... ^ ETX
     uint8_t crc = cmd ^ len ^ PKT_ETX;
-    for (int i = 0; i < len; i++) crc ^= data[i];
+    for (int i = 0; i < len; i++)
+        crc ^= data[i];
 
     buf[idx++] = crc;
     buf[idx++] = PKT_ETX;
@@ -134,20 +153,24 @@ static void SendPacket(uint8_t cmd, uint8_t *data, uint8_t len)
     HAL_UART_Transmit(uart, buf, idx, 100);
 }
 
-void UART_SendACK(uint8_t cmd) {
+void UART_SendACK(uint8_t cmd)
+{
     SendPacket(CMD_ACK, &cmd, 1);
 }
 
-void UART_SendNACK(uint8_t cmd, uint8_t err) {
+void UART_SendNACK(uint8_t cmd, uint8_t err)
+{
     uint8_t data[2] = {cmd, err};
     SendPacket(CMD_NACK, data, 2);
 }
 
-void UART_SendResp(uint8_t cmd, uint8_t *data, uint8_t len) {
+void UART_SendResp(uint8_t cmd, uint8_t *data, uint8_t len)
+{
     // RESP 패킷: [cmd 1B][data nB]
     uint8_t buf[PKT_MAX_DATA_LEN];
     buf[0] = cmd;
-    for (int i = 0; i < len; i++) buf[i + 1] = data[i];
+    for (int i = 0; i < len; i++)
+        buf[i + 1] = data[i];
     SendPacket(CMD_RESP_SENSOR, buf, len + 1);
 }
 
@@ -157,63 +180,76 @@ void UART_SendResp(uint8_t cmd, uint8_t *data, uint8_t len) {
 ───────────────────────────────────────── */
 void UART_Handler_Process(void)
 {
-    if (!pktReady) return;
+    if (!pktReady)
+        return;
     pktReady = 0;
 
     Packet_t pkt = pendingPkt;
 
-    switch (pkt.cmd) {
-        case CMD_GET_CO: {
-        	// 일산화탄소 센서 읽기 추가
-//            uint16_t ppm = Device_ReadCO();
-//            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-//            UART_SendSensorResp(CMD_GET_CO, resp, 2);
-            break;
+    switch (pkt.cmd)
+    {
+    case CMD_GET_CO:
+    {
+        // 일산화탄소 센서 읽기 추가
+        //            uint16_t ppm = Device_ReadCO();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO, resp, 2);
+        break;
+    }
+    case CMD_GET_CO2:
+    {
+        // 이산화탄소 센서 읽기 추가
+        //            uint16_t ppm = Device_ReadCO2();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
+        break;
+    }
+    case CMD_GET_TEMP_HUM:
+    {
+        // 온습도 센서 읽기 추가
+        //            uint16_t temp, hum;
+        //            Device_ReadTempHum(&temp, &hum);
+        //            uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
+        //            UART_SendResp(CMD_GET_TEMP_HUM, resp, 4);
+        break;
+    }
+    case CMD_SET_LED:
+        // LED 입력 추가
+        //            if (pkt.len < 1) { UART_SendNACK(pkt.cmd, ERR_INVALID_DATA); break; }
+        //            Device_SetLED(pkt.data[0]);
+        //            UART_SendACK(pkt.cmd);
+        break;
+
+    case CMD_PLAY_WAV:
+    	printf("[RECV] PLAY_WAV\r\n");
+        if (pkt.len == 0 || pkt.len > 255)
+        {
+        	UART_SendNACK(CMD_NACK, 1);
+        	break;
         }
-        case CMD_GET_CO2: {
-        	// 이산화탄소 센서 읽기 추가
-//            uint16_t ppm = Device_ReadCO2();
-//            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-//            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
-            break;
-        }
-        case CMD_GET_TEMP_HUM: {
-        	// 온습도 센서 읽기 추가
-//            uint16_t temp, hum;
-//            Device_ReadTempHum(&temp, &hum);
-//            uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
-//            UART_SendResp(CMD_GET_TEMP_HUM, resp, 4);
-            break;
-        }
-        case CMD_SET_LED:
-        	// LED 입력 추가
-//            if (pkt.len < 1) { UART_SendNACK(pkt.cmd, ERR_INVALID_DATA); break; }
-//            Device_SetLED(pkt.data[0]);
-//            UART_SendACK(pkt.cmd);
-            break;
 
-        case CMD_SET_AUDIO:
-            if (pkt.len < 1) { UART_SendNACK(pkt.cmd, ERR_INVALID_DATA); break; }
-//            Audio_PlayWav("voice_1.wav");
-//            Device_SetAudio(pkt.data[0]);
-            UART_SendACK(pkt.cmd);
-            break;
-        case CMD_GET_WAVES:
-			printf("[RECV] GET_WAVES\r\n");
+        char filename[256];
+        memcpy(filename, pkt.data, pkt.len);
+        filename[pkt.len] = '\0';
+//        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
+        Audio_PlayWav(filename);
+        UART_SendNACK(CMD_ACK, 0);
+        break;
+    case CMD_GET_WAVS:
+        printf("[RECV] GET_WAVS\r\n");
 
-			uint8_t data[255];
-			uint8_t len;
+        uint8_t data[255];
+        uint8_t len;
 
-			sd_print_files();
-			sd_read_files("/", data, &len);
-//			if (sd_read_files("/", data, &len) != FR_OK) return;
+        sd_print_files();
+        sd_read_files("/", data, &len);
+        //			if (sd_read_files("/", data, &len) != FR_OK) return;
+        SendPacket(CMD_RESP_WAVS, data, len);
 
-			SendPacket(CMD_RESP_WAVES, data, len);
+        break;
 
-			break;
-
-        default:
-            UART_SendNACK(pkt.cmd, ERR_INVALID_CMD);
-            break;
+    default:
+        UART_SendNACK(pkt.cmd, ERR_INVALID_CMD);
+        break;
     }
 }

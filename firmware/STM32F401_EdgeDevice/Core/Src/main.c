@@ -123,24 +123,8 @@ int main(void)
   //  MQ135_Init();
   //  MQ7_Init();
 
-  // init: sd card
-  uint8_t buf[512];
-
-  if (sd_init() == 0) {
-      printf("SD init OK\r\n");
-
-      if (sd_read_block(0, buf) == 0) {
-          printf("Read OK\r\n");
-
-          hspi2.Init.BaudRatePrescaler =
-              SPI_BAUDRATEPRESCALER_4;
-          HAL_SPI_Init(&hspi2);
-      }
-
-      FRESULT res = f_mount(&USERFatFS, USERPath, 1);
-	  printf("FATFS mount = %d\r\n", res);
-  }
-
+  // init: sd card & audio amp
+  Audio_Init();
 
   // init: uart_protocol
   UART_CMD_Init(&huart6);

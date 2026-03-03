@@ -38,6 +38,9 @@ FRESULT sd_read_files(const char *path, uint8_t *data, uint8_t *len)
         if (fno.fname[0] == 0) break;      // end of dir
         if (fno.fattrib & AM_DIR) continue; // 디렉토리 제외(원하면 제거)
 
+        const char *ext = strrchr(fno.fname, '.');
+        if (ext && strcmp(ext, ".wav") != 0) continue; // .wav 이외 파일 제외
+
         const char *name = fno.fname;      // LFN 설정에 따라 8.3일 수 있음
         uint16_t nlen = (uint16_t)strlen(name);
 
