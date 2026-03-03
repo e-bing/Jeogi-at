@@ -35,8 +35,8 @@
 #ifndef __GUI_PAINT_H
 #define __GUI_PAINT_H
 
-#include "RGBMatrix_device.h"
-#include "fonts.h"
+#include "../RGBMatrix/RGBMatrix_device.h"
+#include "../Fonts/fonts.h"
 
 /**
  * image color

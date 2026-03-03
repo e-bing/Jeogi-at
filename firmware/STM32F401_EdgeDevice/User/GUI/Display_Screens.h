@@ -2,7 +2,7 @@
 #define __DISPLAY_SCREENS_H
 
 #include "gui_paint.h" // User/GUI 안에 있을 기존 헤더
-#include "fonts.h"     // User/Fonts 안의 헤더
+#include "../Fonts/fonts.h"     // User/Fonts 안의 헤더
 #include "Data_Manager.h"
 
 // 화면 출력 함수들

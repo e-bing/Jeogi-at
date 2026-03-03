@@ -37,9 +37,9 @@
 #include "usart.h"
 #include <stdint.h>
 #include <stdlib.h>
-#include "image.h"
 #include <string.h>
-#include "fonts.h"
+#include "../image/image.h"
+#include "../Fonts/fonts.h"
 
 
 
@@ -47,7 +47,7 @@
 #define UWORD   uint16_t
 #define UDOUBLE uint32_t
 
-#include "GUI_Paint.h"
+#include "../GUI/GUI_Paint.h"
 
 #define LED_chain 2 // STM32F103RB  MAX = 3 ,There is not enough memory, the maximum cache size is 3
 #define LED_Width 64 * LED_chain

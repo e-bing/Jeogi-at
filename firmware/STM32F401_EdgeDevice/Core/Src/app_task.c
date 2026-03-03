@@ -1,10 +1,9 @@
 #include "app_task.h"
-
-#include "Data_Manager.h"
+#include "../../User/GUI/Data_Manager.h"
+#include "../../User/RGBMatrix/RGBMatrix_device.h"
 #include "MQ135.h"
 #include "MQ7.h"
 #include "Matrixrun.h"
-#include "RGBMatrix_device.h"
 #include "adc.h"
 #include "uart_handler.h"
 #include "usart.h"

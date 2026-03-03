@@ -1,9 +1,9 @@
 #include "Matrixrun.h"
 
 #include "main.h"
-#include "Data_Manager.h"
-#include "Display_Screens.h"
-#include "RGBMatrix_device.h"
+#include "../../User/GUI/Data_Manager.h"
+#include "../../User/RGBMatrix/RGBMatrix_device.h"
+#include "../../User/GUI/Display_Screens.h"
 
 static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
 static uint8_t dashboard_dirty = 1U;

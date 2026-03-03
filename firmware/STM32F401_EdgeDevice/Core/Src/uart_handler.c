@@ -4,7 +4,7 @@
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
 #include "usart.h"
-#include "i2s_audio.h"
+#include "services/audio_player.h"
 #include "Matrixrun.h"
 
 #include <stdio.h>
@@ -17,18 +17,6 @@
 #define RX_PARSER_TIMEOUT_MS 200U
 #define UART_ISR_RAW_LOG 0
 
-static UART_HandleTypeDef *uart;
-static uint8_t rx_buf[256];
-
-static UART_HandleTypeDef *uart;           // Init 시 등록된 UART 핸들
-static uint8_t rx_buf[64];                 // DMA 수신 버퍼
-static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
-static Packet_t rxPkt;                     // 수신 중인 패킷
-static uint8_t dataIdx;                    // DATA 필드 인덱스
-static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
-static Packet_t pendingPkt;                // 처리 대기 중인 패킷
-static uint32_t last_byte_tick = 0;
-
 // 수신 상태머신 상태 정의
 typedef enum
 {
@@ -39,6 +27,15 @@ typedef enum
     STATE_RECV_CRC,  // CRC 수신
     STATE_WAIT_ETX   // ETX 대기 및 패킷 검증
 } RxState_t;
+
+static UART_HandleTypeDef *uart;
+static uint8_t rx_buf[256];
+static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
+static Packet_t rxPkt;                     // 수신 중인 패킷
+static uint8_t dataIdx;                    // DATA 필드 인덱스
+static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
+static Packet_t pendingPkt;                // 처리 대기 중인 패킷
+static uint32_t last_byte_tick = 0;
 
 /* 수신 재arm 공통 함수
    - DMA 우선, 실패 시 IT fallback
@@ -233,11 +230,6 @@ static void SendPacket(uint8_t cmd, const uint8_t *data, uint8_t len)
     for (int i = 0; i < len; i++)
         crc ^= data[i];
 
-    uint8_t crc = cmd ^ len;
-    for (uint8_t i = 0; i < len; i++)
-    {
-        crc ^= data[i];
-    }
     buf[idx++] = crc;
     buf[idx++] = PKT_ETX;
 
