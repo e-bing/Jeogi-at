@@ -3,6 +3,7 @@
 #define DATABASE_H
 
 #include <mariadb/mysql.h>
+
 #include <nlohmann/json.hpp>
 #include <string>
 
@@ -10,10 +11,10 @@ using json = nlohmann::json;
 using namespace std;
 
 struct DBConfig {
-    string host = "localhost";
-    string user = "iam";
-    string pass = "";
-    string db = "jeogi";  // 변경: test -> jeogi
+  string host = "localhost";
+  string user = "iam";
+  string pass = "aboy";
+  string db = "jeogi";  // 변경: test -> jeogi
 };
 
 // DB 연결 및 관리
@@ -31,4 +32,4 @@ json get_realtime_air_quality(MYSQL* conn);
 json get_air_quality_stats(MYSQL* conn, string cam_id);
 json get_passenger_flow_stats(MYSQL* conn, string cam_id);
 
-#endif // DATABASE_H
+#endif  // DATABASE_H

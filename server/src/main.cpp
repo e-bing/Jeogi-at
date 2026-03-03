@@ -10,6 +10,7 @@
 
 #include "../includes/config_manager.hpp"
 #include "../includes/congestion_analyzer.hpp"
+#include "../includes/congestion_publisher.hpp"
 #include "../includes/hanwha_node.hpp"
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
@@ -64,6 +65,10 @@ int main() {
     close_db(sensor_conn);
   });
   sensor_thread.detach();
+
+  // 펌웨어 라즈베리파이 측 전송 스레드 생성
+  CongestionPublisher congestion_pub(g_analyzer);
+  congestion_pub.start();
 
   // 3. Qt 클라이언트 대응 TLS 서버 소켓 생성
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -158,6 +163,8 @@ int main() {
     if (t.joinable()) t.join();
   }
   if (hwThread.joinable()) hwThread.join();
+
+  congestion_pub.stop();
   g_analyzer.stop();
 
   close(server_fd);
