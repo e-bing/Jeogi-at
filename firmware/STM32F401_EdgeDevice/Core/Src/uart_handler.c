@@ -1,12 +1,12 @@
-﻿#include "uart_handler.h"
+#include "uart_handler.h"
 #include "uart_protocol.h"
 #include "Data_Manager.h"
 #include "usart.h" // CubeMX 생성 파일 (huart2 등)
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
 // #include "led_panel.h"
-// #include "mq7.h"
-// #include "mq135.h"
+#include "mq7.h"
+#include "mq135.h"
 // #include "sht20.h"
 
 /* ─────────────────────────────────────────
@@ -187,6 +187,40 @@ void UART_Handler_Process(void)
 
     Packet_t pkt = pendingPkt;
 
+<<<<<<< feat/firmware/motor
+    switch (pkt.cmd) {
+        case CMD_GET_CO: {
+        	// 1. 센서값 읽기 (float 형태)
+        	float co_val = MQ7_ReadCO(&hadc1, 0.1f);
+
+        	// 2. 소수점 두 자리를 포함하기 위해 100을 곱해 정수로 변환
+        	uint16_t send_val = (uint16_t)(co_val * 100);
+
+            // 3. 상위/하위 바이트로 분리하여 응답 배열 생성
+       	    uint8_t resp[3];
+       	    resp[0] = CMD_GET_CO;             // 어떤 데이터인지 구분자
+       	    resp[1] = (send_val >> 8) & 0xFF;  // 상위 바이트 (MSB)
+       	    resp[2] = send_val & 0xFF;         // 하위 바이트 (LSB)
+
+       	    // 4. 라즈베리파이로 패킷 전송
+       	    UART_SendSensorResp(CMD_RESP_SENSOR, resp, 3);
+            break;
+        }
+        case CMD_GET_CO2: {
+        	// 1. 센서값 읽기 (float 형태)
+       	    float co2_val = MQ135_ReadCO2(&hadc1, 0.1f);
+
+       	    // 2. 100을 곱해 정수화
+       	    uint16_t send_val = (uint16_t)(co2_val * 100);
+
+       	    uint8_t resp[3];
+       	    resp[0] = CMD_GET_CO2;
+       	    resp[1] = (send_val >> 8) & 0xFF;
+       	    resp[2] = send_val & 0xFF;
+
+       	    UART_SendSensorResp(CMD_RESP_SENSOR, resp, 3);
+        	break;
+=======
     switch (pkt.cmd)
     {
     case CMD_GET_CO:
@@ -204,6 +238,7 @@ void UART_Handler_Process(void)
         //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
         //            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
         break;
+>>>>>>> dev
     }
     case CMD_GET_TEMP_HUM:
     {

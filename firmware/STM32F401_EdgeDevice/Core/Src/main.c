@@ -122,8 +122,8 @@ int main(void)
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
-  //  MQ135_Init();
-  //  MQ7_Init();
+    MQ135_Init();
+    MQ7_Init();
 
 
   // init: sd card & audio amp
