@@ -5,10 +5,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMutex>
 #include <QObject>
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
+#include <QQuickImageProvider>
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -48,7 +50,7 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void cameraFrameReceived(int cameraId, const QString &base64Image,
+  void cameraFrameReceived(int cameraId, const QString &timestamp,
                            const QVariantMap &metadata);
 
 private slots:
@@ -76,5 +78,30 @@ private:
 
   QByteArray m_buffer;
 };
+
+class CameraImageProvider : public QQuickImageProvider {
+public:
+    CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
+
+    QImage requestImage(const QString& id, QSize* size, const QSize&) override {
+        QMutexLocker locker(&m_mutex);
+        QImage img = m_images.value(id.split("?").first().toInt());
+        if (size) *size = img.size();
+        return img;
+    }
+
+    void updateImage(int cameraId, const QByteArray& jpegData) {
+        QImage img;
+        img.loadFromData(jpegData, "JPEG");
+        QMutexLocker locker(&m_mutex);
+        m_images[cameraId] = img;
+    }
+
+private:
+    QMap<int, QImage> m_images;
+    QMutex m_mutex;
+};
+
+extern CameraImageProvider* g_cameraImageProvider;
 
 #endif // NETWORKCLIENT_H

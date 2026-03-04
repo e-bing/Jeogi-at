@@ -83,6 +83,18 @@ ColumnLayout {
             return "#EF4444";
     }
 
+    function getCamCount(index) {
+        if (index === 0)
+            return dashboardRoot.cam1Count;
+        if (index === 1)
+            return dashboardRoot.cam2Count;
+        if (index === 2)
+            return dashboardRoot.cam3Count;
+        if (index === 3)
+            return dashboardRoot.cam4Count;
+        return 0;
+    }
+
     NetworkClient {
         id: client
         onIsConnectedChanged: {
@@ -106,41 +118,29 @@ ColumnLayout {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
         }
-        onCameraFrameReceived: function (cameraId, base64Image, metadata) {
-            let dataUrl = "data:image/jpeg;base64," + base64Image;
+        onCameraFrameReceived: function (cameraId, timestamp, metadata) {
+            let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
-                dashboardRoot.cam1Source = dataUrl;
+                dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
-                dashboardRoot.cam2Source = dataUrl;
+                dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
-                dashboardRoot.cam3Source = dataUrl;
+                dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
-                dashboardRoot.cam4Source = dataUrl;
+                dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
         }
 
-        function getCamCount(index) {
-            if (index === 0)
-                return dashboardRoot.cam1Count;
-            if (index === 1)
-                return dashboardRoot.cam2Count;
-            if (index === 2)
-                return dashboardRoot.cam3Count;
-            if (index === 3)
-                return dashboardRoot.cam4Count;
-            return 0;
-        }
+
         Component.onCompleted: {
-            console.log("Dashboard - Page ready, scheduling connection...");
             connectionTimer.start();
         }
         Component.onDestruction: {
-            console.log("Dashboard - Disconnecting on destruction...");
             disconnectFromServer();
         }
     }
@@ -284,7 +284,7 @@ ColumnLayout {
                                             }
                                             Text {
                                                 text: "NO SIGNAL"
-                                                color: Style.colorSlate400
+                                                color: "#94A3B8"
                                                 font.pixelSize: 12
                                                 font.bold: true
                                                 Layout.alignment: Qt.AlignCenter
@@ -408,7 +408,7 @@ ColumnLayout {
                                         Text {
                                             anchors.centerIn: parent
                                             text: "DETECTED: " + getCamCount(index)
-                                            color: Style.colorWarning
+                                            color: "#E2E8F0"
                                             font.pixelSize: 10
                                             font.bold: true
                                         }

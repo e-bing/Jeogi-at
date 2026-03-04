@@ -28,5 +28,6 @@
         <file>fonts/Pretendard-Regular.otf</file>
         <file>fonts/Pretendard-SemiBold.otf</file>
         <file>fonts/Pretendard-Thin.otf</file>
+        <file>assets/server.crt</file>
     </qresource>
 </RCC>
