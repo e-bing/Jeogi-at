@@ -41,7 +41,6 @@ set(COMMON_DEFINES
 set(COMMON_INCLUDES
   ${CMAKE_SOURCE_DIR}/Core/Inc
   ${CMAKE_SOURCE_DIR}/User/GUI
-  ${CMAKE_SOURCE_DIR}/User/image
   ${CMAKE_SOURCE_DIR}/User/RGBMatrix
   ${CMAKE_SOURCE_DIR}/User/Fonts
   ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
@@ -77,18 +76,13 @@ set(C_SOURCES
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
-  User/Fonts/font12.c
   User/Fonts/font12CN.c
-  User/Fonts/font16.c
-  User/Fonts/font20.c
-  User/Fonts/font24.c
   User/Fonts/font24CN.c
   User/Fonts/font8.c
   User/GUI/Data_Manager.c
   User/GUI/Display_Screens.c
   User/GUI/GUI_Paint.c
   User/RGBMatrix/RGBMatrix_device.c
-  User/image/image.c
 )
 
 set(ASM_SOURCES

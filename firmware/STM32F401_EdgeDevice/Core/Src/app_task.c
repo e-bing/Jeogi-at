@@ -39,7 +39,7 @@ void AppTask_Init(void)
   MQ135_Init();
   Data_Manager_SetSensorValues(MQ7_ReadCO(&hadc1, SENSOR_EMA_ALPHA),
                                MQ135_ReadCO2(&hadc1, SENSOR_EMA_ALPHA));
-  g_db_data.target_num = 8;
+  Data_Manager_SetTempHumValues(24.5f, 51.0f);
   s_sensor_tick = HAL_GetTick();
 
   MatrixRun_Init();
@@ -51,12 +51,4 @@ void AppTask_Run(void)
 {
   AppTask_UpdateGasSensors();
   MatrixRun_Run();
-}
-
-void AppTask_Loop(void)
-{
-  while (1)
-  {
-    AppTask_Run();
-  }
 }
