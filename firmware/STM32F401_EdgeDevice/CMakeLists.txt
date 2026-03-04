@@ -76,8 +76,6 @@ set(C_SOURCES
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
-  User/Fonts/font12CN.c
-  User/Fonts/font24CN.c
   User/Fonts/font8.c
   User/GUI/Data_Manager.c
   User/GUI/Display_Screens.c
@@ -134,4 +132,3 @@ add_custom_command(TARGET ${TARGET} POST_BUILD
   COMMAND arm-none-eabi-objcopy -O binary $<TARGET_FILE:${TARGET}> ${BIN_FILE}
   COMMENT "Generating size, HEX and BIN artifacts"
 )
-

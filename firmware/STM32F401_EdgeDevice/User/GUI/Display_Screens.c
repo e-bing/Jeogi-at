@@ -319,27 +319,3 @@ void Screen_Show_TempHum(DB_Data_t *data)
     Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *", 5, 3, 1U, 0U, WHITE, WHITE);
 }
 
-// void Screen_Show_Alert(DB_Data_t *data)
-// {
-//     const int target = data->target_num;
-
-//     HUB75_Clear();
-//     Paint_DrawString_EN(6, 3, "GO", &Font16, BLACK, RED);
-//     Paint_DrawString_EN(15, 16, "Number", &Font8, BLACK, YELLOW);
-
-//     char buf[5];
-//     sprintf(buf, "%d", data->target_num);
-//     Paint_DrawString_EN(52, 16, buf, &Font8, BLACK, WHITE);
-//     Paint_DrawString_EN(58, 16, "!", &Font8, BLACK, RED);
-
-//     if (target >= 1 && target <= 3)
-//     {
-//         Paint_DrawString_EN(0, 24, "<----------", &Font8, BLACK, BLUE);
-//     }
-//     else if (target >= 5 && target <= 8)
-//     {
-//         Paint_DrawString_EN(0, 24, "---------->", &Font8, BLACK, BLUE);
-//     }
-
-//     HUB75_Display();
-// }

@@ -1,5 +1,5 @@
 // database.cpp
-#include "database.h"
+#include "database.hpp"
 
 #include <iostream>
 
@@ -21,20 +21,19 @@ void close_db(MYSQL* conn) {
   }
 }
 
-bool save_sensor_data(MYSQL* conn, float co_value, float co2_value) {
+bool save_sensor_data(MYSQL* conn, float co, float co2, float temp, float humi) {
   string sql =
       "INSERT INTO air_stats (station_id, co_level, toxic_gas_level, "
-      "fire_detected, recorded_at) "
+      "temperature, humidity, fire_detected, recorded_at) "
       "VALUES (1, " +
-      to_string(co_value) + ", " + to_string(co2_value) + ", 0, NOW())";
+      to_string(co) + ", " + to_string(co2) + ", " +
+      to_string(temp) + ", " + to_string(humi) + ", 0, NOW())";
 
   if (mysql_query(conn, sql.c_str())) {
-    cerr << "❌ DB 저장 실패: " << mysql_error(conn) << endl;
+    cerr << "❌ DB 통합 저장 실패: " << mysql_error(conn) << endl;
     return false;
   }
-
-  cout << "✅ DB 저장 완료: CO = " << co_value << " ppm, CO2 = " << co2_value
-       << " ppm" << endl;
+  cout << "✅ DB 통합 저장 완료 (CO/CO2/Temp/Humi)" << endl;
   return true;
 }
 
@@ -85,6 +84,8 @@ json get_realtime_air_quality(MYSQL* conn) {
             station_id,
             co_level,
             toxic_gas_level,
+            temperature,
+            humidity,
             fire_detected,
             recorded_at
         FROM air_stats
@@ -107,6 +108,8 @@ json get_realtime_air_quality(MYSQL* conn) {
     json item = {{"station", "Jeogi-Station"},
                  {"co_level", row[1] ? stod(row[1]) : 0.0},
                  {"co2_ppm", row[2] ? stod(row[2]) : 0.0},
+                 {"temp", row[3] ? stod(row[3]) : 0.0},    
+                 {"humi", row[4] ? stod(row[4]) : 0.0},
                  {"fire_detected", row[3] ? stoi(row[3]) == 1 : false},
                  {"recorded_at", row[4] ? row[4] : "N/A"}};
     result.push_back(item);

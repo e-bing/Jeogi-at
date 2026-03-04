@@ -1,62 +1,51 @@
 ﻿#include "uart_handler.h"
 #include "uart_protocol.h"
-#include "usart.h" // CubeMX generated file (huart2, etc.)
-#include "i2s_audio.h"
 #include "Data_Manager.h"
+#include "usart.h" // CubeMX 생성 파일 (huart2 등)
+#include "services/audio_player.h"
+#include "services/sd_storage.h"
 // #include "led_panel.h"
 // #include "mq7.h"
 // #include "mq135.h"
 // #include "sht20.h"
 
 /* ─────────────────────────────────────────
-   Internal variables
+   내부 변수
 ───────────────────────────────────────── */
 
-static UART_HandleTypeDef *uart; // UART handle registered at init
-static uint8_t rx_buf[64];       // DMA RX buffer
+static UART_HandleTypeDef *uart; // Init 시 등록된 UART 핸들
+static uint8_t rx_buf[64];       // DMA 수신 버퍼
 
-// RX state machine states
+// 수신 상태머신 상태 정의
 typedef enum
 {
-    STATE_WAIT_STX,  // Wait STX
-    STATE_RECV_CMD,  // Receive CMD
-    STATE_RECV_LEN,  // Receive LEN
-    STATE_RECV_DATA, // Receive DATA
-    STATE_RECV_CRC,  // Receive CRC
-    STATE_WAIT_ETX   // Wait ETX and validate packet
+    STATE_WAIT_STX,  // STX 대기
+    STATE_RECV_CMD,  // CMD 수신
+    STATE_RECV_LEN,  // LEN 수신
+    STATE_RECV_DATA, // DATA 수신
+    STATE_RECV_CRC,  // CRC 수신
+    STATE_WAIT_ETX   // ETX 대기 및 패킷 검증
 } RxState_t;
 
-static RxState_t rxState = STATE_WAIT_STX; // Current RX parser state
-static Packet_t rxPkt;                     // Packet being parsed
-static uint8_t dataIdx;                    // DATA field index
-static volatile uint8_t pktReady = 0;      // Packet ready flag
-static Packet_t pendingPkt;                // Pending packet for processing
+static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
+static Packet_t rxPkt;                     // 수신 중인 패킷
+static uint8_t dataIdx;                    // DATA 필드 인덱스
+static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
+static Packet_t pendingPkt;                // 처리 대기 중인 패킷
 
 /* ─────────────────────────────────────────
-   CRC: CMD ^ LEN ^ DATA bytes ^ ETX
-───────────────────────────────────────── */
-static uint8_t CalcCRC(Packet_t *pkt)
-{
-    uint8_t crc = pkt->cmd ^ pkt->len;
-    for (int i = 0; i < pkt->len; i++)
-        crc ^= pkt->data[i];
-    crc ^= PKT_ETX; // include ETX
-    return crc;
-}
-
-/* ─────────────────────────────────────────
-   Init - start DMA RX
+   초기화 - DMA 수신 시작
 ───────────────────────────────────────── */
 void UART_CMD_Init(UART_HandleTypeDef *huart)
 {
-    uart = huart; // use configured uart
+    uart = huart; // 정해놓은 uart 사용
     HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
     printf("__uart__ __init__\r\n");
 }
 
 /* ─────────────────────────────────────────
-   DMA RX callback (called on IDLE)
-   Feed received bytes into parser
+   DMA 수신 콜백 - Idle 감지 시 호출됨
+   수신된 바이트를 상태머신에 1바이트씩 넘김
 ───────────────────────────────────────── */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
@@ -66,24 +55,17 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         {
             UART_RxCallback(rx_buf[i]);
         }
-        // Rearm DMA for next RX
+        // 다음 수신을 위해 DMA 재시작
         HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
     }
 }
 
 /* ─────────────────────────────────────────
-   Byte-wise parser state machine
-   Set pktReady when full packet + CRC is valid
+   상태머신 - 1바이트씩 파싱
+   패킷 완성 및 CRC 검증 시 pktReady 플래그 설정
 ───────────────────────────────────────── */
 void UART_RxCallback(uint8_t byte)
 {
-
-    static int cnt = 0;
-    if (cnt++ < 30)
-    {
-        printf("rx byte = 0x%02X, state=%d\r\n", byte, rxState);
-    }
-
     switch (rxState)
     {
     case STATE_WAIT_STX:
@@ -99,13 +81,20 @@ void UART_RxCallback(uint8_t byte)
     case STATE_RECV_LEN:
         rxPkt.len = byte;
         dataIdx = 0;
-        // No DATA -> go directly to CRC
-        rxState = (byte > 0) ? STATE_RECV_DATA : STATE_RECV_CRC;
+
+        if (rxPkt.len > PKT_MAX_DATA_LEN)
+        {
+            // 길이 오류: 즉시 리셋
+            printf("LEN FAIL len=%u max=%u\r\n", rxPkt.len, PKT_MAX_DATA_LEN);
+            rxState = STATE_WAIT_STX;
+            break;
+        }
+
+        rxState = (rxPkt.len > 0) ? STATE_RECV_DATA : STATE_RECV_CRC;
         break;
 
     case STATE_RECV_DATA:
-        if (dataIdx < PKT_MAX_DATA_LEN)
-            rxPkt.data[dataIdx++] = byte;
+        rxPkt.data[dataIdx++] = byte; // len 검증을 앞에서 했으니 바로 저장
         if (dataIdx >= rxPkt.len)
             rxState = STATE_RECV_CRC;
         break;
@@ -118,7 +107,7 @@ void UART_RxCallback(uint8_t byte)
     case STATE_WAIT_ETX:
         if (byte == PKT_ETX)
         {
-            uint8_t c = CalcCRC(&rxPkt);
+            uint8_t c = Calc_CRC(&rxPkt);
             if (c == rxPkt.crc)
             {
                 pktReady = 1;
@@ -141,7 +130,7 @@ void UART_RxCallback(uint8_t byte)
 }
 
 /* ─────────────────────────────────────────
-   TX - build and send packet
+   송신 - 패킷 조립 후 전송
 ───────────────────────────────────────── */
 static void SendPacket(uint8_t cmd, uint8_t *data, uint8_t len)
 {
@@ -154,7 +143,7 @@ static void SendPacket(uint8_t cmd, uint8_t *data, uint8_t len)
     for (int i = 0; i < len; i++)
         buf[idx++] = data[i];
 
-    // CRC: cmd ^ len ^ data... ^ ETX
+    // CRC: STX 제외 나머지 XOR => cmd ^ len ^ data... ^ ETX
     uint8_t crc = cmd ^ len ^ PKT_ETX;
     for (int i = 0; i < len; i++)
         crc ^= data[i];
@@ -187,8 +176,8 @@ void UART_SendSensorResp(uint8_t cmd, uint8_t *data, uint8_t len)
 }
 
 /* ─────────────────────────────────────────
-   Called periodically in main loop
-   Check pktReady and dispatch CMD
+   메인 루프에서 주기적으로 호출
+   pktReady 플래그 확인 후 CMD 처리
 ───────────────────────────────────────── */
 void UART_Handler_Process(void)
 {
@@ -254,16 +243,33 @@ void UART_Handler_Process(void)
         UART_SendACK(pkt.cmd);
         break;
 
-    case CMD_SET_AUDIO:
-        if (pkt.len < 1)
+    case CMD_PLAY_WAV:
+        printf("[RECV] PLAY_WAV\r\n");
+        if (pkt.len == 0 || pkt.len > 255)
         {
-            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            UART_SendNACK(CMD_NACK, 1);
             break;
         }
 
-        //            Audio_PlayWav("voice_1.wav");
-        //            Device_SetAudio(pkt.data[0]);
-        UART_SendACK(pkt.cmd);
+        char filename[256];
+        memcpy(filename, pkt.data, pkt.len);
+        filename[pkt.len] = '\0';
+        //        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
+        Audio_PlayWav(filename);
+        UART_SendNACK(CMD_ACK, 0);
+        break;
+
+    case CMD_GET_WAVS:
+        printf("[RECV] GET_WAVS\r\n");
+
+        uint8_t data[255];
+        uint8_t len;
+
+//        sd_print_files();
+        sd_read_files("/", data, &len);
+        //			if (sd_read_files("/", data, &len) != FR_OK) return;
+        SendPacket(CMD_RESP_WAVS, data, len);
+
         break;
 
     default:
