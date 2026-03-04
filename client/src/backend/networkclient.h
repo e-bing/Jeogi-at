@@ -35,6 +35,7 @@ signals:
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
   void systemMonitorReceived(QVariantMap data);
+  void tempHumiReceived(QVariantMap data);
   void cameraFrameReceived(int cameraId, const QString &base64Image,
                            const QVariantMap &metadata);
 
