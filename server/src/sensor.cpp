@@ -16,8 +16,9 @@ extern volatile sig_atomic_t stop_flag;
 static const string CLIENT_ID = "server_sensor_sub";
 
 /* ─────────────────────────────────────────
-   온습도 캐시 로직
-   MQTT 콜백에서 업데이트, Qt 전송 시 읽음
+   온습도 캐시
+   sensor/temp_humi 수신 시 업데이트
+   sensor/air_quality 수신 시 CO/CO2와 함께 DB 저장에 사용
 ───────────────────────────────────────── */
 static float g_last_temp = 0.0f;
 static float g_last_humi = 0.0f;
@@ -25,10 +26,10 @@ static bool  g_temp_humi_valid = false;
 static mutex g_temp_humi_mutex;
 
 /**
- * @brief 마지막으로 수신한 온습도 값을 반환합니다.
- * @param temp 온도 저장 참조
- * @param humi 습도 저장 참조
- * @return 유효한 데이터가 있으면 true
+ * @brief 캐시된 온습도 값을 반환합니다.
+ * @param temp 온도 저장 참조 (°C)
+ * @param humi 습도 저장 참조 (%)
+ * @return 수신된 데이터가 있으면 true
  */
 bool get_last_temp_humi(float& temp, float& humi)
 {
@@ -39,7 +40,15 @@ bool get_last_temp_humi(float& temp, float& humi)
 }
 
 /**
- * @brief aboy로부터 MQTT로 센서값을 수신해서 DB에 저장합니다.
+ * @brief MQTT로 펌웨어의 센서 데이터를 수신해 DB에 저장합니다.
+ *
+ * 구독 토픽:
+ *   - sensor/air_quality : CO, CO2 수신 → 온습도 캐시와 함께 air_stats DB 저장
+ *   - sensor/temp_humi   : 온도, 습도 수신 → 캐시만 업데이트
+ *
+ * MQTT 연결이 끊기면 5초 후 자동 재연결합니다.
+ * stop_flag가 설정되면 루프를 종료합니다.
+ *
  * @param conn DB 연결 핸들
  */
 void receive_sensor_data(MYSQL* conn) {
@@ -82,7 +91,7 @@ void receive_sensor_data(MYSQL* conn) {
             float temp = data.value("temperature", 0.0f);
             float humi = data.value("humidity",    0.0f);
 
-            // 캐시 업데이트 로직
+            // 캐시 업데이트 (Qt 전송 및 다음 DB 저장 시 사용)
             {
                 lock_guard<mutex> lock(g_temp_humi_mutex);
                 g_last_temp       = temp;
@@ -99,7 +108,7 @@ void receive_sensor_data(MYSQL* conn) {
         }
     };
 
-    // 바깥 while로 감싸서 재연결 + 예외가 터져도 스레드가 죽지 않음
+    
     while (!stop_flag) {
         try {
             mqtt::async_client client(g_mqtt_broker, CLIENT_ID);
@@ -121,7 +130,7 @@ void receive_sensor_data(MYSQL* conn) {
             client.subscribe("sensor/temp_humi", 1)->wait();
             cout << "📡 구독 시작: sensor/temp_humi" << endl;
 
-            // is_connected() 체크로 루프: 끊기면 바깥 while에서 재연결
+            
             while (client.is_connected() && !stop_flag) {
                 this_thread::sleep_for(chrono::seconds(1));
             }
