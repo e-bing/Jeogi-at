@@ -35,7 +35,7 @@ Rectangle {
             text: headerRoot.title
             font: Style.fontLarge
             color: Style.colorSlate800
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
         // Tag

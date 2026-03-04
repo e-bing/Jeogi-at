@@ -10,6 +10,6 @@ Rectangle {
         text: "디바이스 제어 및 확인 페이지"
         font: Style.fontLarge
         color: Style.colorSlate800
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 }

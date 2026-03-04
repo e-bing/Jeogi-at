@@ -5,7 +5,7 @@ import ".."
 
 Rectangle {
     color: Style.colorSurface
-    
+
     // Top border
     Rectangle {
         anchors.left: parent.left
@@ -19,50 +19,87 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 20
         anchors.rightMargin: 20
-        
+
         // Emergency Controls
         RowLayout {
             spacing: 15
-            
+
             // Siren Button
             MouseArea {
                 implicitWidth: rowSiren.width
                 implicitHeight: rowSiren.height
                 cursorShape: Qt.PointingHandCursor
-                
+
                 RowLayout {
                     id: rowSiren
                     spacing: 5
-                    Rectangle { width: 8; height: 8; radius: 4; color: Style.colorDanger }
-                    Text { text: "비상 사이렌"; font: Style.fontBold; color: Style.colorSlate500 }
+                    Rectangle {
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: Style.colorDanger
+                    }
+                    Text {
+                        text: "비상 사이렌"
+                        font: Style.fontBold
+                        color: Style.colorSlate500
+                    }
                 }
             }
-            
+
             // Broadcast Button
             MouseArea {
                 implicitWidth: rowBroadcast.width
                 implicitHeight: rowBroadcast.height
                 cursorShape: Qt.PointingHandCursor
-                
+
                 RowLayout {
                     id: rowBroadcast
                     spacing: 5
-                    Rectangle { width: 8; height: 8; radius: 4; color: Style.colorPrimary }
-                    Text { text: "안내 방송"; font: Style.fontBold; color: Style.colorSlate500 }
+                    Rectangle {
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: Style.colorPrimary
+                    }
+                    Text {
+                        text: "안내 방송"
+                        font: Style.fontBold
+                        color: Style.colorSlate500
+                    }
                 }
             }
         }
-        
-        Item { Layout.fillWidth: true } // Spacer
-        
+
+        Item {
+            Layout.fillWidth: true
+        } // Spacer
+
         // System Info
         RowLayout {
             spacing: 15
-            
-            Text { text: "관리자: 조예찬"; color: Style.colorSlate500; font.pixelSize: 11 }
-            Rectangle { width: 1; height: 12; color: Style.colorSlate300 }
-            Text { text: "IP: 192.168.0.124"; color: Style.colorSlate500; font.pixelSize: 11; font.family: "Consolas" }
-            Text { text: "© VEDADEV"; color: Style.colorSlate300; font.pixelSize: 11 }
+
+            Text {
+                text: "관리자: 조예찬"
+                color: Style.colorSlate500
+                font.pixelSize: 11
+            }
+            Rectangle {
+                width: 1
+                height: 12
+                color: Style.colorSlate300
+            }
+            Text {
+                text: "IP: " + (mainWindow.serverIp.length > 0 ? mainWindow.serverIp : "-")
+                color: Style.colorSlate500
+                font.pixelSize: 11
+                font.family: "Consolas"
+            }
+            Text {
+                text: "© VEDADEV"
+                color: Style.colorSlate300
+                font.pixelSize: 11
+            }
         }
     }
 }

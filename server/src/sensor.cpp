@@ -1,131 +1,147 @@
 // sensor.cpp
-#include "sensor.h"
-#include "database.h"
-#include "motor.h"
-#include <chrono>
-#include <fcntl.h>
+#include "sensor.hpp"
+#include "database.hpp"
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <termios.h>
-#include <thread>
-#include <unistd.h>
+#include <mqtt/async_client.h>
+#include <csignal>
+
+#include "../includes/shared_data.hpp"
 
 using json = nlohmann::json;
 using namespace std;
 
-int g_uart_fd = -1;
+extern volatile sig_atomic_t stop_flag;
 
-extern bool g_auto_mode;
+static const string CLIENT_ID = "server_sensor_sub";
 
-int init_uart(const char *device) {
-  int uart_fd = open(device, O_RDWR | O_NOCTTY);
-  if (uart_fd < 0) {
-    cerr << "UART 열기 실패: " << device << endl;
-    return -1;
-  }
+/* ─────────────────────────────────────────
+   온습도 캐시
+   sensor/temp_humi 수신 시 업데이트
+   sensor/air_quality 수신 시 CO/CO2와 함께 DB 저장에 사용
+───────────────────────────────────────── */
+static float g_last_temp = 0.0f;
+static float g_last_humi = 0.0f;
+static bool  g_temp_humi_valid = false;
+static mutex g_temp_humi_mutex;
 
-  struct termios options;
-  tcgetattr(uart_fd, &options);
-
-  cfsetispeed(&options, B115200);
-  cfsetospeed(&options, B115200);
-
-  options.c_cflag |= (CLOCAL | CREAD);
-  options.c_cflag &= ~PARENB;
-  options.c_cflag &= ~CSTOPB;
-  options.c_cflag &= ~CSIZE;
-  options.c_cflag |= CS8;
-  
-  options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-  options.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL | INLCR);
-  options.c_oflag &= ~OPOST;
-
-  // ✅ 블로킹 모드로 변경 - 최소 1바이트 받을 때까지 대기
-  options.c_cc[VMIN] = 1;     // 최소 1바이트
-  options.c_cc[VTIME] = 10;   // 1초 타임아웃 (10 * 0.1초)
-
-  tcsetattr(uart_fd, TCSANOW, &options);
-  tcflush(uart_fd, TCIOFLUSH);
-
-  cout << "✅ UART 초기화 완료: " << device << " (115200 baud)" << endl;
-  return uart_fd;
+/**
+ * @brief 캐시된 온습도 값을 반환합니다.
+ * @param temp 온도 저장 참조 (°C)
+ * @param humi 습도 저장 참조 (%)
+ * @return 수신된 데이터가 있으면 true
+ */
+bool get_last_temp_humi(float& temp, float& humi)
+{
+    lock_guard<mutex> lock(g_temp_humi_mutex);
+    temp = g_last_temp;
+    humi = g_last_humi;
+    return g_temp_humi_valid;
 }
 
-void close_uart(int uart_fd) {
-    if (uart_fd >= 0) {
-        close(uart_fd);
-        cout << "UART 연결 종료" << endl;
-    }
-}
+/**
+ * @brief MQTT로 펌웨어의 센서 데이터를 수신해 DB에 저장합니다.
+ *
+ * 구독 토픽:
+ *   - sensor/air_quality : CO, CO2 수신 → 온습도 캐시와 함께 air_stats DB 저장
+ *   - sensor/temp_humi   : 온도, 습도 수신 → 캐시만 업데이트
+ *
+ * MQTT 연결이 끊기면 5초 후 자동 재연결합니다.
+ * stop_flag가 설정되면 루프를 종료합니다.
+ *
+ * @param conn DB 연결 핸들
+ */
+void receive_sensor_data(MYSQL* conn) {
 
-void receive_sensor_data(int uart_fd, MYSQL *conn) {
-    char buffer[256];
-    string line_buffer = "";
+    /* ─── MQTT 콜백 클래스 정의 ─── */
+    class SensorCallback : public mqtt::callback {
+        MYSQL* conn_;
+    public:
+        SensorCallback(MYSQL* c) : conn_(c) {}
 
-    cout << "🔌 센서 데이터 수신 시작 (통합 출력 모드)" << endl;
-    cout << "--------------------------------------------------" << endl;
+    void message_arrived(mqtt::const_message_ptr msg) override {
+    try {
+        string topic = msg->get_topic();
+        json   data  = json::parse(msg->get_payload_str());
 
-    if (uart_fd < 0) return;
+        // 현재 캐시된(가장 최신) 온습도 값을 가져온다.
+        float current_temp, current_humi;
+        get_last_temp_humi(current_temp, current_humi);
 
-    const auto WINDOW_MS = 2000;
-    bool has_co = false, has_co2 = false;
-    float last_co = 0.0f, last_co2 = 0.0f;
-    auto last_co_time = chrono::steady_clock::time_point();
-    auto last_co2_time = chrono::steady_clock::time_point();
-
-    while (true) {
-        int bytes = read(uart_fd, buffer, sizeof(buffer) - 1);
-        if (bytes > 0) {
-            buffer[bytes] = '\0';
-            line_buffer += string(buffer);
-
-            size_t pos;
-            while ((pos = line_buffer.find('\n')) != string::npos) {
-                string line = line_buffer.substr(0, pos);
-                line_buffer.erase(0, pos + 1);
-
-                try {
-                    json data = json::parse(line);
-                    auto now = chrono::steady_clock::now();
-
-                    if (data["type"] == "MQ135") {
-                        last_co2 = data["value"].get<float>();
-                        last_co2_time = now;
-                        has_co2 = true;
-                    } else if (data["type"] == "MQ7") {
-                        last_co = data["value"].get<float>();
-                        last_co_time = now;
-                        has_co = true;
-                    }
-
-                    // 1. 두 데이터가 모두 도착했을 때 통합 출력
-                    if (has_co && has_co2) {
-                        auto diff = chrono::duration_cast<chrono::milliseconds>(
-                            last_co_time > last_co2_time ? last_co_time - last_co2_time : last_co2_time - last_co_time).count();
-
-                        if (diff <= WINDOW_MS) {
-                            cout << "📊 [통합 데이터] CO: " << last_co << " ppm | CO2: " << last_co2 << " ppm" << endl;
-                            save_sensor_data(conn, last_co, last_co2);
-                            has_co = has_co2 = false;
-                        }
-                    }
-                } catch (json::exception &e) {
-                    cerr << "⚠️ JSON 에러: " << e.what() << endl;
-                }
+        /* sensor/air_quality → CO, CO2 수신 시 통합 저장 */
+        if (topic == "sensor/air_quality") {
+            float co  = data.value("co",  0.0f);
+            float co2 = data.value("co2", 0.0f);
+            
+            // DB 통합 저장 수행
+            if (save_sensor_data(conn_, co, co2, current_temp, current_humi)) {
+                // 수신된 모든 값을 한눈에 확인할 수 있게 출력한다.
+                cout << "----------------------------------------" << endl;
+                cout << "📊 [SENSOR DATA RECEIVED]" << endl;
+                cout << "   CO    : " << co << " ppm" << endl;
+                cout << "   CO2   : " << co2 << " ppm" << endl;
+                cout << "   TEMP  : " << current_temp << " °C" << endl;
+                cout << "   HUMI  : " << current_humi << " %" << endl;
+                cout << "----------------------------------------" << endl;
             }
         }
 
-        // 2. 타임아웃 처리 (한쪽 데이터만 들어오고 2초 지났을 때)
-        auto now = chrono::steady_clock::now();
-        if (has_co && !has_co2 && chrono::duration_cast<chrono::milliseconds>(now - last_co_time).count() > WINDOW_MS) {
-            cout << "📊 [단독 데이터] CO: " << last_co << " ppm | CO2: (데이터 없음)" << endl;
-            save_sensor_data(conn, last_co, 0.0f);
-            has_co = false;
+        /* sensor/temp_humi → 온습도 수신 시 캐시만 업데이트 */
+        else if (topic == "sensor/temp_humi") {
+            float temp = data.value("temperature", 0.0f);
+            float humi = data.value("humidity",    0.0f);
+
+            // 캐시 업데이트 (Qt 전송 및 다음 DB 저장 시 사용)
+            {
+                lock_guard<mutex> lock(g_temp_humi_mutex);
+                g_last_temp       = temp;
+                g_last_humi       = humi;
+                g_temp_humi_valid = true;
+            }
         }
-        if (has_co2 && !has_co && chrono::duration_cast<chrono::milliseconds>(now - last_co2_time).count() > WINDOW_MS) {
-            cout << "📊 [단독 데이터] CO: (데이터 없음) | CO2: " << last_co2 << " ppm" << endl;
-            save_sensor_data(conn, 0.0f, last_co2);
-            has_co2 = false;
+    } catch (json::exception& e) {
+        cerr << "⚠️ JSON 에러: " << e.what() << endl;
+    }
+}
+        void connection_lost(const string& cause) override {
+            cerr << "⚠️ 센서 MQTT 연결 끊김: " << cause << endl;
         }
+    };
+
+    
+    while (!stop_flag) {
+        try {
+            mqtt::async_client client(g_mqtt_broker, CLIENT_ID);
+            SensorCallback cb(conn);
+            client.set_callback(cb);
+
+            mqtt::connect_options opts;
+            opts.set_keep_alive_interval(20);
+            opts.set_clean_session(true);
+            opts.set_automatic_reconnect(true);
+
+            client.connect(opts)->wait();
+            cout << "✅ 센서 MQTT 구독 연결 완료" << endl;
+
+            // CO/CO2 + 온습도 두 토픽 모두 구독
+            client.subscribe("sensor/air_quality", 1)->wait();
+            cout << "📡 구독 시작: sensor/air_quality" << endl;
+
+            client.subscribe("sensor/temp_humi", 1)->wait();
+            cout << "📡 구독 시작: sensor/temp_humi" << endl;
+
+            
+            while (client.is_connected() && !stop_flag) {
+                this_thread::sleep_for(chrono::seconds(1));
+            }
+            cerr << "⚠️ 센서 MQTT 연결 끊김 감지, 5초 후 재연결..." << endl;
+
+        } catch (const mqtt::exception& e) {
+            cerr << "❌ 센서 MQTT 에러: " << e.what() << " | 5초 후 재연결..." << endl;
+        } catch (...) {
+            cerr << "❌ 센서 스레드 알 수 없는 예외, 5초 후 재연결..." << endl;
+        }
+    if (!stop_flag)
+        this_thread::sleep_for(chrono::seconds(5));
     }
 }

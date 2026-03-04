@@ -120,10 +120,10 @@ int main() {
       cv::dnn::NMSBoxes(boxes, confidences, 0.45f, 0.5f, indices);
 
       for (int idx : indices) {
-        objects_array.push_back({{"x", boxes[idx].x},
-                                 {"y", boxes[idx].y},
-                                 {"w", boxes[idx].width},
-                                 {"h", boxes[idx].height},
+        objects_array.push_back({{"x", boxes[idx].x / 640.f},
+                                 {"y", boxes[idx].y / 480.f},
+                                 {"w", boxes[idx].width / 640.f},
+                                 {"h", boxes[idx].height / 480.f},
                                  {"conf", confidences[idx]}});
       }
 

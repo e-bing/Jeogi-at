@@ -1,13 +1,32 @@
 #include "backend/networkclient.h"
+#include <QDebug>
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-
+#include <QtGlobal>
 
 int main(int argc, char *argv[]) {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
   QGuiApplication app(argc, argv);
+
+  // Register Fonts
+  QStringList fontPaths = {
+      ":/fonts/Pretendard-Thin.otf",   ":/fonts/Pretendard-ExtraLight.otf",
+      ":/fonts/Pretendard-Light.otf",  ":/fonts/Pretendard-Regular.otf",
+      ":/fonts/Pretendard-Medium.otf", ":/fonts/Pretendard-SemiBold.otf",
+      ":/fonts/Pretendard-Bold.otf",   ":/fonts/Pretendard-ExtraBold.otf",
+      ":/fonts/Pretendard-Black.otf"};
+
+  for (const QString &path : fontPaths) {
+    if (QFontDatabase::addApplicationFont(path) == -1) {
+      qWarning() << "Failed to load font:" << path;
+    }
+  }
+
+  app.setFont(QFont("Pretendard"));
 
   // Register Network Client
   qmlRegisterType<NetworkClient>("com.metro.network", 1, 0, "NetworkClient");

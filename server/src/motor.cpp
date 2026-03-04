@@ -1,36 +1,84 @@
-#include "motor.h"
+#include "motor.hpp"
 #include <iostream>
-#include <unistd.h>
 #include <nlohmann/json.hpp>
+#include <mqtt/async_client.h>
+
+#include "../includes/shared_data.hpp"
 
 using json = nlohmann::json;
 using namespace std;
 
-// Sensor.cpp에 정의된 전역 변수를 외부에서 참조
-extern int g_uart_fd;
+bool g_auto_mode = true;
 
-bool g_auto_mode = true; // auto or manual
+static const string MQTT_BROKER = g_mqtt_broker;
+static const string MQTT_TOPIC  = "motor/control";
+static const string CLIENT_ID   = "server_motor_pub";
+
+static mqtt::async_client* g_mqtt_client = nullptr; 
+static bool g_mqtt_connected = false;
+
+void init_mqtt_motor() {
+    // 이미 연결되어 있다면 중복 실행 방지
+    if (g_mqtt_connected && g_mqtt_client != nullptr) return;
+
+    try {
+        // 1. 실제 함수가 호출되는 시점에 객체를 생성 (이때 g_mqtt_broker 값을 읽음)
+        if (g_mqtt_client == nullptr) {
+            g_mqtt_client = new mqtt::async_client(g_mqtt_broker, CLIENT_ID);
+        }
+
+        mqtt::connect_options opts;
+        opts.set_keep_alive_interval(20);
+        opts.set_clean_session(true);
+        opts.set_automatic_reconnect(true);
+        opts.set_connect_timeout(10);
+
+        // 2. 포인터를 사용하므로 . 대신 -> 연산자 사용
+        g_mqtt_client->connect(opts)->wait();
+        
+        g_mqtt_connected = true;
+        cout << "✅ MQTT 모터 브로커 연결 완료" << endl;
+    } catch (const mqtt::exception& e) {
+        g_mqtt_connected = false;
+        cerr << "❌ MQTT 연결 실패: " << e.what() << endl;
+        cerr << "   브로커: " << g_mqtt_broker << endl;
+        cerr << "   에러코드: " << e.get_reason_code() << endl;
+    }
+}
 
 void send_motor_command(const string& action, int speed) {
-    if (g_uart_fd < 0) {
-        cerr << "❌ UART 연결 없음 - 모터 명령 전송 불가" << endl;
+    if (!g_mqtt_connected) {
+        cerr << "❌ MQTT 미연결 - 모터 명령 전송 불가" << endl;
         return;
     }
+    try {
+        json cmd = {
+            {"type", "motor_control"},
+            {"action", action},
+            {"speed", speed}
+        };
+        string payload = cmd.dump();
+        g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
+        cout << "✅ MQTT 모터 명령 전송: " << payload << endl;
+    } catch (const mqtt::exception& e) {
+        cerr << "❌ MQTT 모터 명령 전송 실패: " << e.what() << endl;
+    }
+}
 
-    // JSON 형식으로 명령 생성
-    json cmd = {
-        {"type", "motor_control"},
-        {"action", action},
-        {"speed", speed}
-    };
-
-    string cmd_str = cmd.dump() + "\n";
-    
-    // STM32로 전송
-    int bytes = write(g_uart_fd, cmd_str.c_str(), cmd_str.length());
-    if (bytes > 0) {
-        cout << "✅ STM32로 모터 명령 전송: " << cmd_str;
-    } else {
-        cerr << "❌ STM32 모터 명령 전송 실패" << endl;
+void send_mode_command(const string& mode) {
+    if (!g_mqtt_connected) {
+        cerr << "❌ MQTT 미연결 - 모드 명령 전송 불가" << endl;
+        return;
+    }
+    try {
+        json cmd = {
+            {"type", "mode_control"},
+            {"action", mode}
+        };
+        string payload = cmd.dump();
+        g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
+        cout << "✅ MQTT 모드 명령 전송: " << payload << endl;
+    } catch (const mqtt::exception& e) {
+        cerr << "❌ MQTT 모드 명령 전송 실패: " << e.what() << endl;
     }
 }

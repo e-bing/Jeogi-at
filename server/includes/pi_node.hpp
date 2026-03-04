@@ -14,6 +14,7 @@ extern "C" {
 #include <SDL2/SDL.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/log.h>
 #include <libswscale/swscale.h>
 }
 
@@ -26,7 +27,8 @@ class PiNode {
   /**
    * @param ip 라즈베리 파이의 IP 주소
    */
-  PiNode(const std::string& ip);
+  PiNode(const std::string& ip, const std::string& topic,
+         const std::string& id);
   ~PiNode();
 
   /**
@@ -43,6 +45,8 @@ class PiNode {
 
  private:
   std::string pi_ip;
+  std::string mqtt_topic;
+  std::string node_id;
 
   // FFmpeg 관련 자원
   AVFormatContext* fmtCtx = nullptr;

@@ -13,6 +13,7 @@ ColumnLayout {
 
     property var realtimeData: []
     property var airStatsData: ({})
+    property var tempHumiData: ({})
     property var sectionAverages: []
     property var sectionSums: []
     property int grandTotalOccupants: 0
@@ -95,6 +96,10 @@ ColumnLayout {
         onRealtimeAirReceived: function (data) {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
+        }
+        onTempHumiReceived: function (data) {
+            console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
+            dashboardRoot.tempHumiData = data;
         }
         Component.onCompleted: {
             console.log("Dashboard - Page ready, scheduling connection...");
@@ -279,6 +284,56 @@ ColumnLayout {
                             color: Style.colorSlate800
                         }
 
+                        // 온습도
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 20
+
+                            RowLayout {
+                                spacing: 6
+                                Text {
+                                    text: "🌡️ 온도"
+                                    color: Style.colorSlate500
+                                    font: Style.fontSmall
+                                }
+                                Text {
+                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.temperature !== undefined ? dashboardRoot.tempHumiData.temperature.toFixed(1) + " °C" : "-- °C"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                }
+                            }
+
+                            Rectangle {
+                                width: 1
+                                height: 20
+                                color: Style.colorSlate200
+                            }
+
+                            RowLayout {
+                                spacing: 6
+                                Text {
+                                    text: "💧 습도"
+                                    color: Style.colorSlate500
+                                    font: Style.fontSmall
+                                }
+                                Text {
+                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.humidity !== undefined ? dashboardRoot.tempHumiData.humidity.toFixed(1) + " %" : "-- %"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: Style.colorSlate200
+                        }
+
                         // CO2
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -335,6 +390,12 @@ ColumnLayout {
                                     }
                                 }
                             }
+
+                            Text {
+                                text: "💡 CO2: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
+                                font.pixelSize: 10
+                                color: Style.colorSlate500
+                            }
                         }
 
                         // AQI
@@ -351,7 +412,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? dashboardRoot.airStatsData.co_level.toFixed(1) : "0"
+                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? dashboardRoot.airStatsData.co_level.toFixed(2) : "0"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -392,6 +453,12 @@ ColumnLayout {
                                         }
                                     }
                                 }
+                            }
+
+                            Text {
+                                text: "💡 CO: 9ppm 이상 '주의', 25ppm 이상 '위험' 단계 진입"
+                                font.pixelSize: 10
+                                color: Style.colorSlate500
                             }
                         }
 
@@ -528,14 +595,18 @@ ColumnLayout {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 15
+                        anchors.topMargin: 15
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 20
+                        anchors.bottomMargin: 20
+                        spacing: 0
 
                         RowLayout {
                             Layout.fillWidth: true
                             Text {
                                 text: "👆 디바이스 통합 제어"
-                                font: Style.fontBold
+                                font.pixelSize: 22
+                                font.bold: true
                                 color: Style.colorSlate800
                             }
                             Item {
@@ -585,55 +656,11 @@ ColumnLayout {
                             }
                         }
 
-                        // ROI Box
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 80
-                            color: "#F8FAFC"
-                            radius: 8
-                            border.color: Style.colorSlate200
-                            border.width: 1
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                ColumnLayout {
-                                    Text {
-                                        text: "ROI (REGION OF INTEREST) 설정"
-                                        color: Style.colorPrimary
-                                        font.bold: true
-                                        font.pixelSize: 10
-                                    }
-                                    Text {
-                                        text: "구역별 혼잡도 분석 설정"
-                                        color: "#64748B" // Persistent Slate 500
-                                    }
-                                }
-                                Item {
-                                    Layout.fillWidth: true
-                                }
-                                Button {
-                                    text: "설정하기"
-                                    background: Rectangle {
-                                        color: Style.colorPrimary
-                                        radius: 4
-                                    }
-                                    contentItem: Text {
-                                        text: parent.text
-                                        color: "white"
-                                        font.bold: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
-                                }
-                            }
-                        }
-
                         GridLayout {
                             Layout.fillWidth: true
                             columns: 2
                             columnSpacing: 15
-                            rowSpacing: 15
+                            rowSpacing: 10
 
                             Repeater {
                                 model: [
@@ -911,97 +938,6 @@ ColumnLayout {
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            }
-
-            // Timeline
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 120
-                color: Style.colorSurface
-                radius: 12
-                border.color: Style.colorSlate200
-                border.width: 1
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 10
-
-                    Text {
-                        text: "📊 전체 디바이스 통합 상태 (REAL-TIME TIMELINE)"
-                        font {
-                            family: Style.fontBold.family
-                            bold: true
-                            pixelSize: 11
-                        }
-                        color: Style.colorSlate500
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Repeater {
-                            model: 20
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 30
-                                // Random-like pattern based on index
-                                color: index < 5 ? "#22C55E" : (index < 10 ? "#EAB308" : (index < 15 ? "#22C55E" : "#EF4444"))
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        spacing: 20
-                        RowLayout {
-                            Rectangle {
-                                width: 10
-                                height: 10
-                                radius: 5
-                                color: "#22C55E"
-                            }
-                            Text {
-                                text: "정상 (Normal)"
-                                color: Style.colorSlate500
-                            }
-                        }
-                        RowLayout {
-                            Rectangle {
-                                width: 10
-                                height: 10
-                                radius: 5
-                                color: "#EAB308"
-                            }
-                            Text {
-                                text: "주의 (Caution)"
-                                color: Style.colorSlate500
-                            }
-                        }
-                        RowLayout {
-                            Rectangle {
-                                width: 10
-                                height: 10
-                                radius: 5
-                                color: "#EF4444"
-                            }
-                            Text {
-                                text: "위험 (Critical)"
-                                color: Style.colorSlate500
-                            }
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
-                        }
-
-                        Text {
-                            text: "전체 디바이스 가동률: <font color='#F97316'>94.2%</font>"
-                            font.bold: true
-                            color: Style.colorSlate800
-                            textFormat: Text.RichText
                         }
                     }
                 }

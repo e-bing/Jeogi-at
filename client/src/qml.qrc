@@ -6,6 +6,7 @@
         <file>components/Sidebar.qml</file>
         <file>components/Header.qml</file>
         <file>components/Footer.qml</file>
+        <file>components/SystemStatItem.qml</file>
         <file>pages/Dashboard.qml</file>
         <file>pages/Statistics.qml</file>
         <file>pages/CameraManagement.qml</file>
@@ -19,5 +20,14 @@
         <file>logo/reverse_camera_logo.png</file>
         <file>logo/reverse_chart_logo.png</file>
         <file>logo/reverse_device_logo.png</file>
+        <file>fonts/Pretendard-Black.otf</file>
+        <file>fonts/Pretendard-Bold.otf</file>
+        <file>fonts/Pretendard-ExtraBold.otf</file>
+        <file>fonts/Pretendard-ExtraLight.otf</file>
+        <file>fonts/Pretendard-Light.otf</file>
+        <file>fonts/Pretendard-Medium.otf</file>
+        <file>fonts/Pretendard-Regular.otf</file>
+        <file>fonts/Pretendard-SemiBold.otf</file>
+        <file>fonts/Pretendard-Thin.otf</file>
     </qresource>
 </RCC>
