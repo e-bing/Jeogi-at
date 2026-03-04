@@ -21,6 +21,9 @@
 #include "../includes/qt.h"
 #include "../includes/sensor.h"
 
+// 모니터링 헤더
+#include "../includes/system_monitor.h"
+
 using namespace std;
 
 volatile sig_atomic_t stop_flag = 0;
@@ -41,13 +44,19 @@ int main() {
   // 1. TLS 및 포트 초기화
   init_tls();
   kill_process_using_port(PORT);
-  init_mqtt_motor();
 
   auto config = ConfigManager::load();
   if (config.empty()) {
     std::cerr << "Config file missing! Run ./setup first.\n";
     return -1;
   }
+  if (config.contains("mqtt")) {
+      g_mqtt_broker = config["mqtt"]["broker"];
+  }
+  
+  // 브로커 주소 설정 후 MQTT 초기화
+  init_mqtt_motor();
+  init_system_monitor();
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
   g_analyzer.start();
