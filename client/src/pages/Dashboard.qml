@@ -13,6 +13,7 @@ ColumnLayout {
 
     property var realtimeData: []
     property var airStatsData: ({})
+    property var tempHumiData: ({})
     property var sectionAverages: []
     property var sectionSums: []
     property int grandTotalOccupants: 0
@@ -135,8 +136,10 @@ ColumnLayout {
                 dashboardRoot.cam4Count = objectCount;
             }
         }
-
-
+        onTempHumiReceived: function (data) {
+            console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
+            dashboardRoot.tempHumiData = data;
+        }
         Component.onCompleted: {
             connectionTimer.start();
         }
@@ -458,6 +461,56 @@ ColumnLayout {
                             text: "🍂 역사 내 환경 모니터링"
                             font: Style.fontBold
                             color: Style.colorSlate800
+                        }
+
+                        // 온습도
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 20
+
+                            RowLayout {
+                                spacing: 6
+                                Text {
+                                    text: "🌡️ 온도"
+                                    color: Style.colorSlate500
+                                    font: Style.fontSmall
+                                }
+                                Text {
+                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.temperature !== undefined ? dashboardRoot.tempHumiData.temperature.toFixed(1) + " °C" : "-- °C"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                }
+                            }
+
+                            Rectangle {
+                                width: 1
+                                height: 20
+                                color: Style.colorSlate200
+                            }
+
+                            RowLayout {
+                                spacing: 6
+                                Text {
+                                    text: "💧 습도"
+                                    color: Style.colorSlate500
+                                    font: Style.fontSmall
+                                }
+                                Text {
+                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.humidity !== undefined ? dashboardRoot.tempHumiData.humidity.toFixed(1) + " %" : "-- %"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: Style.colorSlate200
                         }
 
                         // CO2

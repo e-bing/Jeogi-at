@@ -14,7 +14,7 @@ Window {
     color: Style.colorBackground
 
     // Global server settings (editable via header)
-    property string serverIp: "192.168.0.48"
+    property string serverIp: ""
     property int serverPort: 12345
 
     RowLayout {

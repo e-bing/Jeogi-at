@@ -218,6 +218,7 @@ void NetworkClient::readData() {
 void NetworkClient::processJsonResponse(const QByteArray &line) {
   QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
   if (jsonDoc.isNull() || !jsonDoc.isObject()) {
+    qDebug() << "Invalid JSON received:" << line;
     return;
   }
 
@@ -228,6 +229,7 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   if (type == "realtime") {
     processRealtimeData(dataVal.toArray());
   } else if (type == "realtime_air") {
+    // Robust handling: handle both Array and Single Object
     if (dataVal.isArray()) {
       processRealtimeAirData(dataVal.toArray());
     } else if (dataVal.isObject()) {
@@ -235,12 +237,17 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
       arr.append(dataVal);
       processRealtimeAirData(arr);
     } else {
+      // Try parsing root object if "data" is missing but type matches
       processRealtimeAirData(QJsonArray{jsonObj});
     }
   } else if (type == "air_stats") {
     processAirStatsData(dataVal.toArray());
   } else if (type == "flow_stats") {
     processFlowStatsData(dataVal.toArray());
+  } else if (type == "system_monitor") {
+    processSystemMonitorData(jsonObj);
+  } else if (type == "temp_humi") {
+    emit tempHumiReceived(jsonObj.toVariantMap());
   }
 }
 
@@ -300,6 +307,11 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   double co = latestObj["co_level"].toDouble();
 
+  // Ensuring both co2_ppm and co_level are updated in the map for UI
+  // consistency
+  latestObj["co2_ppm"] = co2;
+  latestObj["co_level"] = co;
+
   // LOG: Print detailed debug information to identify value discrepancies
   qDebug() << "-----------------------------------------";
   qDebug() << "📡 [NETWORK_DATA] Realtime Air Update";
@@ -335,6 +347,7 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   emit realtimeAirReceived(latestObj.toVariantMap());
 }
+
 void NetworkClient::processAirStatsData(const QJsonArray &data) {
   QJsonArray modifiedData;
   for (const QJsonValue &val : data) {
@@ -388,6 +401,11 @@ void NetworkClient::processFlowStatsData(const QJsonArray &data) {
     modifiedData.append(obj);
   }
   emit flowStatsReceived(modifiedData.toVariantList());
+}
+
+void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {
+  qDebug() << "🖥️ [NETWORK_DATA] System Monitor Update Received";
+  emit systemMonitorReceived(obj.toVariantMap());
 }
 
 void NetworkClient::sendDeviceCommand(const QString &device,

@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+inline std::string g_mqtt_broker = "";
+
 // 감지된 객체 정보 구조체
 struct DetectedObject {
   float x, y, w, h;

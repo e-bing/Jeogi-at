@@ -1,5 +1,7 @@
 #include "motor.h"
 #include "sensor.h"
+#include "system_monitor.h"
+#include "sht20.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -34,6 +36,35 @@ public:
     }
 };
 
+/**
+ * @brief 5초마다 시스템 상태를 수집해 MQTT로 서버에 전송합니다.
+ *        토픽: system/aboy
+ *        전송 JSON: {"device":"aboy","cpu_usage":23.5,"cpu_temp":47.2,"disk_usage":61.3}
+ * @param client MQTT 클라이언트 참조
+ */
+static void system_monitor_worker(mqtt::async_client& client) {
+    while (true) {
+        try {
+            SystemStats stats = get_system_stats();
+
+            json payload = {
+                {"device",     "firmware"},
+                {"cpu_usage",  stats.cpu_usage},
+                {"cpu_temp",   stats.cpu_temp},
+                {"disk_usage", stats.disk_usage}
+            };
+
+            client.publish("system/firmware", payload.dump(), 1, false)->wait();
+            cout << "📊 시스템 상태 전송: " << payload.dump() << endl;
+
+        } catch (const mqtt::exception& e) {
+            cerr << "❌ 시스템 상태 전송 실패: " << e.what() << endl;
+        }
+
+        this_thread::sleep_for(chrono::seconds(5)); /* 5초마다 전송 */
+    }
+}
+
 int main() {
     cout << "========================================" << endl;
     cout << "   Motor Pi - Start" << endl;
@@ -47,7 +78,16 @@ int main() {
         cerr << "❌ UART 초기화 실패 - 센서 수신 불가" << endl;
     }
 
-    // 2. MQTT 연결 및 명령 구독
+    // 2. SHT20 온습도 센서 초기화 및 스레드 시작 (추가된 부분)
+    int sht20_fd = init_sht20();
+    if (sht20_fd >= 0) {
+        thread([sht20_fd]() { run_sht20_monitor(sht20_fd); }).detach();
+        cout << "📡 SHT20 온습도 모니터링 시작" << endl;
+    } else {
+        cerr << "❌ SHT20 초기화 실패" << endl;
+    }
+
+    // 3. MQTT 연결 및 명령 구독
     mqtt::async_client client(BROKER, CLIENT_ID);
     MqttCallback cb;
     client.set_callback(cb);
@@ -64,12 +104,19 @@ int main() {
         client.subscribe("motor/control", 1)->wait();
         cout << "📡 구독 시작: motor/control" << endl;
 
+        // 3. 시스템 모니터링 스레드 시작
+        thread([&client]() { system_monitor_worker(client); }).detach();
+        cout << "📡 시스템 모니터링 시작 (5초 주기)" << endl;
+
         while (true) {
             this_thread::sleep_for(chrono::seconds(1));
         }
+
     } catch (const mqtt::exception& e) {
         cerr << "❌ MQTT 에러: " << e.what() << endl;
-        return 1;
+        while (true) {
+		this_thread::sleep_for(chrono::seconds(1));
+	}
     }
 
     close_uart(g_uart_fd);

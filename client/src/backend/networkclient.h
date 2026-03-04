@@ -50,8 +50,9 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void cameraFrameReceived(int cameraId, const QString &timestamp,
-                           const QVariantMap &metadata);
+  void cameraFrameReceived(int cameraId, const QString &timestamp, const QVariantMap &metadata);
+  void systemMonitorReceived(QVariantMap data);
+  void tempHumiReceived(QVariantMap data);
 
 private slots:
   void onEncrypted();
@@ -74,6 +75,7 @@ private:
   void processRealtimeAirData(const QJsonArray &data);
   void processAirStatsData(const QJsonArray &data);
   void processFlowStatsData(const QJsonArray &data);
+  void processSystemMonitorData(const QJsonObject &obj);
   void processJsonResponse(const QByteArray &line);
 
   QByteArray m_buffer;
