@@ -134,6 +134,8 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
     processFlowStatsData(dataVal.toArray());
   } else if (type == "system_monitor") {
     processSystemMonitorData(jsonObj);
+  } else if (type == "temp_humi") {
+    emit tempHumiReceived(jsonObj.toVariantMap());
   }
 }
 

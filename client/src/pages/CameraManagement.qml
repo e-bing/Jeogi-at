@@ -152,7 +152,7 @@ Item {
                 iconEmoji: "☁️"
                 iconBg: client.isConnected ? "#E0F2FE" : "#F1F5F9"
                 cardTitle: "중앙 관리 서버 (Server)"
-                cardSub: "CentOS 7 · Intel Xeon · 192.168.0.18"
+                cardSub: "CentOS 7 · Intel Xeon" + (mainWindow.serverIp.length > 0 ? " · " + mainWindow.serverIp : "")
                 isOnline: client.isConnected
                 opacity: client.isConnected ? 1.0 : 0.55
                 disconnectMsg: "서버 연결 없음"
