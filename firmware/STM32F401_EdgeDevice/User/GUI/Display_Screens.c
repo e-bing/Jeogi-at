@@ -68,6 +68,32 @@ static int clamp_int(int v, int lo, int hi)
     return v;
 }
 
+static uint16_t co2_to_color(int co2_ppm)
+{
+    if (co2_ppm <= 300)
+    {
+        return GREEN;
+    }
+    if (co2_ppm <= 600)
+    {
+        return YELLOW;
+    }
+    return RED;
+}
+
+static uint16_t co_to_color(int co_deci_ppm)
+{
+    if (co_deci_ppm <= 30) // 0.0~3.0 ppm
+    {
+        return GREEN;
+    }
+    if (co_deci_ppm <= 80) // 3.1~8.0 ppm
+    {
+        return YELLOW;
+    }
+    return RED; // 8.1+ ppm
+}
+
 static void draw_tiny_7seg_3digit(uint16_t x, uint16_t y, int value, uint16_t color)
 {
     int v = value;
@@ -97,49 +123,83 @@ static void draw_tiny_7seg_1decimal(uint16_t x, uint16_t y, int deci_value, uint
 {
     int v = deci_value;
     uint8_t int_part;
+    uint8_t tens_part;
+    uint8_t ones_part;
     uint8_t frac_part;
+    uint16_t ones_x;
 
     if (v < 0)
     {
         v = 0;
     }
-    if (v > 99)
+    if (v > 999)
     {
-        v = 99;
+        v = 999;
     }
 
     int_part = (uint8_t)(v / 10);
+    tens_part = (uint8_t)(int_part / 10);
+    ones_part = (uint8_t)(int_part % 10);
     frac_part = (uint8_t)(v % 10);
 
-    draw_tiny_7seg_digit(x, y, int_part, color);
-    Paint_DrawPoint(x + 4, y + 4, color, DOT_PIXEL_1X1, DOT_STYLE_DFT);
-    draw_tiny_7seg_digit(x + 6, y, frac_part, color);
+    if (int_part >= 10U)
+    {
+        draw_tiny_7seg_digit(x, y, tens_part, color);
+        ones_x = x + 4;
+    }
+    else
+    {
+        ones_x = x;
+    }
+
+    draw_tiny_7seg_digit(ones_x, y, ones_part, color);
+    Paint_DrawPoint(ones_x + 4, y + 4, color, DOT_PIXEL_1X1, DOT_STYLE_DFT);
+    draw_tiny_7seg_digit(ones_x + 6, y, frac_part, color);
 }
 
-static uint16_t co2_to_color(int co2_ppm)
+static void Screen_Show_DualMetricLayout(const char *top_label,
+                                         const char *bottom_label,
+                                         int top_deci_value,
+                                         int bottom_deci_value,
+                                         const char *top_unit,
+                                         const char *bottom_unit,
+                                         uint16_t value_x_offset,
+                                         uint16_t unit_x_offset,
+                                         uint8_t top_show_decimal,
+                                         uint8_t show_color_box,
+                                         uint16_t top_color,
+                                         uint16_t bottom_color)
 {
-    if (co2_ppm <= 300)
-    {
-        return GREEN;
-    }
-    if (co2_ppm <= 600)
-    {
-        return YELLOW;
-    }
-    return RED;
-}
+    HUB75_Clear();
 
-static uint16_t co_to_color(int co_deci_ppm)
-{
-    if (co_deci_ppm <= 30) // 0.0~3.0 ppm
+    // Two-row layout (top 16px / bottom 16px)
+    Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+    Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+
+    Paint_DrawString_EN(5, 5, top_label, &Font8, BLACK, RED);
+    if (top_show_decimal != 0U)
     {
-        return GREEN;
+        draw_tiny_7seg_1decimal((uint16_t)(22 + value_x_offset), 7, top_deci_value, WHITE);
     }
-    if (co_deci_ppm <= 80) // 3.1~8.0 ppm
+    else
     {
-        return YELLOW;
+        draw_tiny_7seg_3digit((uint16_t)(23 + value_x_offset), 7, top_deci_value / 10, WHITE);
     }
-    return RED; // 8.1+ ppm
+    Paint_DrawString_EN((uint16_t)(37 + unit_x_offset), 5, top_unit, &Font8, BLACK, YELLOW);
+    if (show_color_box != 0U)
+    {
+        Paint_DrawPoint(57, 8, top_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
+    }
+
+    Paint_DrawString_EN(5, 21, bottom_label, &Font8, BLACK, BLUE);
+    draw_tiny_7seg_1decimal((uint16_t)(22 + value_x_offset), 23, bottom_deci_value, WHITE);
+    Paint_DrawString_EN((uint16_t)(37 + unit_x_offset), 21, bottom_unit, &Font8, BLACK, YELLOW);
+    if (show_color_box != 0U)
+    {
+        Paint_DrawPoint(57, 24, bottom_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
+    }
+
+    HUB75_Display();
 }
 
 static void draw_center_triangle_marker(uint16_t center_x, uint16_t top_y, uint16_t color)
@@ -234,7 +294,6 @@ void Screen_Show_StatusRow(const uint8_t status[8])
         draw_long_left_arrow(center_x - 3, guide_y, GREEN);
         draw_long_right_arrow(center_x + 3, guide_y, GREEN);
     }
-
 }
 
 void Screen_Show_CO2(DB_Data_t *data)
@@ -244,28 +303,19 @@ void Screen_Show_CO2(DB_Data_t *data)
     uint16_t co2_color;
     uint16_t co_color;
 
-    HUB75_Clear();
-
     co2_ppm = (int)(data->co2_val + 0.5);
     co_ppm = (int)(data->co_val * 10.0 + 0.5);
-
     co2_color = co2_to_color(co2_ppm);
     co_color = co_to_color(co_ppm);
 
-    // Two-row layout (top 16px / bottom 16px)
-    Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-    Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+    Screen_Show_DualMetricLayout("CO2", "CO", co2_ppm * 10, co_ppm, "PPM", "PPM", 0, 0, 0U, 1U, co2_color, co_color);
+}
 
-    Paint_DrawString_EN(5, 5, "CO2", &Font8, BLACK, RED);
-    draw_tiny_7seg_3digit(23, 7, co2_ppm, WHITE);
-    Paint_DrawString_EN(37, 5, "PPM", &Font8, BLACK, YELLOW);
-    Paint_DrawPoint(57, 8, co2_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
+void Screen_Show_TempHum(DB_Data_t *data)
+{
+    int temp_deci = (int)(data->temp_val * 10.0 + 0.5);
+    int hum_deci = (int)(data->hum_val * 10.0 + 0.5);
 
-    Paint_DrawString_EN(5, 21, "CO", &Font8, BLACK, RED);
-    draw_tiny_7seg_1decimal(22, 23, co_ppm, WHITE);
-    Paint_DrawString_EN(37, 21, "PPM", &Font8, BLACK, YELLOW);
-    Paint_DrawPoint(57, 24, co_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
-
-    HUB75_Display();
+    Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *", 5, 3, 1U, 0U, WHITE, WHITE);
 }
 
