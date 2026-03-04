@@ -35,8 +35,53 @@ chmod +x setup
 > RTSP Profile과 MQTT Topic은 줄바꿈 문자(엔터)를 입력하여 넘겨 주세요.
 
 
+### 2. 데이터베이스 생성
 
-### 2. 프로젝트 빌드
+MariaDB에 접속 후 아래 명령어를 순서대로 실행합니다.
+```bash
+CREATE DATABASE jeogi;
+USE jeogi;
+```
+```sql
+CREATE TABLE station_stats (
+    station_id    INT PRIMARY KEY,
+    station_name  VARCHAR(50) NOT NULL,
+    location_info VARCHAR(100)
+);
+
+INSERT INTO station_stats (station_id, station_name, location_info)
+VALUES (1, 'Jeogi-Station', 'Seoul, Line 2');
+```
+```sql
+CREATE TABLE camera_stats (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    station_id      INT,
+    camera_id       VARCHAR(20) NOT NULL,
+    platform_no     VARCHAR(10) NOT NULL,
+    passenger_count INT NOT NULL,
+    congestion_stat TINYINT,
+    status_msg      VARCHAR(50),
+    recorded_at     DATETIME NOT NULL,
+    INDEX (recorded_at)
+);
+```
+```sql
+CREATE TABLE air_stats (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    station_id      INT,
+    co_level        FLOAT NOT NULL,
+    toxic_gas_level FLOAT NOT NULL,
+    temperature     FLOAT NULL,
+    humidity        FLOAT NULL,
+    fire_detected   TINYINT DEFAULT 0,
+    recorded_at     DATETIME NOT NULL,
+    INDEX (recorded_at)
+);
+```
+
+
+
+### 3. 프로젝트 빌드
 
 스크립트를 이용해 소스 코드를 컴파일합니다.
 
@@ -54,7 +99,7 @@ chmod +x setup
 
 
 
-### 3. 서버 실행
+### 4. 서버 실행
 
 빌드가 완료되면 `build` 폴더로 이동하여 서버를 실행합니다.
 
