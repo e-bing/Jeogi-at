@@ -1,4 +1,4 @@
-#include "system_monitor.h"
+#include "system_monitor.hpp"
 #include "../includes/shared_data.hpp"
 #include <iostream>
 #include <fstream>
@@ -14,11 +14,12 @@ using namespace std;
 
 /* ─────────────────────────────────────────
    MQTT 클라이언트
-   브로커 주소는 shared_data.hpp의 g_mqtt_broker 사용
+   정적 초기화 순서 문제를 방지하기 위해 포인터로 관리하며,
+   init_system_monitor() 호출 시점에 g_mqtt_broker 값을 참조하여 생성합니다.
 ───────────────────────────────────────── */
 static const string CLIENT_ID = "server_sys_monitor";
 
-static mqtt::async_client g_sys_mqtt(g_mqtt_broker, CLIENT_ID);
+static mqtt::async_client* g_sys_mqtt = nullptr;
 static bool g_sys_mqtt_connected = false;
 
 /* ─────────────────────────────────────────
@@ -158,15 +159,19 @@ static SystemMonitorCallback g_sys_cb;
 void init_system_monitor()
 {
     try {
+	if (g_sys_mqtt == nullptr) {
+            g_sys_mqtt = new mqtt::async_client(g_mqtt_broker, CLIENT_ID);
+        }
+
         mqtt::connect_options opts;
         opts.set_keep_alive_interval(20);
         opts.set_clean_session(true);
         opts.set_automatic_reconnect(true);
 
-        g_sys_mqtt.connect(opts)->wait();
+        g_sys_mqtt->connect(opts)->wait();
         g_sys_mqtt_connected = true;
-        g_sys_mqtt.set_callback(g_sys_cb);
-        g_sys_mqtt.subscribe("system/firmware", 1)->wait();
+        g_sys_mqtt->set_callback(g_sys_cb);
+        g_sys_mqtt->subscribe("system/firmware", 1)->wait();
         cout << "✅ 시스템 모니터 MQTT 연결 완료" << endl;
     } catch (const mqtt::exception& e) {
         cerr << "❌ 시스템 모니터 MQTT 연결 실패: " << e.what() << endl;

@@ -1,5 +1,5 @@
-#ifndef SENSOR_H
-#define SENSOR_H
+#ifndef SENSOR_HPP
+#define SENSOR_HPP
 
 #include <mariadb/mysql.h>
 

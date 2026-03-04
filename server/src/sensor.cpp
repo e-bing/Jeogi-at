@@ -1,16 +1,18 @@
 // sensor.cpp
-#include "sensor.h"
-#include "database.h"
+#include "sensor.hpp"
+#include "database.hpp"
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
+#include <csignal>
 
 #include "../includes/shared_data.hpp"
 
 using json = nlohmann::json;
 using namespace std;
 
-static const string BROKER    = g_mqtt_broker;
+extern volatile sig_atomic_t stop_flag;
+
 static const string CLIENT_ID = "server_sensor_sub";
 
 /* ─────────────────────────────────────────
@@ -87,8 +89,6 @@ void receive_sensor_data(MYSQL* conn) {
                 g_last_humi       = humi;
                 g_temp_humi_valid = true;
             }
-            // 온습도 갱신 시에도 간단히 출력하여 확인 가능하다.
-            cout << "🌡️ [온습도] 캐시 업데이트 완료 (T: " << temp << " / H: " << humi << ")" << endl;
         }
     } catch (json::exception& e) {
         cerr << "⚠️ JSON 에러: " << e.what() << endl;
@@ -100,9 +100,9 @@ void receive_sensor_data(MYSQL* conn) {
     };
 
     // 바깥 while로 감싸서 재연결 + 예외가 터져도 스레드가 죽지 않음
-    while (true) {
+    while (!stop_flag) {
         try {
-            mqtt::async_client client(BROKER, CLIENT_ID);
+            mqtt::async_client client(g_mqtt_broker, CLIENT_ID);
             SensorCallback cb(conn);
             client.set_callback(cb);
 
@@ -122,7 +122,7 @@ void receive_sensor_data(MYSQL* conn) {
             cout << "📡 구독 시작: sensor/temp_humi" << endl;
 
             // is_connected() 체크로 루프: 끊기면 바깥 while에서 재연결
-            while (client.is_connected()) {
+            while (client.is_connected() && !stop_flag) {
                 this_thread::sleep_for(chrono::seconds(1));
             }
             cerr << "⚠️ 센서 MQTT 연결 끊김 감지, 5초 후 재연결..." << endl;
@@ -132,7 +132,7 @@ void receive_sensor_data(MYSQL* conn) {
         } catch (...) {
             cerr << "❌ 센서 스레드 알 수 없는 예외, 5초 후 재연결..." << endl;
         }
-
+    if (!stop_flag)
         this_thread::sleep_for(chrono::seconds(5));
     }
 }

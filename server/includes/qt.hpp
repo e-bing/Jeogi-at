@@ -1,6 +1,6 @@
 // qt_comm.h
-#ifndef QT_COMM_H
-#define QT_COMM_H
+#ifndef QT_COMM_HPP
+#define QT_COMM_HPP
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -19,8 +19,8 @@
 
 #include "../../protocol/camera_packet.hpp"
 #include "congestion_analyzer.hpp"
-#include "database.h"
-#include "motor.h"
+#include "database.hpp"
+#include "motor.hpp"
 #include "shared_data.hpp"
 
 // TLS 초기화 및 정리
