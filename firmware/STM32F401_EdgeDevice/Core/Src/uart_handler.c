@@ -187,7 +187,6 @@ void UART_Handler_Process(void)
 
     Packet_t pkt = pendingPkt;
 
-<<<<<<< feat/firmware/motor
     switch (pkt.cmd) {
         case CMD_GET_CO: {
         	// 1. 센서값 읽기 (float 형태)
@@ -220,25 +219,6 @@ void UART_Handler_Process(void)
 
        	    UART_SendSensorResp(CMD_RESP_SENSOR, resp, 3);
         	break;
-=======
-    switch (pkt.cmd)
-    {
-    case CMD_GET_CO:
-    {
-        // TODO: add CO sensor read
-        //            uint16_t ppm = Device_ReadCO();
-        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-        //            UART_SendSensorResp(CMD_GET_CO, resp, 2);
-        break;
-    }
-    case CMD_GET_CO2:
-    {
-        // TODO: add CO2 sensor read
-        //            uint16_t ppm = Device_ReadCO2();
-        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-        //            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
-        break;
->>>>>>> dev
     }
     case CMD_GET_TEMP_HUM:
     {
