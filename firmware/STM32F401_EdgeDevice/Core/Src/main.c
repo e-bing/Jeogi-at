@@ -110,11 +110,10 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
-  MX_USART6_UART_Init();
   MX_I2S3_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
-  MX_TIM4_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
   // test: sensor & motor
