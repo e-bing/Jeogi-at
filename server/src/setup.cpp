@@ -99,6 +99,24 @@ int main() {
     camera_count++;
   }
 
+  // 3. MQTT 브로커 설정 - 현재 서버 IP 자동 감지
+  std::cout << "[3] MQTT Broker Settings\n";
+
+  // 현재 머신의 IP 자동 감지
+  FILE* pipe = popen("hostname -I | awk '{print $1}'", "r");
+  std::string server_ip = "localhost";
+  if (pipe) {
+      char buf[64];
+      if (fgets(buf, sizeof(buf), pipe)) {
+          server_ip = buf;
+          server_ip.erase(server_ip.find_last_not_of(" \n\r\t") + 1); // trim
+      }
+      pclose(pipe);
+  }
+
+  config["mqtt"]["broker"] = "tcp://" + server_ip + ":1883";
+  std::cout << " - MQTT Broker: " << config["mqtt"]["broker"] << " (자동 감지)\n";
+
   // 3. 파일 저장
   config["pi_nodes"] = pi_list;
   ConfigManager::save(config);
