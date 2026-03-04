@@ -1,5 +1,6 @@
 #include "sensor.h"
 #include "motor.h"
+#include "config_loader.h"
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
@@ -14,9 +15,8 @@ using namespace std;
 int g_uart_fd = -1;
 
 // MQTT publisher for forwarding sensor data to server
-static const string SENSOR_BROKER    = "tcp://192.168.0.53:1883";
-static const string SENSOR_CLIENT_ID = "motor_pi_sensor_pub";
-static mqtt::async_client g_sensor_mqtt(SENSOR_BROKER, SENSOR_CLIENT_ID);
+static mqtt::async_client* g_sensor_mqtt = nullptr;
+static string g_sensor_topic;
 static bool g_sensor_mqtt_connected = false;
 
 // 프로토콜 상수
@@ -120,13 +120,20 @@ void close_uart(int uart_fd) {
  */
 static void init_sensor_mqtt() {
     try {
+        auto config = load_config();
+        string broker = config.value("mqtt_broker", "tcp://localhost:1883");
+        g_sensor_topic = config.value("sensor_topic", "sensor/air_quality");
+
+        // 포인터를 사용하여 런타임에 주소 할당
+        g_sensor_mqtt = new mqtt::async_client(broker, "motor_pi_sensor_pub");
+
         mqtt::connect_options opts;
-        opts.set_keep_alive_interval(20);
         opts.set_clean_session(true);
         opts.set_automatic_reconnect(true);
-        g_sensor_mqtt.connect(opts)->wait();
+
+        g_sensor_mqtt->connect(opts)->wait();
         g_sensor_mqtt_connected = true;
-        cout << "✅ 센서 MQTT 연결 완료 (서버로 전송용)" << endl;
+        cout << "✅ 센서 MQTT 연결 완료: " << broker << endl;
     } catch (const mqtt::exception& e) {
         cerr << "❌ 센서 MQTT 연결 실패: " << e.what() << endl;
     }
@@ -138,13 +145,13 @@ static void init_sensor_mqtt() {
  * @param co2 CO2 농도 (ppm)
  */
 static void publish_to_server(float co, float co2) {
-    if (!g_sensor_mqtt_connected) return;
+    if (!g_sensor_mqtt_connected || !g_sensor_mqtt) return;
     try {
         json payload = {{"co", co}, {"co2", co2}};
-        g_sensor_mqtt.publish("sensor/data", payload.dump(), 1, false)->wait();
-        cout << "📤 서버로 센서값 전송 CO: " << co << " | CO2: " << co2 << endl;
+        // 설정파일에서 읽은 토픽 사용
+        g_sensor_mqtt->publish(g_sensor_topic, payload.dump(), 1, false);
     } catch (const mqtt::exception& e) {
-        cerr << "❌ 센서 MQTT 전송 실패: " << e.what() << endl;
+        cerr << "❌ MQTT 전송 실패: " << e.what() << endl;
     }
 }
 

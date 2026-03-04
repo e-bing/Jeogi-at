@@ -37,7 +37,6 @@
 #include "usart.h"
 #include <stdint.h>
 #include <stdlib.h>
-#include "image.h"
 #include <string.h>
 #include "fonts.h"
 
