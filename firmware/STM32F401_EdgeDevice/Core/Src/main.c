@@ -34,6 +34,7 @@
 #include "mq7.h"
 #include "app_task.h"
 #include "uart_handler.h"
+#include "services/audio_player.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -116,17 +117,20 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // test: LED panel
-  AppTask_Init();
-
-  // test: audio
-  //  Audio_Init();
-  //  Audio_PlayWav("voice_1.wav");
+//  AppTask_Init();
 
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
   //  MQ135_Init();
   //  MQ7_Init();
+
+
+  // init: sd card & audio amp
+  Audio_Init();
+
+  // init: uart_protocol
+  UART_CMD_Init(&huart6);
 
   printf("running..\r\n");
   /* USER CODE END 2 */
@@ -135,15 +139,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	// start: uart handler
     UART_Handler_Process();
-    AppTask_Run();
-  }
+
+    // test: LED panel
+//    AppTask_Run();
     /* USER CODE END WHILE */
 
+
     /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
 }
 
-  /* USER CODE END 3 */
 
 
 /**
