@@ -28,7 +28,10 @@ using namespace std;
 volatile sig_atomic_t stop_flag = 0;
 CongestionAnalyzer g_analyzer;
 
-void signal_handler(int signum) { stop_flag = 1; }
+void signal_handler(int signum) {
+ 	stop_flag = 1;
+	exit(0);
+ }
 
 int main() {
   const int PORT = 12345;  // Qt 통신용 포트
@@ -51,7 +54,8 @@ int main() {
   }
   if (config.contains("mqtt")) {
       g_mqtt_broker = config["mqtt"]["broker"];
-  }
+      cout << "✅ MQTT 브로커 설정: " << g_mqtt_broker << endl; 
+ }
   
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
