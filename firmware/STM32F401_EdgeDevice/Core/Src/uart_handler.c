@@ -1,33 +1,20 @@
 #include "uart_handler.h"
 #include "uart_protocol.h"
-#include "usart.h"
+#include "usart.h" // CubeMX 생성 파일 (huart2 등)
+// 실제 장치 헤더로 교체
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
-#include "usart.h"
-#include "i2s_audio.h"
-#include "Matrixrun.h"
-
-#include <stdio.h>
-#include <string.h>
+// #include "led_panel.h"
+// #include "mq7.h"
+// #include "mq135.h"
+// #include "sht20.h"
 
 /* ─────────────────────────────────────────
-내부 변수 / 상태
+   내부 변수
 ───────────────────────────────────────── */
 
-#define RX_PARSER_TIMEOUT_MS 200U
-#define UART_ISR_RAW_LOG 0
-
-static UART_HandleTypeDef *uart;
-static uint8_t rx_buf[256];
-
-static UART_HandleTypeDef *uart;           // Init 시 등록된 UART 핸들
-static uint8_t rx_buf[64];                 // DMA 수신 버퍼
-static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
-static Packet_t rxPkt;                     // 수신 중인 패킷
-static uint8_t dataIdx;                    // DATA 필드 인덱스
-static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
-static Packet_t pendingPkt;                // 처리 대기 중인 패킷
-static uint32_t last_byte_tick = 0;
+static UART_HandleTypeDef *uart; // Init 시 등록된 UART 핸들
+static uint8_t rx_buf[64];       // DMA 수신 버퍼
 
 // 수신 상태머신 상태 정의
 typedef enum
@@ -40,97 +27,42 @@ typedef enum
     STATE_WAIT_ETX   // ETX 대기 및 패킷 검증
 } RxState_t;
 
-/* 수신 재arm 공통 함수
-   - DMA 우선, 실패 시 IT fallback
-   - HT 인터럽트 비활성화 유지 */
-static void UART_RearmReception(void)
-{
-    HAL_StatusTypeDef st = HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
-    if (st == HAL_OK)
-    {
-        if (uart->hdmarx != NULL)
-        {
-            __HAL_DMA_DISABLE_IT(uart->hdmarx, DMA_IT_HT);
-        }
-    }
-    else
-    {
-        st = HAL_UARTEx_ReceiveToIdle_IT(uart, rx_buf, sizeof(rx_buf));
-        printf("[UART] rearm fallback to IT, status=%d\r\n", st);
-    }
-}
+static RxState_t rxState = STATE_WAIT_STX; // 현재 상태머신 상태
+static Packet_t rxPkt;                     // 수신 중인 패킷
+static uint8_t dataIdx;                    // DATA 필드 인덱스
+static volatile uint8_t pktReady = 0;      // 패킷 수신 완료 플래그
+static Packet_t pendingPkt;                // 처리 대기 중인 패킷
 
 /* ─────────────────────────────────────────
-   UART 프로토콜 수신 초기화
-   1) ReceiveToIdle + DMA 시도
-   2) 실패 시 ReceiveToIdle + IT fallback
-   3) HT(Half Transfer) 인터럽트 비활성화
+   초기화 - DMA 수신 시작
 ───────────────────────────────────────── */
 void UART_CMD_Init(UART_HandleTypeDef *huart)
 {
-    uart = huart;
-    rxState = STATE_WAIT_STX;
-    dataIdx = 0;
-    pktReady = 0;
-    last_byte_tick = HAL_GetTick();
-    UART_RearmReception();
-    printf("__uart__ init done\r\n");
+    uart = huart; // 정해놓은 uart 사용
+    HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
+    printf("__uart__ __init__\r\n");
 }
 
 /* ─────────────────────────────────────────
-   Rx Event Callback
-   - Idle 또는 지정 길이 도달 시 호출
-   - 수신 바이트를 상태머신으로 전달
-   - 콜백 끝에서만 DMA 재arm
+   DMA 수신 콜백 - Idle 감지 시 호출됨
+   수신된 바이트를 상태머신에 1바이트씩 넘김
 ───────────────────────────────────────── */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    if ((uart == NULL) || (huart->Instance != uart->Instance))
+    if (huart->Instance == uart->Instance)
     {
-        return;
-    }
-
-    // 1) 상태머신 강제 리셋 (이전 패킷 찌꺼기 제거)
-    rxState = STATE_WAIT_STX;
-    dataIdx = 0;
-
-#if UART_ISR_RAW_LOG
-    printf("[UART6 RX] size=%u data=", Size);
-    for (uint16_t i = 0; i < Size; i++)
-    {
-        printf("%02X ", rx_buf[i]);
-    }
-    printf("\r\n");
-#endif
-
-    for (uint16_t i = 0; i < Size; i++)
-    {
-        UART_RxCallback(rx_buf[i]);
-    }
-
-    // 3) 수신 중단 후 DMA 재시작 (Normal 모드 카운터 꼬임 방지)
-    HAL_UART_AbortReceive(huart);
-    memset(rx_buf, 0, sizeof(rx_buf));
-
-    if (HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf)) == HAL_OK)
-    {
-        if (uart->hdmarx != NULL)
+        for (int i = 0; i < Size; i++)
         {
-            __HAL_DMA_DISABLE_IT(uart->hdmarx, DMA_IT_HT);
+            UART_RxCallback(rx_buf[i]);
         }
+        // 다음 수신을 위해 DMA 재시작
+        HAL_UARTEx_ReceiveToIdle_DMA(uart, rx_buf, sizeof(rx_buf));
     }
-    else
-    {
-        HAL_UARTEx_ReceiveToIdle_IT(uart, rx_buf, sizeof(rx_buf));
-    }
-
-    printf("--- Waiting for Next Packet (10s) ---\r\n");
 }
 
 /* ─────────────────────────────────────────
-   1바이트 상태머신 파서
-   - STX/CMD/LEN/DATA/CRC/ETX 순서 파싱
-   - CRC/ETX 통과 시 pktReady 설정
+   상태머신 - 1바이트씩 파싱
+   패킷 완성 및 CRC 검증 시 pktReady 플래그 설정
 ───────────────────────────────────────── */
 void UART_RxCallback(uint8_t byte)
 {
@@ -150,8 +82,7 @@ void UART_RxCallback(uint8_t byte)
         rxPkt.len = byte;
         dataIdx = 0;
 
-        if (rxPkt.len > PKT_MAX_DATA_LEN)
-        {
+        if (rxPkt.len > PKT_MAX_DATA_LEN) {
             // 길이 오류: 즉시 리셋
             printf("LEN FAIL len=%u max=%u\r\n", rxPkt.len, PKT_MAX_DATA_LEN);
             rxState = STATE_WAIT_STX;
@@ -162,7 +93,7 @@ void UART_RxCallback(uint8_t byte)
         break;
 
     case STATE_RECV_DATA:
-        rxPkt.data[dataIdx++] = byte; // len 검증을 앞에서 했으니 바로 저장
+        rxPkt.data[dataIdx++] = byte;   // len 검증을 앞에서 했으니 바로 저장
         if (dataIdx >= rxPkt.len)
             rxState = STATE_RECV_CRC;
         break;
@@ -197,27 +128,10 @@ void UART_RxCallback(uint8_t byte)
     }
 }
 
-/* UART 에러 복구 콜백
-   - ORE/FE/NE/PE 등 발생 시 수신 경로를 재시작 */
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    if ((uart == NULL) || (huart->Instance != uart->Instance))
-    {
-        return;
-    }
-
-    printf("[UART] error=0x%08lX, recover\r\n", huart->ErrorCode);
-    rxState = STATE_WAIT_STX;
-    dataIdx = 0;
-    HAL_UART_DMAStop(huart);
-    UART_RearmReception();
-}
-
 /* ─────────────────────────────────────────
-   송신 패킷 조립/전송
-   포맷: STX | CMD | LEN | DATA... | CRC | ETX
+   송신 - 패킷 조립 후 전송
 ───────────────────────────────────────── */
-static void SendPacket(uint8_t cmd, const uint8_t *data, uint8_t len)
+static void SendPacket(uint8_t cmd, uint8_t *data, uint8_t len)
 {
     uint8_t buf[PKT_MAX_DATA_LEN + 6];
     uint8_t idx = 0;
@@ -233,117 +147,91 @@ static void SendPacket(uint8_t cmd, const uint8_t *data, uint8_t len)
     for (int i = 0; i < len; i++)
         crc ^= data[i];
 
-    uint8_t crc = cmd ^ len;
-    for (uint8_t i = 0; i < len; i++)
-    {
-        crc ^= data[i];
-    }
     buf[idx++] = crc;
     buf[idx++] = PKT_ETX;
 
     HAL_UART_Transmit(uart, buf, idx, 100);
 }
 
-/* ACK 패킷 전송 */
 void UART_SendACK(uint8_t cmd)
 {
     SendPacket(CMD_ACK, &cmd, 1);
 }
 
-/* NACK 패킷 전송 */
 void UART_SendNACK(uint8_t cmd, uint8_t err)
 {
     uint8_t data[2] = {cmd, err};
     SendPacket(CMD_NACK, data, 2);
 }
 
-/* 센서 응답 패킷 전송 */
-void UART_SendSensorResp(uint8_t cmd, uint8_t *data, uint8_t len)
+void UART_SendResp(uint8_t cmd, uint8_t *data, uint8_t len)
 {
+    // RESP 패킷: [cmd 1B][data nB]
     uint8_t buf[PKT_MAX_DATA_LEN];
     buf[0] = cmd;
-    for (uint8_t i = 0; i < len; i++)
-    {
+    for (int i = 0; i < len; i++)
         buf[i + 1] = data[i];
-    }
-    SendPacket(CMD_RESP_SENSOR, buf, (uint8_t)(len + 1U));
+    SendPacket(CMD_RESP_SENSOR, buf, len + 1);
 }
 
 /* ─────────────────────────────────────────
-   메인 루프 처리 함수
-   - pktReady 확인
-   - cmd별 동작 분기
+   메인 루프에서 주기적으로 호출
+   pktReady 플래그 확인 후 CMD 처리
 ───────────────────────────────────────── */
 void UART_Handler_Process(void)
 {
     if (!pktReady)
-    {
         return;
-    }
     pktReady = 0;
 
-    const Packet_t pkt = pendingPkt;
+    Packet_t pkt = pendingPkt;
 
     switch (pkt.cmd)
     {
     case CMD_GET_CO:
+    {
         // 일산화탄소 센서 읽기 추가
-        //        uint16_t ppm = Device_ReadCO();
-        //        uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-        //        UART_SendSensorResp(CMD_GET_CO, resp, 2);
+        //            uint16_t ppm = Device_ReadCO();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO, resp, 2);
         break;
-
+    }
     case CMD_GET_CO2:
+    {
         // 이산화탄소 센서 읽기 추가
-        //        uint16_t ppm = Device_ReadCO2();
-        //        uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
-        //        UART_SendSensorResp(CMD_GET_CO2, resp, 2);
+        //            uint16_t ppm = Device_ReadCO2();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
         break;
-
+    }
     case CMD_GET_TEMP_HUM:
+    {
         // 온습도 센서 읽기 추가
-        //        uint16_t temp, hum;
-        //        Device_ReadTempHum(&temp, &hum);
-        //        uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
-        //        UART_SendSensorResp(CMD_GET_TEMP_HUM, resp, 4);
+        //            uint16_t temp, hum;
+        //            Device_ReadTempHum(&temp, &hum);
+        //            uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
+        //            UART_SendResp(CMD_GET_TEMP_HUM, resp, 4);
         break;
-
+    }
     case CMD_SET_LED:
-        // LED 입력 추가 (벌크 혼잡도 업데이트)
-        if (pkt.len != 8U)
-        {
-            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
-            break;
-        }
-
-        // 허용 레벨: 0(GREEN), 1(YELLOW), 2(RED)
-        for (uint8_t i = 0; i < 8; i++)
-        {
-            if (pkt.data[i] > 2U)
-            {
-                UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
-                return;
-            }
-        }
-
-        // Matrix 상태 반영 후 ACK
-        MatrixRun_SetCongestionBulk(pkt.data);
-        printf("[UART] Bulk congestion update: P1=%d, P8=%d\r\n", pkt.data[0], pkt.data[7]);
-        UART_SendACK(pkt.cmd);
+        // LED 입력 추가
+        //            if (pkt.len < 1) { UART_SendNACK(pkt.cmd, ERR_INVALID_DATA); break; }
+        //            Device_SetLED(pkt.data[0]);
+        //            UART_SendACK(pkt.cmd);
         break;
 
     case CMD_PLAY_WAV:
-        printf("[RECV] PLAY_WAV\r\n");
+    	printf("[RECV] PLAY_WAV\r\n");
         if (pkt.len == 0 || pkt.len > 255)
         {
-            UART_SendNACK(CMD_NACK, 1);
-            break;
+        	UART_SendNACK(CMD_NACK, 1);
+        	break;
         }
 
         char filename[256];
         memcpy(filename, pkt.data, pkt.len);
         filename[pkt.len] = '\0';
-        //        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
+//        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
         Audio_PlayWav(filename);
         UART_SendNACK(CMD_ACK, 0);
         break;
@@ -359,6 +247,7 @@ void UART_Handler_Process(void)
         SendPacket(CMD_RESP_WAVS, data, len);
 
         break;
+
     default:
         UART_SendNACK(pkt.cmd, ERR_INVALID_CMD);
         break;

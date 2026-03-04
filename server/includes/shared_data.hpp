@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-inline std::string g_mqtt_broker = "tcp://192.168.0.53:1883";
-
 // 감지된 객체 정보 구조체
 struct DetectedObject {
   float x, y, w, h;

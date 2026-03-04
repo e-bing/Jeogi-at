@@ -2,31 +2,28 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <chrono>  // FPS 측정용
 #include <csignal>
 #include <cstring>
+#include <iomanip>  // FPS 측정용
 #include <iostream>
 #include <thread>
 #include <vector>
 
 #include "../includes/config_manager.hpp"
-#include "../includes/congestion_analyzer.hpp"
 #include "../includes/hanwha_node.hpp"
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
 
 // 센서, 모터 및 DB 관련 헤더
 #include "../includes/database.h"
-#include "../includes/motor.h"
 #include "../includes/qt.h"
 #include "../includes/sensor.h"
-
-// 모니터링 헤더
-#include "../includes/system_monitor.h"
+#include "../includes/motor.h"
 
 using namespace std;
 
 volatile sig_atomic_t stop_flag = 0;
-CongestionAnalyzer g_analyzer;
 
 void signal_handler(int signum) { stop_flag = 1; }
 
@@ -43,24 +40,17 @@ int main() {
   // 1. TLS 및 포트 초기화
   init_tls();
   kill_process_using_port(PORT);
+  init_mqtt_motor();
 
   auto config = ConfigManager::load();
   if (config.empty()) {
     std::cerr << "Config file missing! Run ./setup first.\n";
     return -1;
   }
-  if (config.contains("mqtt")) {
-      g_mqtt_broker = config["mqtt"]["broker"];
-  }
-  
-  // 브로커 주소 설정 후 MQTT 초기화
-  init_mqtt_motor();
-  init_system_monitor();
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
-  g_analyzer.start();
-
   thread sensor_thread([]() {
+
     DBConfig config;
     MYSQL* sensor_conn = connect_db(config);
     if (!sensor_conn) {
@@ -133,44 +123,179 @@ int main() {
     }
   }
 
+  // 3. SDL 메인 렌더링 루프 (UI 스레드)
+  // SDL 초기화 및 윈도우 생성
+  SDL_Init(SDL_INIT_VIDEO);
+  SDL_Window* window =
+      SDL_CreateWindow("Unified AI Monitor", SDL_WINDOWPOS_CENTERED,
+                       SDL_WINDOWPOS_CENTERED, 1280, 480, SDL_WINDOW_SHOWN);
+  SDL_Renderer* renderer =
+      SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  SDL_Texture* hwTexture = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, 1920, 1080);
+  SDL_Texture* piTexture = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, 640, 480);
+
   std::thread hwThread([&hwNode]() { hwNode.run(); });
-  cout << "\n서버 동작 중... (종료: Ctrl+C)" << endl;
 
   bool running = true;
+  SDL_Event ev;
+
+  // FPS 측정용 변수
+  int frame_count = 0;
+  auto last_time = std::chrono::steady_clock::now();
+  float current_fps = 0.0f;
+  // 나중에 삭제하기
+
   while (running && !stop_flag) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    while (SDL_PollEvent(&ev)) {
+      if (ev.type == SDL_QUIT) running = false;
+    }
+    SDL_RenderClear(renderer);
 
-    // === 인구 수 터미널에 출력 ===
-    auto levels =
-        g_analyzer
-            .getCongestionLevels();  // 현재 8개 구역의 레벨(0,1,2) 가져오기
-
-    int total_pi = 0;
+    // FPS 측정용
+    bool frame_updated = false;
+    // --- [A] 한화 카메라 렌더링 (왼쪽) ---
     {
-      lock_guard<mutex> lock(g_node_map_mutex);
-      for (auto const& [id, camData] : g_pi_node_map) {
-        total_pi += camData->objects.size();
+      std::lock_guard<std::mutex> lock(g_hw_frame_mutex);
+      if (!g_hw_frame_buffer.empty()) {
+        int real_w = 1920;
+        int real_h = 1080;
+        if (g_hw_frame_buffer.size() >= (real_w * real_h * 3 / 2)) {
+          SDL_UpdateYUVTexture(
+              hwTexture, nullptr, g_hw_frame_buffer.data(), real_w,  // Y pitch
+              g_hw_frame_buffer.data() + (real_w * real_h),
+              real_w / 2,  // U pitch
+              g_hw_frame_buffer.data() + (real_w * real_h * 5 / 4),
+              real_w / 2  // V pitch
+          );
+        }
+        g_hw_frame_buffer.clear();
+      }
+    }
+    SDL_Rect hwRect = {0, 0, 640, 480};
+    SDL_RenderCopy(renderer, hwTexture, nullptr, &hwRect);
+
+    // 한화 객체 박스
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // 빨간색
+    {
+      std::lock_guard<std::mutex> lock(g_hw_data_mutex);
+      for (const auto& obj : g_hw_objects) {
+        SDL_Rect r = {(int)(obj.x * 640), (int)(obj.y * 480),
+                      (int)(obj.w * 640), (int)(obj.h * 480)};
+        SDL_RenderDrawRect(renderer, &r);
       }
     }
 
-    cout << "\r[CONGESTION] ";
-    for (int i = 0; i < 8; ++i) cout << levels[i] << " ";
+    // --- [B] 라즈베리 파이 렌더링 (오른쪽) ---
+    {
+      std::lock_guard<std::mutex> lock(g_node_map_mutex);
+      if (g_pi_node_map.count("CAM_01")) {
+        auto& camData = g_pi_node_map["CAM_01"];
+        std::lock_guard<std::mutex> dataLock(camData->data_mutex);
 
-    cout << "| Total: " << (g_hw_objects.size() + total_pi)
-         << "명 | Pi: " << g_pi_node_map.size() << "  " << flush;
+        if (!camData->frame_buffer.empty()) {
+          int w = 640;
+          int h = 480;
+          const uint8_t* y_plane = camData->frame_buffer.data();
+          const uint8_t* u_plane = y_plane + (w * h);
+          const uint8_t* v_plane = u_plane + (w * h / 4);
+
+          SDL_UpdateYUVTexture(piTexture, nullptr, y_plane, w, u_plane, w / 2,
+                               v_plane, w / 2);
+
+          frame_updated = true;           // FPS 측정용
+          camData->frame_buffer.clear();  // FPS 측정용
+        }
+      }
+    }
+
+    // === FPS 측정 로직 시작 ===
+    // if (frame_updated) {
+    //   frame_count++;
+    //   auto now = std::chrono::steady_clock::now();
+    //   std::chrono::duration<double> elapsed = now - last_time;
+
+    //   if (elapsed.count() >= 1.0) {  // 1초마다 출력
+    //     current_fps = frame_count / elapsed.count();
+    //     std::cout << "[Live Monitor] PI Node FPS: " << std::fixed
+    //               << std::setprecision(1) << current_fps << std::endl;
+
+    //     frame_count = 0;
+    //     last_time = now;
+    //   }
+    // }
+    // === FPS 측정 로직 끝 ===
+
+    // === 화면에 박스 그리기 ===
+    // SDL_Rect piRect = {640, 0, 640, 480};
+    // SDL_RenderCopy(renderer, piTexture, nullptr, &piRect);
+
+    // SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // 초록색 박스
+    // {
+    //   std::lock_guard<std::mutex> lock(g_pi_data_mutex);  // MQTT 데이터
+    //   뮤텍스 for (const auto& obj : g_pi_shared_objects) {
+    //     SDL_Rect r = {
+    //         (int)(obj.x + 640),  // 영상이 오른쪽 절반에 있으므로 640 더하기
+    //         (int)obj.y, (int)obj.w, (int)obj.h};
+    //     SDL_RenderDrawRect(renderer, &r);
+    //   }
+    // }
+
+    // SDL_RenderPresent(renderer);
+
+    // === 인구 수 터미널에 출력 ===
+    int pi_count = 0;
+    int hw_count = 0;
+    std::string pi_debug_info = "";  // 디버그용 문자열
+    {
+      std::lock_guard<std::mutex> lock(g_node_map_mutex);
+      for (auto const& [id, camData] : g_pi_node_map) {
+        std::lock_guard<std::mutex> dataLock(camData->data_mutex);
+        pi_count += camData->objects.size();
+
+        pi_debug_info +=
+            id + ": " + std::to_string(camData->objects.size()) + " ";
+        // (선택 사항) SDL 화면에 모든 노드의 박스를 다 그리고 싶다면 여기서
+        // DrawRect 실행
+        if (id == "CAM_01") {  // 일단 CAM_01 박스만 화면에 표시
+          SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+          for (const auto& obj : camData->objects) {
+            SDL_Rect r = {(int)(obj.x + 640), (int)obj.y, (int)obj.w,
+                          (int)obj.h};
+            SDL_RenderDrawRect(renderer, &r);
+          }
+        }
+      }
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(g_hw_data_mutex);
+      hw_count = g_hw_objects.size();
+    }
+
+    // std::cout << "\r[실시간 카운트] Hanwha: " << hw_count
+    //           << "명 | Pi: " << pi_count << "명 | 합계: " << hw_count +
+    //           pi_count
+    //           << "명" << std::flush;
+    std::cout << "\r[실시간] Hanwha: " << hw_count << " | "
+              << pi_debug_info  // 여기서 CAM_02가 계속 0인지 확인 가능
+              << "| 합계: " << hw_count + pi_count << "명" << std::flush;
+
+    // === 인구 수 터미널에 출력 끝 ===
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   running = false;  // 루프 종료 신호
-
-  cout << "\nStopping Server..." << endl;
   for (auto& t : pi_threads) {
     if (t.joinable()) t.join();
   }
   if (hwThread.joinable()) hwThread.join();
-  g_analyzer.stop();
 
   close(server_fd);
   cleanup_tls();
+  SDL_Quit();
 
   return 0;
 }

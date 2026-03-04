@@ -5,13 +5,11 @@
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
 
-#include "../includes/shared_data.hpp"
-
 using json = nlohmann::json;
 using namespace std;
 
-static const string BROKER = g_mqtt_broker;
-static const string CLIENT_ID   = "server_sensor_sub";
+static const string BROKER    = "tcp://192.168.0.53:1883";
+static const string CLIENT_ID = "server_sensor_sub";
 
 /**
  * @brief aboy로부터 MQTT로 센서값을 수신해서 DB에 저장합니다.

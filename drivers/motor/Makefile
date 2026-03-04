@@ -8,7 +8,7 @@ module:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 app:
-	g++ -std=c++17 -o motor_app main.cpp motor.cpp sensor.cpp system_monitor.cpp\
+	g++ -std=c++17 -o motor_app main.cpp motor.cpp sensor.cpp \
 		-lpaho-mqttpp3 -lpaho-mqtt3as -lpthread
 
 clean:

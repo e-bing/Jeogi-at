@@ -14,7 +14,6 @@ extern "C" {
 #include <SDL2/SDL.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/log.h>
 #include <libswscale/swscale.h>
 }
 

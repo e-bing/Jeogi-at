@@ -78,62 +78,40 @@ void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
 }
 
 void NetworkClient::readData() {
-  // 들어온 모든 데이터를 버퍼에 누적
-  m_buffer += socket->readAll();
-
-  // \n 기준으로 잘라서 처리
-  while (true) {
-    int nlPos = m_buffer.indexOf('\n');
-    if (nlPos < 0)
-      break;
-
-    QByteArray line = m_buffer.left(nlPos).trimmed();
-    m_buffer.remove(0, nlPos + 1);
-
+  while (socket->canReadLine()) {
+    QByteArray line = socket->readLine().trimmed();
     if (line.isEmpty())
       continue;
 
-    // 카메라 바이너리 패킷 무시: 유효한 JSON은 항상 '{'로 시작함
-    if (!line.startsWith('{')) {
-      qDebug() << "[readData] 바이너리 패킷 무시 (size:" << line.size() << ")";
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
+    if (jsonDoc.isNull() || !jsonDoc.isObject()) {
+      qDebug() << "Invalid JSON received:" << line;
       continue;
     }
 
-    processJsonResponse(line);
-  }
-}
+    QJsonObject jsonObj = jsonDoc.object();
+    QString type = jsonObj["type"].toString();
+    QJsonValue dataVal = jsonObj["data"];
 
-void NetworkClient::processJsonResponse(const QByteArray &line) {
-  QJsonDocument jsonDoc = QJsonDocument::fromJson(line);
-  if (jsonDoc.isNull() || !jsonDoc.isObject()) {
-    qDebug() << "Invalid JSON received:" << line;
-    return;
-  }
-
-  QJsonObject jsonObj = jsonDoc.object();
-  QString type = jsonObj["type"].toString();
-  QJsonValue dataVal = jsonObj["data"];
-
-  if (type == "realtime") {
-    processRealtimeData(dataVal.toArray());
-  } else if (type == "realtime_air") {
-    // Robust handling: handle both Array and Single Object
-    if (dataVal.isArray()) {
-      processRealtimeAirData(dataVal.toArray());
-    } else if (dataVal.isObject()) {
-      QJsonArray arr;
-      arr.append(dataVal);
-      processRealtimeAirData(arr);
-    } else {
-      // Try parsing root object if "data" is missing but type matches
-      processRealtimeAirData(QJsonArray{jsonObj});
+    if (type == "realtime") {
+      processRealtimeData(dataVal.toArray());
+    } else if (type == "realtime_air") {
+      // Robust handling: handle both Array and Single Object
+      if (dataVal.isArray()) {
+        processRealtimeAirData(dataVal.toArray());
+      } else if (dataVal.isObject()) {
+        QJsonArray arr;
+        arr.append(dataVal);
+        processRealtimeAirData(arr);
+      } else {
+        // Try parsing root object if "data" is missing but type matches
+        processRealtimeAirData(QJsonArray{jsonObj});
+      }
+    } else if (type == "air_stats") {
+      processAirStatsData(dataVal.toArray());
+    } else if (type == "flow_stats") {
+      processFlowStatsData(dataVal.toArray());
     }
-  } else if (type == "air_stats") {
-    processAirStatsData(dataVal.toArray());
-  } else if (type == "flow_stats") {
-    processFlowStatsData(dataVal.toArray());
-  } else if (type == "system_monitor") {
-    processSystemMonitorData(jsonObj);
   }
 }
 
@@ -193,11 +171,6 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   double co = latestObj["co_level"].toDouble();
 
-  // Ensuring both co2_ppm and co_level are updated in the map for UI
-  // consistency
-  latestObj["co2_ppm"] = co2;
-  latestObj["co_level"] = co;
-
   // LOG: Print detailed debug information to identify value discrepancies
   qDebug() << "-----------------------------------------";
   qDebug() << "📡 [NETWORK_DATA] Realtime Air Update";
@@ -233,7 +206,6 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   emit realtimeAirReceived(latestObj.toVariantMap());
 }
-
 void NetworkClient::processAirStatsData(const QJsonArray &data) {
   QJsonArray modifiedData;
   for (const QJsonValue &val : data) {
@@ -287,11 +259,6 @@ void NetworkClient::processFlowStatsData(const QJsonArray &data) {
     modifiedData.append(obj);
   }
   emit flowStatsReceived(modifiedData.toVariantList());
-}
-
-void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {
-  qDebug() << "🖥️ [NETWORK_DATA] System Monitor Update Received";
-  emit systemMonitorReceived(obj.toVariantMap());
 }
 
 void NetworkClient::sendDeviceCommand(const QString &device,

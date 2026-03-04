@@ -1,6 +1,3 @@
-#ifndef CONFIG_MANAGER_HPP
-#define CONFIG_MANAGER_HPP
-
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -21,5 +18,3 @@ class ConfigManager {
     file << j.dump(4);
   }
 };
-
-#endif  // CONFIG_MANAGER_HPP
