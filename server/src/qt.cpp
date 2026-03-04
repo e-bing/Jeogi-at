@@ -1,7 +1,7 @@
 // qt.cpp
-#include "../includes/qt.h"
-#include "../includes/system_monitor.h"
-#include "sensor.h"
+#include "../includes/qt.hpp"
+#include "../includes/system_monitor.hpp"
+#include "sensor.hpp"
 
 using json = nlohmann::json;
 using namespace std;

@@ -1,4 +1,4 @@
-#include "system_monitor.h"
+#include "system_monitor.hpp"
 #include "../includes/shared_data.hpp"
 #include <iostream>
 #include <fstream>
@@ -14,7 +14,8 @@ using namespace std;
 
 /* ─────────────────────────────────────────
    MQTT 클라이언트
-   브로커 주소는 shared_data.hpp의 g_mqtt_broker 사용
+   정적 초기화 순서 문제를 방지하기 위해 포인터로 관리하며,
+   init_system_monitor() 호출 시점에 g_mqtt_broker 값을 참조하여 생성합니다.
 ───────────────────────────────────────── */
 static const string CLIENT_ID = "server_sys_monitor";
 

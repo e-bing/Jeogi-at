@@ -1,6 +1,6 @@
 // database.h
-#ifndef DATABASE_H
-#define DATABASE_H
+#ifndef DATABASE_HPP
+#define DATABASE_HPP
 
 #include <mariadb/mysql.h>
 #include <nlohmann/json.hpp>

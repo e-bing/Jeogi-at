@@ -14,18 +14,18 @@ struct DeviceStats {
 };
 
 /**
- * @brief boy 자체 시스템 정보를 읽습니다.
+ * @brief server 자체 시스템 정보를 읽습니다.
  * @return DeviceStats 구조체
  */
-DeviceStats get_boy_stats();
+DeviceStats get_server_stats();
 
 /**
- * @brief MQTT 연결 및 system/aboy 구독을 시작합니다.
+ * @brief MQTT 연결 및 system/firmware 구독을 시작합니다.
  */
 void init_system_monitor();
 
 /**
- * @brief boy + aboy 합산 데이터를 JSON으로 변환해 SSL로 Qt에 전송합니다.
+ * @brief server + firmware 합산 데이터를 JSON으로 변환해 SSL로 Qt에 전송합니다.
  * @param ssl Qt 클라이언트 SSL 포인터
  */
 void send_system_monitor(void* ssl);

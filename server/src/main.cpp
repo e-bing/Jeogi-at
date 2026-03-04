@@ -15,13 +15,13 @@
 #include "../includes/shared_data.hpp"
 
 // 센서, 모터 및 DB 관련 헤더
-#include "../includes/database.h"
-#include "../includes/motor.h"
-#include "../includes/qt.h"
-#include "../includes/sensor.h"
+#include "../includes/database.hpp"
+#include "../includes/motor.hpp"
+#include "../includes/qt.hpp"
+#include "../includes/sensor.hpp"
 
 // 모니터링 헤더
-#include "../includes/system_monitor.h"
+#include "../includes/system_monitor.hpp"
 
 using namespace std;
 

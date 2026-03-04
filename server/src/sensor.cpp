@@ -1,6 +1,6 @@
 // sensor.cpp
-#include "sensor.h"
-#include "database.h"
+#include "sensor.hpp"
+#include "database.hpp"
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
