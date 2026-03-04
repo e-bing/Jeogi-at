@@ -14,8 +14,10 @@
 #include <chrono>
 #include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
+#include <queue>
 #include <string>
 #include <thread>
 #include <vector>
@@ -26,15 +28,21 @@
 #include "motor.h"
 #include "shared_data.hpp"
 
+using std::string;
+using std::vector;
+
 struct SendPacket {
   enum class Type { JSON, CAMERA } type;
   std::vector<uint8_t> data;  // 전송할 원시 바이트
 };
 
-extern std::queue<SendPacket> g_send_queue;
-extern std::mutex g_send_queue_mutex;
-extern std::condition_variable g_send_cv;
-extern std::atomic<bool> client_connected;
+struct ClientSession {
+  SSL* ssl;
+  bool connected;
+  std::queue<SendPacket> send_queue;
+  std::mutex queue_mutex;
+  std::condition_variable queue_cv;
+};
 
 // TLS 초기화 및 정리
 void init_tls();
@@ -50,24 +58,32 @@ bool kill_process_using_port(int port);
 // Qt에서 입력 받기
 void handle_qt_command(const std::string& cmd_str);
 
-// 영상 전송 전담 스레드 함수
+// Qt 클라이언트로부터 명령을 수신하는 reader 스레드 함수
+// SSL_read를 논블로킹으로 반복하며 '\n' 단위로 명령을 파싱
+void reader_thread_func(SSL* ssl, std::atomic<bool>* connected);
+
+// Qt 클라이언트로 패킷을 전송하는 writer 스레드 함수
+// send_queue에서 패킷을 꺼내 SSL_write로 전송 (SSL_write 독점)
+void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
+                        std::queue<SendPacket>& q, std::mutex& mtx,
+                        std::condition_variable& cv);
+
+// 영상 프레임을 JPEG 인코딩하여 send_queue에 enqueue하는 스레드 함수
+// Hanwha(ID:1, ~50fps), Pi 노드(ID:2~, 5fps)를 각각 처리
 void video_streaming_worker(std::atomic<bool>* client_connected,
                             std::queue<SendPacket>& q, std::mutex& mtx,
                             std::condition_variable& cv);
 
-// 쓰기 전담 스레드 함수
-void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
-                        std::queue<SendPacket>& q, std::mutex& mtx,
-                        std::condition_variable& cv, std::mutex& ssl_write_mtx);
-
-// 카메라 패킷을 쓰기 큐에 넣는 함수
+// DEADBEEF 헤더를 포함한 카메라 패킷을 send_queue에 enqueue
+// 큐가 6개 초과 시 드롭 (실시간성 유지)
 void enqueue_camera_packet(std::queue<SendPacket>& q, std::mutex& mtx,
                            std::condition_variable& cv, uint32_t cam_id,
                            const string& json_str,
                            const vector<unsigned char>& img_data);
 
-// JSON 패킷을 쓰기 큐에 넣는 함수
+// DEADBEEF 헤더를 포함한 JSON 전용 패킷(camera_id=0)을 send_queue에 enqueue
+// 큐가 10개 초과 시 드롭
 void enqueue_json_packet(std::queue<SendPacket>& q, std::mutex& mtx,
-                         std::condition_variable& cv, const string& json_str)
+                         std::condition_variable& cv, const string& json_str);
 
 #endif  // QT_COMM_H

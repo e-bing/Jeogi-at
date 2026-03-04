@@ -18,7 +18,7 @@
 // 센서, 모터 및 DB 관련 헤더
 #include "../includes/database.h"
 #include "../includes/motor.h"
-#include "../includes/qt.h"
+#include "../includes/qt.hpp"
 #include "../includes/sensor.h"
 
 // 모니터링 헤더
@@ -51,9 +51,9 @@ int main() {
     return -1;
   }
   if (config.contains("mqtt")) {
-      g_mqtt_broker = config["mqtt"]["broker"];
+    g_mqtt_broker = config["mqtt"]["broker"];
   }
-  
+
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
   init_system_monitor();
