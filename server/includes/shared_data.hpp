@@ -8,15 +8,19 @@
 #include <string>
 #include <vector>
 
+inline std::string g_mqtt_broker = "";
+
 // 감지된 객체 정보 구조체
-struct DetectedObject {
+struct DetectedObject
+{
   float x, y, w, h;
   std::string typeName;
   int objectId;
 };
 
 // --- 라즈베리 파이용 ---
-struct CameraData {
+struct CameraData
+{
   std::vector<uint8_t> frame_buffer;
   std::vector<DetectedObject> objects;
   std::mutex data_mutex;
@@ -33,4 +37,4 @@ extern std::mutex g_hw_data_mutex;
 
 extern bool g_program_running;
 
-#endif  // SHARED_DATA_HPP
+#endif // SHARED_DATA_HPP
