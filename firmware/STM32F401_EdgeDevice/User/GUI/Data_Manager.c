@@ -1,5 +1,4 @@
 #include "Data_Manager.h"
-
 #include <stdio.h>
 
 DB_Data_t g_db_data;

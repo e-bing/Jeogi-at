@@ -1,5 +1,5 @@
-#ifndef MOTOR_H
-#define MOTOR_H
+#ifndef MOTOR_HPP
+#define MOTOR_HPP
 
 #include <string>
 

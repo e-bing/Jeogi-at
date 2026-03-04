@@ -99,6 +99,13 @@ int main() {
     camera_count++;
   }
 
+  // 3. MQTT 브로커 설정 - 현재 서버 IP 자동 감지
+  std::cout << "[3] MQTT Broker Settings\n";
+
+ // 사용자 요청에 따라 localhost로 고정 설정한다.
+  config["mqtt"]["broker"] = "tcp://localhost:1883";
+  std::cout << " - MQTT Broker: " << config["mqtt"]["broker"] << " (Fixed to localhost)\n";
+
   // 3. 파일 저장
   config["pi_nodes"] = pi_list;
   ConfigManager::save(config);

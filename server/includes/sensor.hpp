@@ -1,5 +1,5 @@
-#ifndef SENSOR_H
-#define SENSOR_H
+#ifndef SENSOR_HPP
+#define SENSOR_HPP
 
 #include <mariadb/mysql.h>
 
@@ -8,5 +8,7 @@
  * @param conn DB 연결 핸들
  */
 void receive_sensor_data(MYSQL* conn);
+
+bool get_last_temp_humi(float& temp, float& humi);
 
 #endif // SENSOR_H

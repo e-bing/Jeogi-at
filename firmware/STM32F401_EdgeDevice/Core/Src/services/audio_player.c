@@ -1,10 +1,8 @@
-#include "spi_sdcard.h"
-#include "i2s_audio.h"
+#include <services/audio_player.h>
+#include <drivers/storage/sd_spi.h>
 #include "spi.h"
 #include "i2s.h"
 
-//#include <string.h>
-//#include <stdio.h>
 /* ================= Buffer ================= */
 
 /* Mono input buffer */
@@ -34,26 +32,22 @@ static void Audio_FillHalf(int16_t *dst);
 
 void Audio_Init(void)
 {
-    uint8_t buf[512];
+	  uint8_t buf[512];
 
-    if (sd_init() == 0) {
-        printf("SD init OK\r\n");
+	  if (sd_init() == 0) {
+	      printf("SD init OK\r\n");
 
-        if (sd_read_block(0, buf) == 0) {
-            printf("Read OK\r\n");
+	      if (sd_read_block(0, buf) == 0) {
+	          printf("Read OK\r\n");
 
-            hspi2.Init.BaudRatePrescaler =
-                SPI_BAUDRATEPRESCALER_4;
-            HAL_SPI_Init(&hspi2);
-        }
-    }
+	          hspi2.Init.BaudRatePrescaler =
+	              SPI_BAUDRATEPRESCALER_4;
+	          HAL_SPI_Init(&hspi2);
+	      }
 
-    FRESULT res = f_mount(&USERFatFS, USERPath, 1);
-    printf("FATFS mount = %d\r\n", res);
-
-    sd_files();
-
-    printf("Audio Init Done\r\n");
+	      FRESULT res = f_mount(&USERFatFS, USERPath, 1);
+		  printf("FATFS mount = %d\r\n", res);
+	  }
 }
 
 /* ================= Buffer Fill ================= */
@@ -171,7 +165,7 @@ void Audio_PlayWav(const char *filename)
         AUDIO_MONO_SAMPLES * 2 * 2
     );
 
-    printf("Play Start\r\n");
+    printf("Play Start: %s\r\n", filename);
 
     /* Playback loop */
     while (!wav_eof) {

@@ -24,9 +24,10 @@
 
 #include "../../protocol/camera_packet.hpp"
 #include "congestion_analyzer.hpp"
-#include "database.h"
-#include "motor.h"
+#include "database.hpp"
+#include "motor.hpp"
 #include "shared_data.hpp"
+#include "system_monitor.hpp"
 
 using std::string;
 using std::vector;
