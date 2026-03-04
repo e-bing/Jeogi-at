@@ -114,7 +114,9 @@ int main() {
 
     } catch (const mqtt::exception& e) {
         cerr << "❌ MQTT 에러: " << e.what() << endl;
-        return 1;
+        while (true) {
+		this_thread::sleep_for(chrono::seconds(1));
+	}
     }
 
     close_uart(g_uart_fd);

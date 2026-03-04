@@ -1,4 +1,5 @@
 #include "sht20.h"
+#include "sensor.h"
 #include "config_loader.h"
 #include <iostream>
 #include <fcntl.h>
@@ -17,6 +18,59 @@ using namespace std;
 static mqtt::async_client* g_sht20_mqtt = nullptr;
 static string g_sht20_topic;
 static bool g_sht20_mqtt_connected = false;
+
+// 프로토콜 상수
+static constexpr uint8_t PKT_STX       = 0xAA;
+static constexpr uint8_t PKT_ETX       = 0x55;
+static constexpr uint8_t CMD_TEMP_HUMI = 0x03;  // 온습도 전송
+
+/**
+ * @brief CRC 계산 (cmd ^ len ^ ETX ^ data 전체 XOR)
+ */
+static uint8_t calc_crc(uint8_t cmd, uint8_t len, const uint8_t* data) {
+    uint8_t crc = cmd ^ len;
+    for (int i = 0; i < len; i++) crc ^= data[i];
+    crc ^= PKT_ETX;
+    return crc;
+}
+
+/**
+ * @brief 온습도 데이터를 바이너리 프로토콜로 STM32에 전송합니다.
+ *
+ * 패킷 구조:
+ *   [STX 0xAA][CMD 0x03][LEN 0x04][TEMP_H][TEMP_L][HUMI_H][HUMI_L][CRC][ETX 0x55]
+ *
+ *   온도/습도는 float * 100 후 int16_t 빅엔디안으로 전송합니다.
+ *   예) 24.55°C → 2455 (0x09 0x97), 42.10% → 4210 (0x10 0x72)
+ *
+ * @param temp 온도 (°C)
+ * @param humi 습도 (%)
+ */
+static void send_uart_temp_humi(float temp, float humi) {
+    if (g_uart_fd < 0) return;
+
+    int16_t temp_raw = static_cast<int16_t>(round(temp * 100));
+    int16_t humi_raw = static_cast<int16_t>(round(humi * 100));
+
+    uint8_t data[4] = {
+        static_cast<uint8_t>((temp_raw >> 8) & 0xFF),  // 온도 상위 바이트
+        static_cast<uint8_t>(temp_raw        & 0xFF),  // 온도 하위 바이트
+        static_cast<uint8_t>((humi_raw >> 8) & 0xFF),  // 습도 상위 바이트
+        static_cast<uint8_t>(humi_raw        & 0xFF)   // 습도 하위 바이트
+    };
+
+    uint8_t pkt[9] = {
+        PKT_STX,
+        CMD_TEMP_HUMI,
+        0x04,
+        data[0], data[1], data[2], data[3],
+        calc_crc(CMD_TEMP_HUMI, 0x04, data),
+        PKT_ETX
+    };
+
+    write(g_uart_fd, pkt, sizeof(pkt));
+    cout << "📤 [UART→STM32] Temp: " << temp << "°C, Humi: " << humi << "%" << endl;
+}
 
 /**
  * @brief MQTT 연결 초기화 함수
@@ -71,7 +125,12 @@ static bool parse_sht20_string(const char* buf, SHT20Data& data) {
 
 /**
  * @brief 실시간 온습도 모니터링 루프
- * 2초마다 드라이버를 읽고 JSON 형태로 MQTT 발행을 수행한다.
+ *
+ * 2초마다 /dev/sht20 드라이버를 읽어:
+ *   1. MQTT로 서버(boy)에 발행  (sensor/temp_humi)
+ *   2. UART로 STM32에 바이너리 패킷 전송  (CMD 0x03)
+ *
+ * @param fd /dev/sht20 파일 디스크립터
  */
 void run_sht20_monitor(int fd) {
     if (fd < 0) return;
@@ -89,7 +148,8 @@ void run_sht20_monitor(int fd) {
         if (bytes > 0) {
             buf[bytes] = '\0';
             if (parse_sht20_string(buf, data)) {
-                // MQTT 연결 상태 확인 후 데이터 전송
+
+                // 1. MQTT 연결 상태 확인 후 데이터 전송 (서버로 전송)
                 if (g_sht20_mqtt_connected && g_sht20_mqtt) {
                     try {
                         json payload = {
@@ -102,6 +162,9 @@ void run_sht20_monitor(int fd) {
                         cerr << "❌ SHT20 데이터 전송 실패: " << e.what() << endl;
                     }
                 }
+
+                // 2. UART 전송 (STM32로 전송)
+                send_uart_temp_humi(data.temperature, data.humidity);
             }
         } else {
             cerr << "⚠️ SHT20 드라이버 읽기 실패" << endl;
