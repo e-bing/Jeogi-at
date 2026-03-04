@@ -1,7 +1,7 @@
 #include "uart_handler.h"
 #include "uart_protocol.h"
+#include "Data_Manager.h"
 #include "usart.h" // CubeMX 생성 파일 (huart2 등)
-// 실제 장치 헤더로 교체
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
 // #include "led_panel.h"
@@ -187,6 +187,7 @@ void UART_Handler_Process(void)
 
     Packet_t pkt = pendingPkt;
 
+<<<<<<< feat/firmware/motor
     switch (pkt.cmd) {
         case CMD_GET_CO: {
         	// 1. 센서값 읽기 (float 형태)
@@ -219,14 +220,42 @@ void UART_Handler_Process(void)
 
        	    UART_SendSensorResp(CMD_RESP_SENSOR, resp, 3);
         	break;
+=======
+    switch (pkt.cmd)
+    {
+    case CMD_GET_CO:
+    {
+        // TODO: add CO sensor read
+        //            uint16_t ppm = Device_ReadCO();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO, resp, 2);
+        break;
+    }
+    case CMD_GET_CO2:
+    {
+        // TODO: add CO2 sensor read
+        //            uint16_t ppm = Device_ReadCO2();
+        //            uint8_t resp[2] = {ppm >> 8, ppm & 0xFF};
+        //            UART_SendSensorResp(CMD_GET_CO2, resp, 2);
+        break;
+>>>>>>> dev
     }
     case CMD_GET_TEMP_HUM:
     {
-        // 온습도 센서 읽기 추가
-        //            uint16_t temp, hum;
-        //            Device_ReadTempHum(&temp, &hum);
-        //            uint8_t resp[4] = {temp >> 8, temp & 0xFF, hum >> 8, hum & 0xFF};
-        //            UART_SendResp(CMD_GET_TEMP_HUM, resp, 4);
+        // RX payload format (LEN=4): [temp_hi][temp_lo][hum_hi][hum_lo], x10 scale
+        if (pkt.len != 4U)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+
+        int16_t temp_deci = (int16_t)(((uint16_t)pkt.data[0] << 8) | pkt.data[1]);
+        int16_t hum_deci = (int16_t)(((uint16_t)pkt.data[2] << 8) | pkt.data[3]);
+
+        Data_Manager_SetTempHumValues((float)temp_deci / 100.0f, (float)hum_deci / 100.0f);
+        printf("[UART] Temp/Hum update: T=%.1fC H=%.1f%%\\r\\n",
+               (float)temp_deci / 100.0f, (float)hum_deci / 100.0f);
+        UART_SendACK(pkt.cmd);
         break;
     }
     case CMD_SET_LED:

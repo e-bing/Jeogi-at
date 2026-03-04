@@ -7,14 +7,14 @@
 
 static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
 static uint8_t dashboard_dirty = 1U;
-static uint8_t gas_dirty = 1U;
-static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2
+static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
 
 #define DASHBOARD_REFRESH_MS 100U
 #define DASHBOARD_SHOW_MS 10000U
 #define GAS_SHOW_MS 5000U
+#define TEMP_HUM_SHOW_MS 5000U
 
 static void MatrixRun_ShowDashboard(void)
 {
@@ -28,7 +28,6 @@ void MatrixRun_Init(void)
 {
   MatrixRun_ShowDashboard();
   dashboard_dirty = 0U;
-  gas_dirty = 1U;
   current_screen = 0U;
   last_refresh_tick = HAL_GetTick();
   last_switch_tick = HAL_GetTick();
@@ -38,24 +37,33 @@ void MatrixRun_Run(void)
 {
   uint32_t now = HAL_GetTick();
   uint8_t need_refresh;
-  uint32_t stay_ms = (current_screen == 0U) ? DASHBOARD_SHOW_MS : GAS_SHOW_MS;
+  uint32_t stay_ms;
+
+  if (current_screen == 0U)
+  {
+    stay_ms = DASHBOARD_SHOW_MS;
+  }
+  else if (current_screen == 1U)
+  {
+    stay_ms = GAS_SHOW_MS;
+  }
+  else
+  {
+    stay_ms = TEMP_HUM_SHOW_MS;
+  }
 
   if ((now - last_switch_tick) >= stay_ms)
   {
-    current_screen = (current_screen == 0U) ? 1U : 0U;
+    current_screen = (uint8_t)((current_screen + 1U) % 3U);
     last_switch_tick = now;
 
     if (current_screen == 0U)
     {
       dashboard_dirty = 1U;
     }
-    else
-    {
-      gas_dirty = 1U;
-    }
   }
 
-  need_refresh = (current_screen == 0U) ? dashboard_dirty : gas_dirty;
+  need_refresh = (current_screen == 0U) ? dashboard_dirty : 0U;
   if ((now - last_refresh_tick) >= DASHBOARD_REFRESH_MS)
   {
     need_refresh = 1U;
@@ -73,8 +81,14 @@ void MatrixRun_Run(void)
   }
   else
   {
-    Screen_Show_CO2(&g_db_data);
-    gas_dirty = 0U;
+    if (current_screen == 1U)
+    {
+      Screen_Show_CO2(&g_db_data);
+    }
+    else
+    {
+      Screen_Show_TempHum(&g_db_data);
+    }
   }
 
   last_refresh_tick = now;

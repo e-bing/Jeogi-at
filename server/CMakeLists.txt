@@ -46,6 +46,7 @@ add_executable(server
     src/motor.cpp
     src/parser.cpp
     src/congestion_analyzer.cpp
+    src/congestion_publisher.cpp
     src/system_monitor.cpp
 )
 

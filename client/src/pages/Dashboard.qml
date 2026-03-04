@@ -19,6 +19,16 @@ ColumnLayout {
     property int grandTotalOccupants: 0
     property bool isManualMode: false
 
+    property string cam1Source: ""
+    property string cam2Source: ""
+    property string cam3Source: ""
+    property string cam4Source: ""
+
+    property int cam1Count: 0
+    property int cam2Count: 0
+    property int cam3Count: 0
+    property int cam4Count: 0
+
     Timer {
         id: connectionTimer
         interval: 1000
@@ -74,6 +84,18 @@ ColumnLayout {
             return "#EF4444";
     }
 
+    function getCamCount(index) {
+        if (index === 0)
+            return dashboardRoot.cam1Count;
+        if (index === 1)
+            return dashboardRoot.cam2Count;
+        if (index === 2)
+            return dashboardRoot.cam3Count;
+        if (index === 3)
+            return dashboardRoot.cam4Count;
+        return 0;
+    }
+
     NetworkClient {
         id: client
         onIsConnectedChanged: {
@@ -97,16 +119,31 @@ ColumnLayout {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
         }
+        onCameraFrameReceived: function (cameraId, timestamp, metadata) {
+            let url = "image://camera/" + cameraId + "?t=" + timestamp;
+            let objectCount = metadata.count || 0;
+            if (cameraId === 1) {
+                dashboardRoot.cam1Source = url;
+                dashboardRoot.cam1Count = objectCount;
+            } else if (cameraId === 2) {
+                dashboardRoot.cam2Source = url;
+                dashboardRoot.cam2Count = objectCount;
+            } else if (cameraId === 3) {
+                dashboardRoot.cam3Source = url;
+                dashboardRoot.cam3Count = objectCount;
+            } else if (cameraId === 4) {
+                dashboardRoot.cam4Source = url;
+                dashboardRoot.cam4Count = objectCount;
+            }
+        }
         onTempHumiReceived: function (data) {
             console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
             dashboardRoot.tempHumiData = data;
         }
         Component.onCompleted: {
-            console.log("Dashboard - Page ready, scheduling connection...");
             connectionTimer.start();
         }
         Component.onDestruction: {
-            console.log("Dashboard - Disconnecting on destruction...");
             disconnectFromServer();
         }
     }
@@ -210,52 +247,194 @@ ColumnLayout {
                             Layout.fillHeight: true
                             Layout.fillWidth: true
                             columns: 2
-                            rowSpacing: 10
-                            columnSpacing: 10
+                            rowSpacing: 12
+                            columnSpacing: 12
 
                             Repeater {
                                 model: 4
                                 Rectangle {
+                                    id: camContainer
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    color: Style.isDarkMode ? "#FFFFFF" : "#1E293B"
-                                    radius: 8
+                                    color: Style.isDarkMode ? "#1e293b" : "#0f172a"
+                                    radius: 12
                                     clip: true
-                                    border.color: Style.isDarkMode ? Style.colorSlate300 : "transparent"
+                                    border.color: Style.isDarkMode ? "white" : "#334155"
                                     border.width: 1
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: index === 2 ? "NO SIGNAL" : "CAM-0" + (index + 1)
-                                        color: index === 2 ? Style.colorDanger : (Style.isDarkMode ? "#0F172A" : "white")
-                                        font.bold: true
+                                    // Placeholder / No Signal state
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        color: "transparent"
+                                        visible: !cameraImage.visible
+
+                                        ColumnLayout {
+                                            anchors.centerIn: parent
+                                            spacing: 8
+                                            Rectangle {
+                                                width: 48
+                                                height: 48
+                                                radius: 24
+                                                color: "#1e293b"
+                                                Layout.alignment: Qt.AlignCenter
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: "!"
+                                                    font.pixelSize: 24
+                                                    color: Style.colorDanger
+                                                    font.bold: true
+                                                }
+                                            }
+                                            Text {
+                                                text: "NO SIGNAL"
+                                                color: "#94A3B8"
+                                                font.pixelSize: 12
+                                                font.bold: true
+                                                Layout.alignment: Qt.AlignCenter
+                                            }
+                                            Text {
+                                                text: "CAM-0" + (index + 1)
+                                                color: Style.colorSlate500
+                                                font.pixelSize: 10
+                                                Layout.alignment: Qt.AlignCenter
+                                            }
+                                        }
                                     }
 
+                                    Image {
+                                        id: cameraImage
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        source: {
+                                            if (index === 0)
+                                                return dashboardRoot.cam1Source;
+                                            if (index === 1)
+                                                return dashboardRoot.cam2Source;
+                                            if (index === 2)
+                                                return dashboardRoot.cam3Source;
+                                            if (index === 3)
+                                                return dashboardRoot.cam4Source;
+                                            return "";
+                                        }
+                                        visible: source != ""
+                                        opacity: visible ? 1.0 : 0.0
+                                        Behavior on opacity {
+                                            NumberAnimation {
+                                                duration: 400
+                                            }
+                                        }
+                                    }
+
+                                    // Overlay Shadow
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        gradient: Gradient {
+                                            GradientStop {
+                                                position: 0.0
+                                                color: "#44000000"
+                                            }
+                                            GradientStop {
+                                                position: 0.2
+                                                color: "transparent"
+                                            }
+                                            GradientStop {
+                                                position: 0.8
+                                                color: "transparent"
+                                            }
+                                            GradientStop {
+                                                position: 1.0
+                                                color: "#88000000"
+                                            }
+                                        }
+                                    }
+
+                                    // Status Badge (LIVE)
                                     Rectangle {
                                         anchors.left: parent.left
                                         anchors.top: parent.top
-                                        anchors.margins: 10
-                                        width: 60
-                                        height: 20
-                                        radius: 4
-                                        color: index === 2 ? Style.colorDanger : "#22C55E"
+                                        anchors.margins: 12
+                                        width: 54
+                                        height: 22
+                                        radius: 6
+                                        color: cameraImage.visible ? "#cc22c55e" : "#cc64748b" // Glassy look
+                                        border.color: "#33ffffff"
+                                        border.width: 1
 
                                         RowLayout {
                                             anchors.centerIn: parent
-                                            spacing: 4
+                                            spacing: 5
                                             Rectangle {
-                                                width: 6
-                                                height: 6
-                                                radius: 3
+                                                width: 8
+                                                height: 8
+                                                radius: 4
                                                 color: "white"
+                                                visible: cameraImage.visible
+                                                SequentialAnimation on opacity {
+                                                    loops: Animation.Infinite
+                                                    NumberAnimation {
+                                                        from: 1
+                                                        to: 0.3
+                                                        duration: 800
+                                                    }
+                                                    NumberAnimation {
+                                                        from: 0.3
+                                                        to: 1
+                                                        duration: 800
+                                                    }
+                                                }
                                             }
                                             Text {
-                                                text: "LIVE"
+                                                text: cameraImage.visible ? "LIVE" : "OFF"
                                                 color: "white"
-                                                font.pixelSize: 10
+                                                font.pixelSize: 11
                                                 font.bold: true
+                                                font.letterSpacing: 0.5
                                             }
                                         }
+                                    }
+
+                                    // Object Count Badge
+                                    Rectangle {
+                                        visible: cameraImage.visible && getCamCount(index) > 0
+                                        anchors.left: parent.left
+                                        anchors.top: parent.top
+                                        anchors.topMargin: 40
+                                        anchors.leftMargin: 12
+                                        width: 80
+                                        height: 22
+                                        radius: 6
+                                        color: "#cc0f172a"
+                                        border.color: "#44ffffff"
+                                        border.width: 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "DETECTED: " + getCamCount(index)
+                                            color: "#E2E8F0"
+                                            font.pixelSize: 10
+                                            font.bold: true
+                                        }
+                                    }
+
+                                    // Camera Label
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        anchors.margins: 12
+                                        text: "CAM-0" + (index + 1)
+                                        color: "white"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        style: Text.Outline
+                                        styleColor: "black"
+                                    }
+
+                                    // Hover overlay
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: console.log("Camera " + (index + 1) + " clicked")
                                     }
                                 }
                             }
