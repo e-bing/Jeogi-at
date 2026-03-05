@@ -9,6 +9,10 @@
 #include <QSslSocket>
 #include <QVariant>
 
+// 공유 프로토콜 정의
+#include "message_types.hpp"
+#include "sensor_thresholds.hpp"
+
 class NetworkClient : public QObject {
   Q_OBJECT
   Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
