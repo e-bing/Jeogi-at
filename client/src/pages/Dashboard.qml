@@ -105,12 +105,10 @@ ColumnLayout {
             console.log("Dashboard - Status: " + client.statusMessage);
         }
         onRealtimeDataReceived: function (data) {
-            console.log("Dashboard - Realtime Data Received: " + data.length);
+            console.log("Dashboard - Real-time DB Data Received: " + data.length);
+            // 열차 칸 색칠 및 인원수 로직은 이제 onZoneCongestionReceived(실시간 AI)에서만 처리합니다.
+            // 필요 시 배경 통계용으로 저장만 유지
             realtimeData = data;
-            var results = processSectionData(data);
-            sectionAverages = results.averages;
-            sectionSums = results.sums;
-            grandTotalOccupants = results.total;
         }
         onAirStatsReceived: function (data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
@@ -1076,16 +1074,16 @@ ColumnLayout {
                             spacing: 10
 
                             property string currentDensity: {
-                                var totalAvg = 0;
-                                var activeSections = 0;
+                                var totalCount = 0;
                                 for (var i = 0; i < 8; i++) {
-                                    if (sectionAverages && sectionAverages[i] > 0) {
-                                        totalAvg += sectionAverages[i];
-                                        activeSections++;
+                                    if (sectionSums && sectionSums.length > i) {
+                                        totalCount += sectionSums[i];
                                     }
                                 }
-                                var avg = activeSections > 0 ? (totalAvg / activeSections) : 0;
-                                return Math.round(avg) + "%";
+                                // 가상의 열차 정원 (예: 한 구역당 100명, 총 800명) 대비 밀집도 계산
+                                var capacity = 800;
+                                var avg = (totalCount / capacity) * 100;
+                                return Math.min(100, Math.round(avg)) + "%";
                             }
 
                             Repeater {
