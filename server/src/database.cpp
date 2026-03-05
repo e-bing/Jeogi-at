@@ -1,23 +1,34 @@
 // database.cpp
 #include "database.hpp"
-
+#include "config_manager.hpp"
 #include <iostream>
 
-MYSQL* connect_db(DBConfig config) {
-  MYSQL* conn = mysql_init(NULL);
-  if (!mysql_real_connect(conn, config.host.c_str(), config.user.c_str(),
-                          config.pass.c_str(), config.db.c_str(), 0, NULL, 0)) {
-    cerr << "DB 연결 실패: " << mysql_error(conn) << endl;
-    return nullptr;
-  }
-  cout << "✅ DB 연결 성공: " << config.db << endl;
-  return conn;
+/**
+ * @brief config.json에서 DB 접속 정보를 읽어 연결합니다.
+ *        setup.cpp에서 최초 1회 설정 후 사용합니다.
+ */
+MYSQL* connect_db() {
+  auto config = ConfigManager::load();
+
+    string host = config["db"].value("host", "localhost");
+    string user = config["db"].value("user", "");
+    string pass = config["db"].value("pass", "");
+    string db   = config["db"].value("name", "jeogi");
+
+    MYSQL* conn = mysql_init(NULL);
+    if (!mysql_real_connect(conn, host.c_str(), user.c_str(),
+                            pass.c_str(), db.c_str(), 0, NULL, 0)) {
+        cerr << "❌ DB 연결 실패: " << mysql_error(conn) << endl;
+        return nullptr;
+    }
+    std::cout << "✅ DB 연결 성공: " << db << endl;
+    return conn;
 }
 
 void close_db(MYSQL* conn) {
   if (conn) {
     mysql_close(conn);
-    cout << "DB 연결 종료" << endl;
+    std::cout << "DB 연결 종료" << endl;
   }
 }
 
@@ -33,7 +44,7 @@ bool save_sensor_data(MYSQL* conn, float co, float co2, float temp, float humi) 
     cerr << "❌ DB 통합 저장 실패: " << mysql_error(conn) << endl;
     return false;
   }
-  cout << "✅ DB 통합 저장 완료 (CO/CO2/Temp/Humi)" << endl;
+  std::cout << "✅ DB 통합 저장 완료 (CO/CO2/Temp/Humi)" << endl;
   return true;
 }
 

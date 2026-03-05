@@ -65,8 +65,7 @@ int main() {
   g_analyzer.start();
 
   thread sensor_thread([]() {
-    DBConfig config;
-    MYSQL* sensor_conn = connect_db(config);
+    MYSQL* sensor_conn = connect_db();
     if (!sensor_conn) {
       cerr << "❌ 센서용 DB 연결 실패" << endl;
       return;
