@@ -120,18 +120,22 @@ ColumnLayout {
             dashboardRoot.airStatsData = data;
         }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
-            let url = "image://camera/" + cameraId + "?t=" + timestamp;
+            let url = "image://camera/" + cameraId;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
+                dashboardRoot.cam1Source = "";
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
+                dashboardRoot.cam2Source = "";
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
+                dashboardRoot.cam3Source = "";
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
+                dashboardRoot.cam4Source = "";
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -306,6 +310,8 @@ ColumnLayout {
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
                                         asynchronous: true
+                                        smooth: false
+                                        cache: false
                                         source: {
                                             if (index === 0)
                                                 return dashboardRoot.cam1Source;
@@ -317,13 +323,14 @@ ColumnLayout {
                                                 return dashboardRoot.cam4Source;
                                             return "";
                                         }
-                                        visible: source != ""
-                                        opacity: visible ? 1.0 : 0.0
-                                        Behavior on opacity {
-                                            NumberAnimation {
-                                                duration: 400
+                                        visible: true
+                                        opacity: 1.0
+                                        onStatusChanged: {
+                                                // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
+                                                if (status === Image.Error) {
+                                                    source = source  // 재시도 방지
+                                                }
                                             }
-                                        }
                                     }
 
                                     // Overlay Shadow
