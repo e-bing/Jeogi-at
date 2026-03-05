@@ -50,48 +50,56 @@ void enqueue_json_packet(std::queue<SendPacket>& q, std::mutex& mtx,
 void video_streaming_worker(std::atomic<bool>* client_connected,
                             std::queue<SendPacket>& q, std::mutex& mtx,
                             std::condition_variable& cv) {
-  // auto last_hw_send = chrono::steady_clock::now();
+  auto last_hw_send = chrono::steady_clock::now();
   auto last_pi_send = chrono::steady_clock::now();
   while (*client_connected) {
     auto now = chrono::steady_clock::now();
     // 1. Hanwha 카메라 데이터 전송 (ID: 1, 15 FPS)
-    {
-      string json_payload;
-      vector<unsigned char> jpg_buffer;
+    if (now - last_hw_send >= chrono::milliseconds(10)) {
       {
-        lock_guard<mutex> lock_frame(g_hw_frame_mutex);
-        lock_guard<mutex> lock_data(g_hw_data_mutex);
+        string json_payload;
+        vector<unsigned char> jpg_buffer;
+        {
+          lock_guard<mutex> lock_frame(g_hw_frame_mutex);
+          lock_guard<mutex> lock_data(g_hw_data_mutex);
 
-        if (!g_hw_frame_buffer.empty()) {
-          // [Step A] YUV Raw -> OpenCV Mat 변환
-          int width = 1920;
-          int height = 1080;
-          cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
-                            g_hw_frame_buffer.data());
+          if (!g_hw_frame_buffer.empty()) {
+            // [Step A] YUV Raw -> OpenCV Mat 변환
+            int width = 1920;
+            int height = 1080;
+            cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
+                              g_hw_frame_buffer.data());
 
-          // [Step B] BGR 변환 및 리사이징 (성능을 위해 640x480 권장)
-          cv::Mat bgr_frame, resized_frame;
-          cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
-          cv::resize(bgr_frame, resized_frame, cv::Size(320, 240));
+            // [Step B] BGR 변환 및 리사이징 (성능을 위해 640x480 권장)
+            cv::Mat bgr_frame, resized_frame;
+            cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
+            cv::resize(bgr_frame, resized_frame, cv::Size(640, 480));
 
-          // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
-          cv::imencode(".jpg", resized_frame, jpg_buffer,
-                       {cv::IMWRITE_JPEG_QUALITY, 15});
+            // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
+            // auto t1 = chrono::steady_clock::now();
+            cv::imencode(".jpg", resized_frame, jpg_buffer,
+                         {cv::IMWRITE_JPEG_QUALITY, 40});
+            // auto t2 = chrono::steady_clock::now();
+            // cerr << "[HW encode] "
+            //      << chrono::duration_cast<chrono::milliseconds>(t2 -
+            //      t1).count()
+            //      << "ms" << endl;
 
-          // [Step D] JSON 생성
-          json j;
-          j["count"] = g_hw_objects.size();
-          for (auto& o : g_hw_objects) {
-            j["objs"].push_back(
-                {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
+            // [Step D] JSON 생성
+            json j;
+            j["count"] = g_hw_objects.size();
+            for (auto& o : g_hw_objects) {
+              j["objs"].push_back(
+                  {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
+            }
+            json_payload = j.dump();
           }
-          json_payload = j.dump();
         }
-      }
 
-      if (!jpg_buffer.empty()) {
-        enqueue_camera_packet(q, mtx, cv, 1, json_payload, jpg_buffer);
-        // last_hw_send = now;
+        if (!jpg_buffer.empty()) {
+          enqueue_camera_packet(q, mtx, cv, 1, json_payload, jpg_buffer);
+          last_hw_send = now;
+        }
       }
     }
 
@@ -136,7 +144,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
       last_pi_send = now;
     }
 
-    this_thread::sleep_for(chrono::milliseconds(20));  // 테스트
+    this_thread::sleep_for(chrono::milliseconds(5));
   }
 }
 

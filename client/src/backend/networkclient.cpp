@@ -279,6 +279,7 @@ void NetworkClient::readData() {
           continue;
       }
 
+      if (m_buffer.size() < (int)total_size) break;
       QByteArray json_data = m_buffer.mid(headerSize, json_size);
 
       if (cam_id == 0) {
