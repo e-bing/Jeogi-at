@@ -119,6 +119,12 @@ ColumnLayout {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
         }
+        onZoneCongestionReceived: function (zones, totalCount) {
+            // AI 실시간 데이터 (100ms 주기)로 화면 즉시 갱신
+            // 서버에서 오는 zones[0..7]은 각 구역의 실시간 인원수입니다.
+            dashboardRoot.sectionSums = zones;
+            dashboardRoot.grandTotalOccupants = totalCount;
+        }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
             let url = "image://camera/" + cameraId;
             let objectCount = metadata.count || 0;
