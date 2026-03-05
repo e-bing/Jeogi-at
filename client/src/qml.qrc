@@ -6,6 +6,7 @@
         <file>components/Sidebar.qml</file>
         <file>components/Header.qml</file>
         <file>components/Footer.qml</file>
+        <file>components/SystemStatItem.qml</file>
         <file>pages/Dashboard.qml</file>
         <file>pages/Statistics.qml</file>
         <file>pages/CameraManagement.qml</file>
