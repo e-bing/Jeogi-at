@@ -40,6 +40,38 @@ static QString congestionStatusString(int count) {
 //  생성자 / 소멸자
 // ──────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────
+//  헬퍼: 센서 상태 문자열 반환
+// ──────────────────────────────────────────────────────────────
+
+static QString coStatusString(double co) {
+  if (co < Protocol::CO_GOOD_MAX)
+    return Protocol::STATUS_GOOD;
+  if (co < Protocol::CO_CAUTION_MAX)
+    return Protocol::STATUS_CAUTION;
+  return Protocol::STATUS_DANGER;
+}
+
+static QString co2StatusString(double co2) {
+  if (co2 < Protocol::CO2_GOOD_MAX)
+    return Protocol::STATUS_GOOD;
+  if (co2 < Protocol::CO2_CAUTION_MAX)
+    return Protocol::STATUS_CAUTION;
+  return Protocol::STATUS_DANGER;
+}
+
+static QString congestionStatusString(int count) {
+  if (count < Protocol::CONGESTION_EASY_MAX)
+    return Protocol::CONGESTION_EASY;
+  if (count < Protocol::CONGESTION_NORMAL_MAX)
+    return Protocol::CONGESTION_NORMAL;
+  return Protocol::CONGESTION_BUSY;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  생성자 / 소멸자
+// ──────────────────────────────────────────────────────────────
+
 NetworkClient::NetworkClient(QObject *parent)
     : QObject(parent), m_isConnected(false),
       m_statusMessage("Ready to connect") {
@@ -92,25 +124,17 @@ NetworkClient::~NetworkClient() {
 bool NetworkClient::isConnected() const { return m_isConnected; }
 QString NetworkClient::statusMessage() const { return m_statusMessage; }
 
-int NetworkClient::congestionEasyMax() const {
-  return Protocol::CONGESTION_EASY_MAX;
-}
-
-int NetworkClient::congestionNormalMax() const {
-  return Protocol::CONGESTION_NORMAL_MAX;
-}
-
 // ──────────────────────────────────────────────────────────────
 //  공개 슬롯 (QML 호출용)
 // ──────────────────────────────────────────────────────────────
 
 void NetworkClient::connectToServer(const QString &host, quint16 port) {
-  // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
-  if (socket->state() == QAbstractSocket::ConnectingState ||
-      socket->state() == QAbstractSocket::ConnectedState) {
-    qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
-    return;
-  }
+    // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
+    if (socket->state() == QAbstractSocket::ConnectingState ||
+        socket->state() == QAbstractSocket::ConnectedState) {
+        qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
+        return;
+    }
 
   // 2. 만약 에러 상태 등으로 지저분하게 남아있다면 강제 종료(abort)
   if (socket->state() != QAbstractSocket::UnconnectedState) {
@@ -126,8 +150,8 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
            << "with TLS...";
   setStatus("Connecting to sensitive server...");
 
-  socket->connectToHostEncrypted(host, port);
-  socket->ignoreSslErrors();
+    socket->connectToHostEncrypted(host, port);
+    socket->ignoreSslErrors();
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
