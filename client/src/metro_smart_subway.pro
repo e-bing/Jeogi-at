@@ -4,6 +4,9 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
+# 공유 프로토콜 헤더 (Qt ↔ 서버 공통)
+INCLUDEPATH += ../../../protocol
+
 win32 {
     OPENSSL_DIR = "C:/Qt/Tools/mingw1310_64/opt"
     INCLUDEPATH += $$OPENSSL_DIR/include

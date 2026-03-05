@@ -7,6 +7,38 @@
 
 CameraImageProvider* g_cameraImageProvider = nullptr;
 
+// ──────────────────────────────────────────────────────────────
+//  헬퍼: 센서 상태 문자열 반환
+// ──────────────────────────────────────────────────────────────
+
+static QString coStatusString(double co) {
+  if (co < Protocol::CO_GOOD_MAX)
+    return Protocol::STATUS_GOOD;
+  if (co < Protocol::CO_CAUTION_MAX)
+    return Protocol::STATUS_CAUTION;
+  return Protocol::STATUS_DANGER;
+}
+
+static QString co2StatusString(double co2) {
+  if (co2 < Protocol::CO2_GOOD_MAX)
+    return Protocol::STATUS_GOOD;
+  if (co2 < Protocol::CO2_CAUTION_MAX)
+    return Protocol::STATUS_CAUTION;
+  return Protocol::STATUS_DANGER;
+}
+
+static QString congestionStatusString(int count) {
+  if (count < Protocol::CONGESTION_EASY_MAX)
+    return Protocol::CONGESTION_EASY;
+  if (count < Protocol::CONGESTION_NORMAL_MAX)
+    return Protocol::CONGESTION_NORMAL;
+  return Protocol::CONGESTION_BUSY;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  생성자 / 소멸자
+// ──────────────────────────────────────────────────────────────
+
 NetworkClient::NetworkClient(QObject *parent)
     : QObject(parent), m_isConnected(false),
       m_statusMessage("Ready to connect") {
@@ -52,9 +84,16 @@ NetworkClient::~NetworkClient() {
   }
 }
 
-bool NetworkClient::isConnected() const { return m_isConnected; }
+// ──────────────────────────────────────────────────────────────
+//  프로퍼티 접근자
+// ──────────────────────────────────────────────────────────────
 
+bool NetworkClient::isConnected() const { return m_isConnected; }
 QString NetworkClient::statusMessage() const { return m_statusMessage; }
+
+// ──────────────────────────────────────────────────────────────
+//  공개 슬롯 (QML 호출용)
+// ──────────────────────────────────────────────────────────────
 
 void NetworkClient::connectToServer(const QString &host, quint16 port) {
     // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
@@ -81,6 +120,31 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
+
+void NetworkClient::sendDeviceCommand(const QString &device,
+                                      const QString &action) {
+  if (socket->state() != QAbstractSocket::ConnectedState) {
+    setStatus("Cannot send command: not connected");
+    return;
+  }
+
+  QJsonObject data;
+  data[Protocol::FIELD_DEVICE] = device;
+  data[Protocol::FIELD_ACTION] = action;
+
+  QJsonObject msg;
+  msg[Protocol::FIELD_TYPE] = Protocol::MSG_DEVICE_COMMAND;
+  msg[Protocol::FIELD_DATA] = data;
+
+  QByteArray bytes = QJsonDocument(msg).toJson(QJsonDocument::Compact) + "\n";
+  socket->write(bytes);
+  socket->flush();
+  setStatus(QString("Sent command: %1 -> %2").arg(device, action));
+}
+
+// ──────────────────────────────────────────────────────────────
+//  소켓 이벤트 핸들러 (private slots)
+// ──────────────────────────────────────────────────────────────
 
 void NetworkClient::onEncrypted() {
   qDebug() << "✅ TLS Handshake complete!";
@@ -223,72 +287,70 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
     return;
   }
 
-  QJsonObject jsonObj = jsonDoc.object();
-  QString type = jsonObj["type"].toString();
-  QJsonValue dataVal = jsonObj["data"];
+  const QJsonObject jsonObj = jsonDoc.object();
+  const QString type = jsonObj[Protocol::FIELD_TYPE].toString();
+  const QJsonValue dataVal = jsonObj[Protocol::FIELD_DATA];
 
-  if (type == "realtime") {
+  if (type == Protocol::MSG_REALTIME) {
     processRealtimeData(dataVal.toArray());
-  } else if (type == "realtime_air") {
-    // Robust handling: handle both Array and Single Object
+
+  } else if (type == Protocol::MSG_REALTIME_AIR) {
+    // 서버가 배열 또는 단일 객체로 보낼 수 있으므로 양쪽 모두 처리
     if (dataVal.isArray()) {
       processRealtimeAirData(dataVal.toArray());
     } else if (dataVal.isObject()) {
-      QJsonArray arr;
-      arr.append(dataVal);
-      processRealtimeAirData(arr);
+      processRealtimeAirData(QJsonArray{dataVal});
     } else {
-      // Try parsing root object if "data" is missing but type matches
       processRealtimeAirData(QJsonArray{jsonObj});
     }
-  } else if (type == "air_stats") {
+
+  } else if (type == Protocol::MSG_AIR_STATS) {
     processAirStatsData(dataVal.toArray());
-  } else if (type == "flow_stats") {
+
+  } else if (type == Protocol::MSG_FLOW_STATS) {
     processFlowStatsData(dataVal.toArray());
-  } else if (type == "system_monitor") {
+
+  } else if (type == Protocol::MSG_SYSTEM_MONITOR) {
     processSystemMonitorData(jsonObj);
-  } else if (type == "temp_humi") {
+
+  } else if (type == Protocol::MSG_TEMP_HUMI) {
     emit tempHumiReceived(jsonObj.toVariantMap());
   }
+  // MSG_ZONE_CONGESTION 은 현재 Qt UI에서 미사용 — 필요 시 핸들러 추가
 }
 
+// ──────────────────────────────────────────────────────────────
+//  데이터 파싱 헬퍼 (private)
+// ──────────────────────────────────────────────────────────────
+
 void NetworkClient::processRealtimeData(const QJsonArray &data) {
-  QJsonArray modifiedData;
+  QJsonArray result;
   for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
-    int count = obj["count"].toInt();
-    QString status;
-    if (count < 50) {
-      status = "여유";
-    } else if (count < 100) {
-      status = "보통";
-    } else {
-      status = "혼잡";
-    }
-    obj["status"] = status;
-    modifiedData.append(obj);
+    int count = obj[Protocol::FIELD_COUNT].toInt();
+    obj[Protocol::FIELD_STATUS] = congestionStatusString(count);
+    result.append(obj);
   }
-  emit realtimeDataReceived(modifiedData.toVariantList());
+  emit realtimeDataReceived(result.toVariantList());
 }
 
 void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   if (data.isEmpty())
     return;
 
-  // Find the most recent record by recorded_at across all stations
+  // 가장 최신 recorded_at을 가진 레코드 선택
   QJsonObject latestObj;
-  QString latestTime = "";
+  QString latestTime;
 
   for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
-    // Support multiple field names for timestamp
-    QString recordedAt = obj.contains("recorded_at")
-                             ? obj["recorded_at"].toString()
-                             : obj["timestamp"].toString();
+    // 서버가 recorded_at 또는 timestamp 필드를 사용하는 경우 모두 지원
+    QString ts = obj.contains(Protocol::FIELD_RECORDED_AT)
+                     ? obj[Protocol::FIELD_RECORDED_AT].toString()
+                     : obj["timestamp"].toString();
 
-    if (latestTime.isEmpty() ||
-        (recordedAt > latestTime && !recordedAt.isEmpty())) {
-      latestTime = recordedAt;
+    if (latestTime.isEmpty() || (!ts.isEmpty() && ts > latestTime)) {
+      latestTime = ts;
       latestObj = obj;
     }
   }
@@ -296,112 +358,62 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   if (latestObj.isEmpty())
     latestObj = data.at(0).toObject();
 
-  // Support both "co2_ppm" (new) and "toxic_gas_level" (old/backup)
+  // CO2: co2_ppm → toxic_gas_level → co2 순서로 폴백
   double co2 = 0.0;
-  if (latestObj.contains("co2_ppm")) {
-    co2 = latestObj["co2_ppm"].toDouble();
-  } else if (latestObj.contains("toxic_gas_level")) {
+  if (latestObj.contains(Protocol::FIELD_CO2_PPM))
+    co2 = latestObj[Protocol::FIELD_CO2_PPM].toDouble();
+  else if (latestObj.contains("toxic_gas_level"))
     co2 = latestObj["toxic_gas_level"].toDouble();
-  } else if (latestObj.contains("co2")) {
-    co2 = latestObj["co2"].toDouble();
-  }
+  else if (latestObj.contains(Protocol::FIELD_CO2))
+    co2 = latestObj[Protocol::FIELD_CO2].toDouble();
 
-  double co = latestObj["co_level"].toDouble();
+  double co = latestObj[Protocol::FIELD_CO_LEVEL].toDouble();
 
-  // Ensuring both co2_ppm and co_level are updated in the map for UI
-  // consistency
-  latestObj["co2_ppm"] = co2;
-  latestObj["co_level"] = co;
+  // UI 일관성을 위해 두 필드 모두 확실히 설정
+  latestObj[Protocol::FIELD_CO2_PPM] = co2;
+  latestObj[Protocol::FIELD_CO_LEVEL] = co;
 
-  // LOG: Print detailed debug information to identify value discrepancies
   qDebug() << "-----------------------------------------";
   qDebug() << "📡 [NETWORK_DATA] Realtime Air Update";
-  qDebug() << "📍 Station: " << latestObj["station"].toString();
-  qDebug() << "🕙 Recorded At: " << latestTime;
-  qDebug() << "🌫️ CO2: " << co2 << " (raw_ppm)";
-  qDebug() << "🌫️ CO:  " << co << " (raw_level)";
+  qDebug() << "📍 Station:" << latestObj[Protocol::FIELD_STATION].toString();
+  qDebug() << "🕙 Recorded At:" << latestTime;
+  qDebug() << "🌫️ CO2:" << co2 << "(raw_ppm)";
+  qDebug() << "🌫️ CO:" << co << "(raw_level)";
   qDebug() << "-----------------------------------------";
 
-  // Ensure both field names are present in the map for UI compatibility
-  latestObj["co2_ppm"] = co2;
-  latestObj["co_level"] = co;
-
-  // Calculate status strings for the UI
-  QString coStatus;
-  if (co < 9.0)
-    coStatus = "🟢 양호";
-  else if (co < 25.0)
-    coStatus = "🟡 주의";
-  else
-    coStatus = "🔴 위험";
-
-  QString gasStatus;
-  if (co2 < 400.0)
-    gasStatus = "🟢 양호";
-  else if (co2 < 600.0)
-    gasStatus = "🟡 주의";
-  else
-    gasStatus = "🔴 위험";
-
-  latestObj["co_status"] = coStatus;
-  latestObj["gas_status"] = gasStatus;
+  latestObj[Protocol::FIELD_CO_STATUS] = coStatusString(co);
+  latestObj[Protocol::FIELD_GAS_STATUS] = co2StatusString(co2);
 
   emit realtimeAirReceived(latestObj.toVariantMap());
 }
 
 void NetworkClient::processAirStatsData(const QJsonArray &data) {
-  QJsonArray modifiedData;
+  QJsonArray result;
   for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
-    double co = obj["co"].toDouble();
-    double co2 = obj["co2"].toDouble(); // Server changed "gas" to "co2"
+    double co = obj[Protocol::FIELD_CO].toDouble();
+    double co2 = obj[Protocol::FIELD_CO2].toDouble();
 
-    // CO status: <9.0 (Good), <25.0 (Moderate), >=25.0 (Poor)
-    QString coStatus;
-    if (co < 9.0) {
-      coStatus = "🟢 양호";
-    } else if (co < 25.0) {
-      coStatus = "🟡 주의";
-    } else {
-      coStatus = "🔴 위험";
-    }
+    obj[Protocol::FIELD_CO_STATUS] = coStatusString(co);
+    obj[Protocol::FIELD_GAS_STATUS] = co2StatusString(co2);
 
-    // CO2 (Gas) status: <400 (Good), <600 (Moderate), >=600 (Poor)
-    QString gasStatus;
-    if (co2 < 400.0) {
-      gasStatus = "🟢 양호";
-    } else if (co2 < 600.0) {
-      gasStatus = "🟡 주의";
-    } else {
-      gasStatus = "🔴 위험";
-    }
+    // QML 하위호환: "gas" 필드로도 co2 값 접근 가능하도록 유지
+    obj[Protocol::FIELD_GAS] = co2;
 
-    obj["co_status"] = coStatus;
-    obj["gas_status"] = gasStatus;
-    obj["gas"] =
-        co2; // Map server "co2" back to QML "gas" for backward compatibility
-    modifiedData.append(obj);
+    result.append(obj);
   }
-  emit airStatsReceived(modifiedData.toVariantList());
+  emit airStatsReceived(result.toVariantList());
 }
 
 void NetworkClient::processFlowStatsData(const QJsonArray &data) {
-  QJsonArray modifiedData;
+  QJsonArray result;
   for (const QJsonValue &val : data) {
     QJsonObject obj = val.toObject();
-    int count = obj["avg_count"].toInt();
-    QString status;
-    if (count < 50) {
-      status = "여유";
-    } else if (count < 100) {
-      status = "보통";
-    } else {
-      status = "혼잡";
-    }
-    obj["status"] = status;
-    modifiedData.append(obj);
+    int count = obj[Protocol::FIELD_AVG_COUNT].toInt();
+    obj[Protocol::FIELD_STATUS] = congestionStatusString(count);
+    result.append(obj);
   }
-  emit flowStatsReceived(modifiedData.toVariantList());
+  emit flowStatsReceived(result.toVariantList());
 }
 
 void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {
@@ -409,26 +421,9 @@ void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {
   emit systemMonitorReceived(obj.toVariantMap());
 }
 
-void NetworkClient::sendDeviceCommand(const QString &device,
-                                      const QString &action) {
-  if (socket->state() != QAbstractSocket::ConnectedState) {
-    setStatus("Cannot send command: not connected");
-    return;
-  }
-
-  QJsonObject obj;
-  obj["type"] = "device_command";
-  QJsonObject data;
-  data["device"] = device;
-  data["action"] = action;
-  obj["data"] = data;
-
-  QJsonDocument doc(obj);
-  QByteArray bytes = doc.toJson(QJsonDocument::Compact) + "\n";
-  socket->write(bytes);
-  socket->flush();
-  setStatus(QString("Sent command: %1 -> %2").arg(device, action));
-}
+// ──────────────────────────────────────────────────────────────
+//  내부 상태 세터
+// ──────────────────────────────────────────────────────────────
 
 void NetworkClient::setStatus(const QString &message) {
   if (m_statusMessage != message) {
