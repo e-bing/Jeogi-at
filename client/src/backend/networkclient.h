@@ -1,13 +1,29 @@
 #ifndef NETWORKCLIENT_H
 #define NETWORKCLIENT_H
 
+#include <QByteArray>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMutex>
 #include <QObject>
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
+#include <QQuickImageProvider>
+
+namespace CamProtocol {
+const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
+
+#pragma pack(push, 1)
+struct PacketHeader {
+  uint32_t magic;
+  uint32_t camera_id;
+  uint32_t json_size;
+  uint32_t image_size;
+};
+#pragma pack(pop)
+} // namespace CamProtocol
 
 // 공유 프로토콜 정의
 #include "message_types.hpp"
@@ -38,10 +54,9 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
+  void cameraFrameReceived(int cameraId, const QString &timestamp, const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
-  void cameraFrameReceived(int cameraId, const QString &base64Image,
-                           const QVariantMap &metadata);
 
 private slots:
   void onEncrypted();
@@ -69,5 +84,30 @@ private:
 
   QByteArray m_buffer;
 };
+
+class CameraImageProvider : public QQuickImageProvider {
+public:
+    CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
+
+    QImage requestImage(const QString& id, QSize* size, const QSize&) override {
+        QMutexLocker locker(&m_mutex);
+        QImage img = m_images.value(id.split("?").first().toInt());
+        if (size) *size = img.size();
+        return img;
+    }
+
+    void updateImage(int cameraId, const QByteArray& jpegData) {
+        QImage img;
+        img.loadFromData(jpegData, "JPEG");
+        QMutexLocker locker(&m_mutex);
+        m_images[cameraId] = img;
+    }
+
+private:
+    QMap<int, QImage> m_images;
+    QMutex m_mutex;
+};
+
+extern CameraImageProvider* g_cameraImageProvider;
 
 #endif // NETWORKCLIENT_H

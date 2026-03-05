@@ -10,14 +10,15 @@
 
 #include "../includes/config_manager.hpp"
 #include "../includes/congestion_analyzer.hpp"
+#include "../includes/congestion_publisher.hpp"
 #include "../includes/hanwha_node.hpp"
 #include "../includes/pi_node.hpp"
 #include "../includes/shared_data.hpp"
 
 // 센서, 모터 및 DB 관련 헤더
+#include "../includes/client_handler.hpp"
 #include "../includes/database.hpp"
 #include "../includes/motor.hpp"
-#include "../includes/qt.hpp"
 #include "../includes/sensor.hpp"
 
 // 모니터링 헤더
@@ -29,9 +30,9 @@ volatile sig_atomic_t stop_flag = 0;
 CongestionAnalyzer g_analyzer;
 
 void signal_handler(int signum) {
- 	stop_flag = 1;
-	exit(0);
- }
+  stop_flag = 1;
+  exit(0);
+}
 
 int main() {
   const int PORT = 12345;  // Qt 통신용 포트
@@ -53,10 +54,10 @@ int main() {
     return -1;
   }
   if (config.contains("mqtt")) {
-      g_mqtt_broker = config["mqtt"]["broker"];
-      cout << "✅ MQTT 브로커 설정: " << g_mqtt_broker << endl; 
- }
-  
+    g_mqtt_broker = config["mqtt"]["broker"];
+    cout << "✅ MQTT 브로커 설정: " << g_mqtt_broker << endl;
+  }
+
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
   init_system_monitor();
@@ -76,6 +77,10 @@ int main() {
     close_db(sensor_conn);
   });
   sensor_thread.detach();
+
+  // 펌웨어 라즈베리파이 측 전송 스레드 생성
+  CongestionPublisher congestion_pub(g_analyzer);
+  congestion_pub.start();
 
   // 3. Qt 클라이언트 대응 TLS 서버 소켓 생성
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -170,6 +175,8 @@ int main() {
     if (t.joinable()) t.join();
   }
   if (hwThread.joinable()) hwThread.join();
+
+  congestion_pub.stop();
   g_analyzer.stop();
 
   close(server_fd);
