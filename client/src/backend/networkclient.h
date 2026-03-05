@@ -7,11 +7,11 @@
 #include <QJsonObject>
 #include <QMutex>
 #include <QObject>
+#include <QQuickAsyncImageProvider>
+#include <QQuickImageProvider>
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
-#include <QQuickImageProvider>
-#include <QQuickAsyncImageProvider>
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -35,6 +35,8 @@ class NetworkClient : public QObject {
   Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
   Q_PROPERTY(
       QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
+  Q_PROPERTY(int congestionEasyMax READ congestionEasyMax CONSTANT)
+  Q_PROPERTY(int congestionNormalMax READ congestionNormalMax CONSTANT)
 
 public:
   explicit NetworkClient(QObject *parent = nullptr);
@@ -42,6 +44,8 @@ public:
 
   bool isConnected() const;
   QString statusMessage() const;
+  int congestionEasyMax() const;
+  int congestionNormalMax() const;
 
   Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
@@ -55,7 +59,8 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void cameraFrameReceived(int cameraId, const QString &timestamp, const QVariantMap &metadata);
+  void cameraFrameReceived(int cameraId, const QString &timestamp,
+                           const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
 
@@ -88,46 +93,49 @@ private:
 
 class CameraImageResponse : public QQuickImageResponse {
 public:
-    CameraImageResponse(const QImage& img) : m_image(img) {
-        emit finished();  // 이미 이미지가 있으므로 즉시 완료
-    }
-    QQuickTextureFactory* textureFactory() const override {
-        return QQuickTextureFactory::textureFactoryForImage(m_image);
-    }
+  CameraImageResponse(const QImage &img) : m_image(img) {
+    emit finished(); // 이미 이미지가 있으므로 즉시 완료
+  }
+  QQuickTextureFactory *textureFactory() const override {
+    return QQuickTextureFactory::textureFactoryForImage(m_image);
+  }
+
 private:
-    QImage m_image;
+  QImage m_image;
 };
 
-class CameraImageProvider : public QQuickAsyncImageProvider  {
+class CameraImageProvider : public QQuickAsyncImageProvider {
 public:
-    CameraImageProvider() : QQuickAsyncImageProvider(QQuickImageProvider::Image) {}
+  CameraImageProvider()
+      : QQuickAsyncImageProvider(QQuickImageProvider::Image) {}
 
-    QQuickImageResponse* requestImageResponse(
-        const QString& id, const QSize&) override
+  QQuickImageResponse *requestImageResponse(const QString &id,
+                                            const QSize &) override {
+    int camId = id.split("?").first().toInt();
+    QMutexLocker locker(&m_mutex);
+    QImage img = m_images.value(camId);
+    if (img.isNull())
+      img = m_prev_images.value(camId);
+    else
+      m_prev_images[camId] = img;
+    return new CameraImageResponse(img.copy());
+  }
+
+  void updateImage(int cameraId, const QByteArray &jpegData) {
+    QImage img;
+    img.loadFromData(jpegData, "JPEG");
     {
-        int camId = id.split("?").first().toInt();
-        QMutexLocker locker(&m_mutex);
-        QImage img = m_images.value(camId);
-        if (img.isNull()) img = m_prev_images.value(camId);
-        else m_prev_images[camId] = img;
-        return new CameraImageResponse(img.copy());
+      QMutexLocker locker(&m_mutex);
+      m_images[cameraId] = std::move(img);
     }
-
-    void updateImage(int cameraId, const QByteArray& jpegData) {
-        QImage img;
-        img.loadFromData(jpegData, "JPEG");
-        {
-            QMutexLocker locker(&m_mutex);
-            m_images[cameraId] = std::move(img);
-        }
-    }
+  }
 
 private:
-    QMap<int, QImage> m_images;
-    QMap<int, QImage> m_prev_images;
-    QMutex m_mutex;
+  QMap<int, QImage> m_images;
+  QMap<int, QImage> m_prev_images;
+  QMutex m_mutex;
 };
 
-extern CameraImageProvider* g_cameraImageProvider;
+extern CameraImageProvider *g_cameraImageProvider;
 
 #endif // NETWORKCLIENT_H
