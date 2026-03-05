@@ -122,8 +122,8 @@ int main(void)
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
-  //  MQ135_Init();
-  //  MQ7_Init();
+    MQ135_Init();
+    MQ7_Init();
 
 
   // init: sd card & audio amp
@@ -146,13 +146,10 @@ int main(void)
 //    AppTask_Run();
     /* USER CODE END WHILE */
 
-
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
-
-
 
 /**
   * @brief System Clock Configuration

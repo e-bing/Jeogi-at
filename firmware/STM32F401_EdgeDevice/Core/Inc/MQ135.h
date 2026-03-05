@@ -32,4 +32,6 @@ float MQ135_ReadCO2(ADC_HandleTypeDef *hadc, float alpha);
   */
 float ADC_to_CO2(uint32_t adc_val);
 
+void MQ135_GetProtocolData(uint8_t* buffer);
+
 #endif /* MQ135_H */

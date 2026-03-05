@@ -32,6 +32,10 @@ int main(int argc, char *argv[]) {
   qmlRegisterType<NetworkClient>("com.metro.network", 1, 0, "NetworkClient");
 
   QQmlApplicationEngine engine;
+
+  g_cameraImageProvider = new CameraImageProvider();
+  engine.addImageProvider("camera", g_cameraImageProvider);
+
   const QUrl url(QStringLiteral("qrc:/Main.qml"));
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreated, &app,
