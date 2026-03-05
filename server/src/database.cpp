@@ -75,6 +75,7 @@ json get_realtime_congestion(MYSQL* conn) {
   }
 
   MYSQL_RES* res = mysql_store_result(conn);
+  if (!res) return result;
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {
@@ -113,6 +114,7 @@ json get_realtime_air_quality(MYSQL* conn) {
   }
 
   MYSQL_RES* res = mysql_store_result(conn);
+  if (!res) return result;
   MYSQL_ROW row;
 
   if ((row = mysql_fetch_row(res))) {
@@ -121,8 +123,8 @@ json get_realtime_air_quality(MYSQL* conn) {
                  {"co2_ppm", row[2] ? stod(row[2]) : 0.0},
                  {"temp", row[3] ? stod(row[3]) : 0.0},    
                  {"humi", row[4] ? stod(row[4]) : 0.0},
-                 {"fire_detected", row[3] ? stoi(row[3]) == 1 : false},
-                 {"recorded_at", row[4] ? row[4] : "N/A"}};
+                 {"fire_detected", row[5] ? stoi(row[5]) == 1 : false},
+                 {"recorded_at", row[6] ? row[6] : "N/A"}};
     result.push_back(item);
   }
 
@@ -152,6 +154,7 @@ json get_air_quality_stats(MYSQL* conn, string cam_id) {
   }
 
   MYSQL_RES* res = mysql_store_result(conn);
+  if (!res) return result;
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {
@@ -186,6 +189,7 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   }
 
   MYSQL_RES* res = mysql_store_result(conn);
+  if (!res) return result;
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {

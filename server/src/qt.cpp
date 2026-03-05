@@ -2,12 +2,13 @@
 #include "../includes/qt.hpp"
 #include "../includes/system_monitor.hpp"
 #include "sensor.hpp"
+#include "../../protocol/message_types.hpp"
+#include "../../protocol/sensor_thresholds.hpp"
 
 using json = nlohmann::json;
 using namespace std;
 
 extern CongestionAnalyzer g_analyzer;
-extern int g_uart_fd;
 extern int get_total_people_count();
 
 SSL_CTX* g_ssl_ctx = nullptr;
@@ -86,44 +87,44 @@ bool kill_process_using_port(int port) {
 void handle_qt_command(const string& cmd_str) {
   try {
     json data = json::parse(cmd_str);
-    string type = data.value("type", "");
+    string type = data.value(Protocol::FIELD_TYPE, "");
 
-    if (type == "device_command") {
-      json cmdData = data.value("data", json::object());
-      string device = cmdData.value("device", "");
-      string action = cmdData.value("action", "");
+    if (type == Protocol::MSG_DEVICE_COMMAND) {
+      json cmdData = data.value(Protocol::FIELD_DATA, json::object());
+      string device = cmdData.value(Protocol::FIELD_DEVICE, "");
+      string action = cmdData.value(Protocol::FIELD_ACTION, "");
 
       // 1️⃣ 모드 제어 (자동/수동 전환)
-      if (device == "mode_control") {
-        if (action == "auto") {
+      if (device == Protocol::DEVICE_MODE_CONTROL) {
+        if (action == Protocol::ACTION_AUTO) {
           g_auto_mode = true;
           cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
-          send_mode_command("auto");
-        } else if (action == "manual") {
+          send_mode_command(Protocol::ACTION_AUTO);
+        } else if (action == Protocol::ACTION_MANUAL) {
           g_auto_mode = false;
           cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
-          send_mode_command("manual");
+          send_mode_command(Protocol::ACTION_MANUAL);
         }
         return;
       }
 
       // 2️⃣ 장치 제어 (수동 모드일 때만 동작)
       if (!g_auto_mode) {
-        if (device == "motor") {
-          int speed = cmdData.value("speed", 100);
+        if (device == Protocol::DEVICE_MOTOR) {
+          int speed = cmdData.value(Protocol::FIELD_SPEED, 100);
 
-          if (action == "start" || action == "on") {
+          if (action == Protocol::ACTION_START || action == Protocol::ACTION_ON) {
             cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
-            send_motor_command("start", speed);
-          } else if (action == "stop" || action == "off") {
+            send_motor_command(Protocol::ACTION_START, speed);
+          } else if (action == Protocol::ACTION_STOP || action == "off") {
             cout << "🛑 [STATUS] MOTOR OFF" << endl;
-            send_motor_command("stop", 0);
+            send_motor_command(Protocol::ACTION_STOP, 0);
           }
-        } else if (device == "speaker") {
-          cout << "🔊 [STATUS] SPEAKER " << (action == "on" ? "ON" : "OFF")
+        } else if (device == Protocol::DEVICE_SPEAKER) {
+          cout << "🔊 [STATUS] SPEAKER " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
                << endl;
-        } else if (device == "lighting") {
-          cout << "💡 [STATUS] LIGHTING " << (action == "on" ? "ON" : "OFF")
+        } else if (device == Protocol::DEVICE_LIGHTING) {
+          cout << "💡 [STATUS] LIGHTING " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
                << endl;
         }
       } else {
@@ -212,9 +213,9 @@ void handle_client(int client_socket) {
     // [실시간 데이터 전송] - 매 루프마다 (약 10ms ~ 20ms 주기로)
     try {
       std::vector<int> zone_levels = g_analyzer.getCongestionLevels();
-      json msg_zones = {{"type", "zone_congestion"},
-                        {"zones", zone_levels},
-                        {"total_count", get_total_people_count()}};
+      json msg_zones = {{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
+                        {Protocol::FIELD_ZONES, zone_levels},
+                        {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}};
       string s_zones = msg_zones.dump() + "\n";
 
       lock_guard<mutex> lock(g_ssl_send_mutex);
@@ -227,20 +228,20 @@ void handle_client(int client_socket) {
       db_tick = 0;
       try {
         // 메시지들을 순차적으로 생성 및 전송
-        json msg_realtime = {{"type", "realtime"},
-                             {"title", "🚉 실시간 혼잡도"},
-                             {"data", get_realtime_congestion(conn)}};
-        json msg_air = {{"type", "realtime_air"},
-                        {"title", "🌫️ 실시간 공기질"},
-                        {"data", get_realtime_air_quality(conn)}};
-        json msg_air_stats = {{"type", "air_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "📊 공기질 통계"},
-                              {"data", get_air_quality_stats(conn, "CAM-01")}};
-        json msg_flow = {{"type", "flow_stats"},
-                         {"camera", "CAM-01"},
-                         {"title", "👥 승객 흐름 통계"},
-                         {"data", get_passenger_flow_stats(conn, "CAM-01")}};
+        json msg_realtime = {{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME},
+                             {Protocol::FIELD_TITLE, "🚉 실시간 혼잡도"},
+                             {Protocol::FIELD_DATA, get_realtime_congestion(conn)}};
+        json msg_air = {{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                        {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                        {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}};
+        json msg_air_stats = {{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                              {Protocol::FIELD_CAMERA, "CAM-01"},
+                              {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                              {Protocol::FIELD_DATA, get_air_quality_stats(conn, "CAM-01")}};
+        json msg_flow = {{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                         {Protocol::FIELD_CAMERA, "CAM-01"},
+                         {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                         {Protocol::FIELD_DATA, get_passenger_flow_stats(conn, "CAM-01")}};
 
         // 하나라도 전송 실패 시 루프 종료(disconnect)
         string s1 = msg_realtime.dump() + "\n";
@@ -260,9 +261,9 @@ void handle_client(int client_socket) {
             float temp = 0.0f, humi = 0.0f;
             if (get_last_temp_humi(temp, humi)) {
                 json msg_temp_humi = {
-                    {"type",        "temp_humi"},
-                    {"temperature", temp},
-                    {"humidity",    humi}
+                    {Protocol::FIELD_TYPE,        Protocol::MSG_TEMP_HUMI},
+                    {Protocol::FIELD_TEMPERATURE, temp},
+                    {Protocol::FIELD_HUMIDITY,    humi}
                 };
                 string s5 = msg_temp_humi.dump() + "\n";
                 SSL_write(ssl, s5.c_str(), s5.length());

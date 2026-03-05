@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "../../protocol/camera_packet.hpp"
+#include "../../protocol/message_types.hpp"
 #include "congestion_analyzer.hpp"
 #include "database.hpp"
 #include "motor.hpp"
