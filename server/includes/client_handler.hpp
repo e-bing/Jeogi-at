@@ -24,9 +24,6 @@
 #include "system_monitor.hpp"
 #include "tls_server.hpp"
 
-using std::string;
-using std::vector;
-
 // Qt 클라이언트로 전송할 패킷 단위
 struct SendPacket {
   enum class Type { JSON, CAMERA } type;

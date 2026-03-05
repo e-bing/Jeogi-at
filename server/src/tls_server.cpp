@@ -45,15 +45,15 @@ void cleanup_tls() {
 }
 
 bool kill_process_using_port(int port) {
-  string cmd = "lsof -ti:" + std::to_string(port) + " 2>/dev/null";
+  std::string cmd = "lsof -ti:" + std::to_string(port) + " 2>/dev/null";
   FILE* pipe = popen(cmd.c_str(), "r");
   if (!pipe) return true;
 
   char buffer[128];
-  vector<string> pids;
+  std::vector<std::string> pids;
 
   while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    string pid = buffer;
+    std::string pid = buffer;
     pid.erase(pid.find_last_not_of(" \n\r\t") + 1);
     if (!pid.empty()) {
       pids.push_back(pid);
@@ -64,7 +64,7 @@ bool kill_process_using_port(int port) {
   if (pids.empty()) return true;
 
   for (const auto& pid : pids) {
-    string kill_cmd = "kill -9 " + pid + " 2>/dev/null";
+    std::string kill_cmd = "kill -9 " + pid + " 2>/dev/null";
     system(kill_cmd.c_str());
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
