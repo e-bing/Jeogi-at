@@ -1,13 +1,7 @@
-// qt.cpp
-#include "../includes/qt.hpp"
-
-using json = nlohmann::json;
-using namespace std;
+#include "../includes/client_handler.hpp"
 
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
-
-SSL_CTX* g_ssl_ctx = nullptr;
 
 static SendPacket make_packet(uint32_t cam_id, const string& json_str,
                               const vector<unsigned char>& img_data) {
@@ -26,129 +20,6 @@ static SendPacket make_packet(uint32_t cam_id, const string& json_str,
     memcpy(pkt.data.data() + sizeof(header) + json_str.size(), img_data.data(),
            img_data.size());
   return pkt;
-}
-
-void init_tls() {
-  SSL_library_init();
-  SSL_load_error_strings();
-  OpenSSL_add_all_algorithms();
-
-  g_ssl_ctx = SSL_CTX_new(TLS_server_method());
-  if (!g_ssl_ctx) {
-    cerr << "SSL_CTX_new 실패" << endl;
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-
-  if (SSL_CTX_use_certificate_file(g_ssl_ctx, "../config/server.crt",
-                                   SSL_FILETYPE_PEM) <= 0) {
-    cerr << "인증서 로드 실패: server.crt" << endl;
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-
-  if (SSL_CTX_use_PrivateKey_file(g_ssl_ctx, "../config/server.key",
-                                  SSL_FILETYPE_PEM) <= 0) {
-    cerr << "개인키 로드 실패: server.key" << endl;
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-
-  if (!SSL_CTX_check_private_key(g_ssl_ctx)) {
-    cerr << "개인키와 인증서가 일치하지 않음" << endl;
-    ERR_print_errors_fp(stderr);
-    exit(1);
-  }
-
-  cout << "✅ TLS 초기화 완료 (TLS 1.2/1.3 지원)" << endl;
-}
-
-void cleanup_tls() {
-  if (g_ssl_ctx) {
-    SSL_CTX_free(g_ssl_ctx);
-    g_ssl_ctx = nullptr;
-  }
-}
-
-bool kill_process_using_port(int port) {
-  string cmd = "lsof -ti:" + to_string(port) + " 2>/dev/null";
-  FILE* pipe = popen(cmd.c_str(), "r");
-  if (!pipe) return true;
-
-  char buffer[128];
-  vector<string> pids;
-
-  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    string pid = buffer;
-    pid.erase(pid.find_last_not_of(" \n\r\t") + 1);
-    if (!pid.empty()) {
-      pids.push_back(pid);
-    }
-  }
-  pclose(pipe);
-
-  if (pids.empty()) return true;
-
-  for (const auto& pid : pids) {
-    string kill_cmd = "kill -9 " + pid + " 2>/dev/null";
-    system(kill_cmd.c_str());
-  }
-  this_thread::sleep_for(chrono::milliseconds(500));
-  return true;
-}
-
-// ✅ Qt 명령 처리 함수 (Motor.h의 함수 호출)
-void handle_qt_command(const string& cmd_str) {
-  try {
-    json data = json::parse(cmd_str);
-    string type = data.value("type", "");
-
-    if (type == "device_command") {
-      json cmdData = data.value("data", json::object());
-      string device = cmdData.value("device", "");
-      string action = cmdData.value("action", "");
-
-      // 1️⃣ 모드 제어 (자동/수동 전환)
-      if (device == "mode_control") {
-        if (action == "auto") {
-          g_auto_mode = true;
-          cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
-          send_mode_command("auto");
-        } else if (action == "manual") {
-          g_auto_mode = false;
-          cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
-          send_mode_command("manual");
-        }
-        return;
-      }
-
-      // 2️⃣ 장치 제어 (수동 모드일 때만 동작)
-      if (!g_auto_mode) {
-        if (device == "motor") {
-          int speed = cmdData.value("speed", 100);
-
-          if (action == "start" || action == "on") {
-            cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
-            send_motor_command("start", speed);
-          } else if (action == "stop" || action == "off") {
-            cout << "🛑 [STATUS] MOTOR OFF" << endl;
-            send_motor_command("stop", 0);
-          }
-        } else if (device == "speaker") {
-          cout << "🔊 [STATUS] SPEAKER " << (action == "on" ? "ON" : "OFF")
-               << endl;
-        } else if (device == "lighting") {
-          cout << "💡 [STATUS] LIGHTING " << (action == "on" ? "ON" : "OFF")
-               << endl;
-        }
-      } else {
-        cout << "⚠️ [AUTO MODE] Qt 수동 명령 무시됨 (현재 자동 모드 활성화 중)"
-             << endl;
-      }
-    }  // if (type == "device_command") 닫기
-  } catch (json::exception& e) {
-    cerr << "❌ Qt 명령 파싱 에러: " << e.what() << endl;
-  }
 }
 
 void enqueue_camera_packet(std::queue<SendPacket>& q, std::mutex& mtx,
@@ -263,6 +134,64 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
     }
 
     this_thread::sleep_for(chrono::milliseconds(20));  // 테스트
+  }
+}
+
+void reader_thread_func(SSL* ssl, std::atomic<bool>* connected) {
+  string cmd_buffer;
+  while (*connected) {
+    char rx_buffer[256];
+    int n = SSL_read(ssl, rx_buffer, sizeof(rx_buffer) - 1);
+    if (n > 0) {
+      rx_buffer[n] = '\0';
+      cmd_buffer += string(rx_buffer);
+      size_t pos;
+      while ((pos = cmd_buffer.find('\n')) != string::npos) {
+        string line = cmd_buffer.substr(0, pos);
+        cmd_buffer.erase(0, pos + 1);
+        if (!line.empty() && line != "\r") handle_qt_command(line);
+      }
+    } else {
+      int err = SSL_get_error(ssl, n);
+      if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+        this_thread::sleep_for(chrono::milliseconds(5));
+        continue;
+      }
+      fprintf(stderr, "[Reader] SSL_read error: %d, errno: %d\n", err, errno);
+      *connected = false;
+      break;
+    }
+  }
+}
+
+void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
+                        std::queue<SendPacket>& q, std::mutex& mtx,
+                        std::condition_variable& cv) {
+  while (*connected) {
+    std::unique_lock<mutex> lock(mtx);
+    cv.wait_for(lock, chrono::milliseconds(50),
+                [&] { return !q.empty() || !*connected; });
+    while (!q.empty()) {
+      SendPacket pkt = std::move(q.front());
+      q.pop();
+      lock.unlock();
+      int total = 0, size = (int)pkt.data.size();
+      while (total < size && *connected) {
+        int n = SSL_write(ssl, pkt.data.data() + total, size - total);
+        if (n <= 0) {
+          int err = SSL_get_error(ssl, n);
+          if (err == SSL_ERROR_WANT_WRITE) {
+            this_thread::sleep_for(chrono::milliseconds(1));
+            continue;
+          }
+          fprintf(stderr, "[Writer] SSL_write error: %d\n", err);
+          *connected = false;
+          return;
+        }
+        total += n;
+      }
+      lock.lock();
+    }
   }
 }
 
@@ -386,62 +315,4 @@ void handle_client(int client_socket) {
   close_db(conn);
   close(client_socket);
   cout << "클라이언트 연결 종료" << endl;
-}
-
-void reader_thread_func(SSL* ssl, std::atomic<bool>* connected) {
-  string cmd_buffer;
-  while (*connected) {
-    char rx_buffer[256];
-    int n = SSL_read(ssl, rx_buffer, sizeof(rx_buffer) - 1);
-    if (n > 0) {
-      rx_buffer[n] = '\0';
-      cmd_buffer += string(rx_buffer);
-      size_t pos;
-      while ((pos = cmd_buffer.find('\n')) != string::npos) {
-        string line = cmd_buffer.substr(0, pos);
-        cmd_buffer.erase(0, pos + 1);
-        if (!line.empty() && line != "\r") handle_qt_command(line);
-      }
-    } else {
-      int err = SSL_get_error(ssl, n);
-      if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-        this_thread::sleep_for(chrono::milliseconds(5));
-        continue;
-      }
-      fprintf(stderr, "[Reader] SSL_read error: %d, errno: %d\n", err, errno);
-      *connected = false;
-      break;
-    }
-  }
-}
-
-void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
-                        std::queue<SendPacket>& q, std::mutex& mtx,
-                        std::condition_variable& cv) {
-  while (*connected) {
-    std::unique_lock<mutex> lock(mtx);
-    cv.wait_for(lock, chrono::milliseconds(50),
-                [&] { return !q.empty() || !*connected; });
-    while (!q.empty()) {
-      SendPacket pkt = std::move(q.front());
-      q.pop();
-      lock.unlock();
-      int total = 0, size = (int)pkt.data.size();
-      while (total < size && *connected) {
-        int n = SSL_write(ssl, pkt.data.data() + total, size - total);
-        if (n <= 0) {
-          int err = SSL_get_error(ssl, n);
-          if (err == SSL_ERROR_WANT_WRITE) {
-            this_thread::sleep_for(chrono::milliseconds(1));
-            continue;
-          }
-          fprintf(stderr, "[Writer] SSL_write error: %d\n", err);
-          *connected = false;
-          return;
-        }
-        total += n;
-      }
-      lock.lock();
-    }
-  }
 }
