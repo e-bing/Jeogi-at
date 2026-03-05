@@ -1,11 +1,12 @@
 #include "networkclient.h"
 
 #include <QDebug>
-#include <QSslConfiguration>
 #include <QFile>
 #include <QSslCertificate>
+#include <QSslConfiguration>
 
-CameraImageProvider* g_cameraImageProvider = nullptr;
+
+CameraImageProvider *g_cameraImageProvider = nullptr;
 
 // ──────────────────────────────────────────────────────────────
 //  헬퍼: 센서 상태 문자열 반환
@@ -45,26 +46,26 @@ NetworkClient::NetworkClient(QObject *parent)
   socket = new QSslSocket(this);
   socket->setReadBufferSize(0);
 
-    // 1. 리소스에서 인증서 파일 읽기
-    QFile certFile(":/assets/server.crt"); // 경로를 본인의 qrc 경로에 맞게 수정
-    if (certFile.open(QIODevice::ReadOnly)) {
-        QSslCertificate cert(&certFile, QSsl::Pem);
+  // 1. 리소스에서 인증서 파일 읽기
+  QFile certFile(":/assets/server.crt"); // 경로를 본인의 qrc 경로에 맞게 수정
+  if (certFile.open(QIODevice::ReadOnly)) {
+    QSslCertificate cert(&certFile, QSsl::Pem);
 
-        QSslConfiguration sslConfig = socket->sslConfiguration();
+    QSslConfiguration sslConfig = socket->sslConfiguration();
 
-        // 2. 이 인증서를 신뢰할 수 있는 CA 목록에 추가
-        QList<QSslCertificate> caCerts = sslConfig.caCertificates();
-        caCerts.append(cert);
-        sslConfig.setCaCertificates(caCerts);
+    // 2. 이 인증서를 신뢰할 수 있는 CA 목록에 추가
+    QList<QSslCertificate> caCerts = sslConfig.caCertificates();
+    caCerts.append(cert);
+    sslConfig.setCaCertificates(caCerts);
 
-        // 3. 신뢰하는 대상만 연결 허용 (VerifyPeer로 변경)
-        sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
-        socket->setSslConfiguration(sslConfig);
+    // 3. 신뢰하는 대상만 연결 허용 (VerifyPeer로 변경)
+    sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
+    socket->setSslConfiguration(sslConfig);
 
-        qDebug() << "🔒 Local certificate loaded and trusted.";
-    } else {
-        qDebug() << "❌ Failed to load certificate file!";
-    }
+    qDebug() << "🔒 Local certificate loaded and trusted.";
+  } else {
+    qDebug() << "❌ Failed to load certificate file!";
+  }
 
   connect(socket, &QSslSocket::encrypted, this, &NetworkClient::onEncrypted);
   connect(socket, &QSslSocket::connected, this, &NetworkClient::onConnected);
@@ -91,32 +92,42 @@ NetworkClient::~NetworkClient() {
 bool NetworkClient::isConnected() const { return m_isConnected; }
 QString NetworkClient::statusMessage() const { return m_statusMessage; }
 
+int NetworkClient::congestionEasyMax() const {
+  return Protocol::CONGESTION_EASY_MAX;
+}
+
+int NetworkClient::congestionNormalMax() const {
+  return Protocol::CONGESTION_NORMAL_MAX;
+}
+
 // ──────────────────────────────────────────────────────────────
 //  공개 슬롯 (QML 호출용)
 // ──────────────────────────────────────────────────────────────
 
 void NetworkClient::connectToServer(const QString &host, quint16 port) {
-    // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
-    if (socket->state() == QAbstractSocket::ConnectingState ||
-        socket->state() == QAbstractSocket::ConnectedState) {
-        qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
-        return;
-    }
+  // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
+  if (socket->state() == QAbstractSocket::ConnectingState ||
+      socket->state() == QAbstractSocket::ConnectedState) {
+    qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
+    return;
+  }
 
-    // 2. 만약 에러 상태 등으로 지저분하게 남아있다면 강제 종료(abort)
-    if (socket->state() != QAbstractSocket::UnconnectedState) {
-        socket->abort();
-    }
+  // 2. 만약 에러 상태 등으로 지저분하게 남아있다면 강제 종료(abort)
+  if (socket->state() != QAbstractSocket::UnconnectedState) {
+    socket->abort();
+  }
 
-    // 3. SSL 에러를 무시하도록 미리 설정 (영상 패킷 수신 시 끊김 방지)
-    // 이 코드가 있어야 대용량 데이터 전송 시 SSL 경고로 인해 끊기는 것을 막습니다.
-    socket->ignoreSslErrors();
+  // 3. SSL 에러를 무시하도록 미리 설정 (영상 패킷 수신 시 끊김 방지)
+  // 이 코드가 있어야 대용량 데이터 전송 시 SSL 경고로 인해 끊기는 것을
+  // 막습니다.
+  socket->ignoreSslErrors();
 
-    qDebug() << "🌐 Attempting to connect to" << host << ":" << port << "with TLS...";
-    setStatus("Connecting to sensitive server...");
+  qDebug() << "🌐 Attempting to connect to" << host << ":" << port
+           << "with TLS...";
+  setStatus("Connecting to sensitive server...");
 
-    socket->connectToHostEncrypted(host, port);
-    socket->ignoreSslErrors();
+  socket->connectToHostEncrypted(host, port);
+  socket->ignoreSslErrors();
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
@@ -161,8 +172,8 @@ void NetworkClient::onConnected() {
 }
 
 void NetworkClient::onDisconnected() {
-    qDebug() << "Socket disconnected, last error:" << socket->errorString()
-    << "state:" << socket->state();
+  qDebug() << "Socket disconnected, last error:" << socket->errorString()
+           << "state:" << socket->state();
   setStatus("❌ Disconnected from server");
   setIsConnected(false);
 }
@@ -182,8 +193,8 @@ void NetworkClient::onSslErrors(const QList<QSslError> &errors) {
 
 void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
   // Q_UNUSED(socketError)
-    qDebug() << "❌ Socket Error Details:" << socket->errorString()
-             << "Code:" << socketError;
+  qDebug() << "❌ Socket Error Details:" << socket->errorString()
+           << "Code:" << socketError;
   setStatus("Error: " + socket->errorString());
 }
 
@@ -198,85 +209,91 @@ void NetworkClient::readData() {
   const int headerSize = sizeof(CamProtocol::PacketHeader);
 
   while (!m_buffer.isEmpty()) {
-      // 1. 매직 쿠키 위치 찾기
-      if (m_buffer.size() < 4) break;
-      int magicPos = m_buffer.indexOf(magicPattern);
+    // 1. 매직 쿠키 위치 찾기
+    if (m_buffer.size() < 4)
+      break;
+    int magicPos = m_buffer.indexOf(magicPattern);
 
-      if (magicPos == -1) {
-          // 매직 쿠키가 없음 - 버퍼 전체가 쓰레기, 비움
-          m_buffer.clear();
-          break;
+    if (magicPos == -1) {
+      // 매직 쿠키가 없음 - 버퍼 전체가 쓰레기, 비움
+      m_buffer.clear();
+      break;
+    }
+
+    if (magicPos > 0) {
+      // 매직 쿠키가 앞에 없음 - 앞부분 쓰레기 제거
+      m_buffer.remove(0, magicPos);
+      continue;
+    }
+
+    // 3. 최소한 헤더만큼은 데이터가 있어야 함
+    if (m_buffer.size() < headerSize)
+      break;
+
+    // 4. 헤더 읽기
+    CamProtocol::PacketHeader header;
+    memcpy(&header, m_buffer.constData(), headerSize);
+
+    uint32_t magic = qFromBigEndian<uint32_t>(header.magic);
+    uint32_t cam_id = qFromBigEndian<uint32_t>(header.camera_id);
+    uint32_t json_size = qFromBigEndian<uint32_t>(header.json_size);
+    uint32_t image_size = qFromBigEndian<uint32_t>(header.image_size);
+    uint32_t total_size = headerSize + json_size + image_size;
+
+    // 4. 매직 쿠키 재검증 (혹시 모를 오파싱 방어)
+    if (magic != CamProtocol::MAGIC_COOKIE) {
+      m_buffer.remove(0, 1);
+      continue;
+    }
+
+    // 5. 비정상 패킷 사이즈 방어
+    if (json_size > 1000000 || image_size > 10000000) {
+      qDebug() << "❌ Abnormal packet size! json:" << json_size
+               << "img:" << image_size;
+      m_buffer.remove(0, 4); // 이 매직 쿠키를 건너뛰고 다음 탐색
+      continue;
+    }
+
+    if (m_buffer.size() < (int)total_size)
+      break;
+    QByteArray json_data = m_buffer.mid(headerSize, json_size);
+
+    if (cam_id == 0) {
+      // JSON 전용 패킷
+      processJsonResponse(json_data);
+    } else {
+      // 카메라 패킷
+      QByteArray img_data = m_buffer.mid(headerSize + json_size, image_size);
+      if (g_cameraImageProvider) {
+        g_cameraImageProvider->updateImage(cam_id, img_data);
       }
 
-      if (magicPos > 0) {
-          // 매직 쿠키가 앞에 없음 - 앞부분 쓰레기 제거
-          m_buffer.remove(0, magicPos);
-          continue;
-      }
+      QVariantMap metadata;
+      if (!json_data.isEmpty())
+        metadata = QJsonDocument::fromJson(json_data).object().toVariantMap();
 
-      // 3. 최소한 헤더만큼은 데이터가 있어야 함
-      if (m_buffer.size() < headerSize) break;
+      emit cameraFrameReceived(
+          cam_id, QString::number(QDateTime::currentMSecsSinceEpoch()),
+          metadata);
+    }
 
-      // 4. 헤더 읽기
-      CamProtocol::PacketHeader header;
-      memcpy(&header, m_buffer.constData(), headerSize);
+    // 8. 처리 완료된 패킷만큼 버퍼에서 제거
+    m_buffer.remove(0, total_size);
 
-      uint32_t magic      = qFromBigEndian<uint32_t>(header.magic);
-      uint32_t cam_id = qFromBigEndian<uint32_t>(header.camera_id);
-      uint32_t json_size = qFromBigEndian<uint32_t>(header.json_size);
-      uint32_t image_size = qFromBigEndian<uint32_t>(header.image_size);
-      uint32_t total_size = headerSize + json_size + image_size;
-
-      // 4. 매직 쿠키 재검증 (혹시 모를 오파싱 방어)
-      if (magic != CamProtocol::MAGIC_COOKIE) {
-          m_buffer.remove(0, 1);
-          continue;
-      }
-
-      // 5. 비정상 패킷 사이즈 방어
-      if (json_size > 1000000 || image_size > 10000000) {
-          qDebug() << "❌ Abnormal packet size! json:" << json_size << "img:" << image_size;
-          m_buffer.remove(0, 4); // 이 매직 쿠키를 건너뛰고 다음 탐색
-          continue;
-      }
-
-      if (m_buffer.size() < (int)total_size) break;
-      QByteArray json_data = m_buffer.mid(headerSize, json_size);
-
-      if (cam_id == 0) {
-          // JSON 전용 패킷
-          processJsonResponse(json_data);
-      } else {
-          // 카메라 패킷
-          QByteArray img_data = m_buffer.mid(headerSize + json_size, image_size);
-          if (g_cameraImageProvider) {
-              g_cameraImageProvider->updateImage(cam_id, img_data);
-          }
-
-          QVariantMap metadata;
-          if (!json_data.isEmpty())
-              metadata = QJsonDocument::fromJson(json_data).object().toVariantMap();
-
-          emit cameraFrameReceived(cam_id,
-                                   QString::number(QDateTime::currentMSecsSinceEpoch()),
-                                   metadata);
-      }
-
-      // 8. 처리 완료된 패킷만큼 버퍼에서 제거
-      m_buffer.remove(0, total_size);
-
-      if (m_buffer.size() > 10 * 1024 * 1024) {
-          qDebug() << "⚠️ BUFFER OVERFLOW! Clearing 10MB...";
-          m_buffer.clear();
-      }
-      // 9. 다음 패킷이 연달아 와있을 수 있으므로 계속 루프
+    if (m_buffer.size() > 10 * 1024 * 1024) {
+      qDebug() << "⚠️ BUFFER OVERFLOW! Clearing 10MB...";
+      m_buffer.clear();
+    }
+    // 9. 다음 패킷이 연달아 와있을 수 있으므로 계속 루프
   }
 
   // 버퍼 오버플로우 방지 (매우 큰 비정상 데이터 대비)
   if (m_buffer.size() > 10 * 1024 * 1024) {
-      int nextMagic = m_buffer.indexOf(magicPattern, 4); // 현재 위치 이후
-      if (nextMagic > 0) m_buffer.remove(0, nextMagic);
-      else m_buffer.clear();
+    int nextMagic = m_buffer.indexOf(magicPattern, 4); // 현재 위치 이후
+    if (nextMagic > 0)
+      m_buffer.remove(0, nextMagic);
+    else
+      m_buffer.clear();
   }
 }
 

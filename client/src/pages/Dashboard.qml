@@ -76,9 +76,9 @@ ColumnLayout {
     }
 
     function getCongestionColor(sumCount) {
-        if (sumCount < 250)
+        if (sumCount < client.congestionEasyMax)
             return "#22C55E";
-        else if (sumCount < 400)
+        else if (sumCount < client.congestionNormalMax)
             return "#EAB308";
         else
             return "#EF4444";
@@ -326,11 +326,11 @@ ColumnLayout {
                                         visible: true
                                         opacity: 1.0
                                         onStatusChanged: {
-                                                // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
-                                                if (status === Image.Error) {
-                                                    source = source  // 재시도 방지
-                                                }
+                                            // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
+                                            if (status === Image.Error) {
+                                                source = source;  // 재시도 방지
                                             }
+                                        }
                                     }
 
                                     // Overlay Shadow
