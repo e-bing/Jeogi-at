@@ -3,6 +3,9 @@
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
 
+using std::string;
+using std::vector;
+
 static SendPacket make_packet(uint32_t cam_id, const string& json_str,
                               const vector<unsigned char>& img_data) {
   CamProtocol::PacketHeader header;

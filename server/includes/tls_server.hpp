@@ -11,9 +11,6 @@
 #include <thread>
 #include <vector>
 
-using std::string;
-using std::vector;
-
 // TLS 컨텍스트 전역 객체 (다른 모듈에서 SSL_new 등에 사용)
 extern SSL_CTX* g_ssl_ctx;
 
