@@ -2,21 +2,19 @@
 #define NETWORKCLIENT_H
 
 #include <QByteArray>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMutex>
 #include <QObject>
-#include <QQuickAsyncImageProvider>
 #include <QQuickImageProvider>
+#include <QSize>
 #include <QSslError>
 #include <QSslSocket>
+#include <QString>
 #include <QVariant>
-<<<<<<< Updated upstream
 #include <cstdint>
-=======
-#include <QQuickImageProvider>
->>>>>>> Stashed changes
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -103,10 +101,10 @@ public:
 signals:
   void isConnectedChanged();
   void statusMessageChanged();
-  void realtimeDataReceived(QVariantList data);
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
+  void zoneCongestionReceived(QVariantList zones, int totalCount);
   void cameraFrameReceived(int cameraId, const QString &timestamp,
                            const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
@@ -129,7 +127,6 @@ private:
   void setIsConnected(bool connected);
 
   // Parsing helpers
-  void processRealtimeData(const QJsonArray &data);
   void processRealtimeAirData(const QJsonArray &data);
   void processAirStatsData(const QJsonArray &data);
   void processFlowStatsData(const QJsonArray &data);
@@ -184,7 +181,6 @@ public:
             QMutexLocker locker(&m_mutex);
             m_images[cameraId] = std::move(img);
         }
-    }
   }
 
 private:

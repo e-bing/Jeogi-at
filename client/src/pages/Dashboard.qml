@@ -11,7 +11,6 @@ ColumnLayout {
     height: parent.height
     spacing: 0
 
-    property var realtimeData: []
     property var airStatsData: ({})
     property var tempHumiData: ({})
     property var sectionAverages: []
@@ -103,12 +102,6 @@ ColumnLayout {
         }
         onStatusMessageChanged: {
             console.log("Dashboard - Status: " + client.statusMessage);
-        }
-        onRealtimeDataReceived: function (data) {
-            console.log("Dashboard - Real-time DB Data Received: " + data.length);
-            // 열차 칸 색칠 및 인원수 로직은 이제 onZoneCongestionReceived(실시간 AI)에서만 처리합니다.
-            // 필요 시 배경 통계용으로 저장만 유지
-            realtimeData = data;
         }
         onAirStatsReceived: function (data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
