@@ -173,7 +173,7 @@ void init_system_monitor() {
     g_sys_mqtt->connect(opts)->wait();
     g_sys_mqtt_connected = true;
     g_sys_mqtt->set_callback(g_sys_cb);
-    g_sys_mqtt->subscribe("system/firmware", 1)->wait();
+    g_sys_mqtt->subscribe(Protocol::MQTT_TOPIC_SYSTEM_FIRMWARE, 1)->wait();
     cout << "✅ 시스템 모니터 MQTT 연결 완료" << endl;
   } catch (const mqtt::exception& e) {
     cerr << "❌ 시스템 모니터 MQTT 연결 실패: " << e.what() << endl;
