@@ -1,5 +1,6 @@
 #include "communication.hpp"
 #include "config_loader.h"
+#include "../../protocol/message_types.hpp"
 #include <fcntl.h>
 #include <iostream>
 #include <cmath>
@@ -79,7 +80,7 @@ void init_comm_mqtt() {
     try {
         auto config    = load_config();
         string broker  = config.value("mqtt_broker",  "tcp://localhost:1883");
-        g_sensor_topic = config.value("sensor_topic", "sensor/air_quality");
+        g_sensor_topic = config.value("sensor_topic", Protocol::MQTT_TOPIC_AIR_QUALITY);
 
         g_comm_mqtt = new mqtt::async_client(broker, COMM_CLIENT_ID);
 
@@ -206,7 +207,10 @@ void publish_to_server(const string& topic, const string& payload) {
  * @brief CO/CO2 센서값을 MQTT로 서버에 전송합니다.
  */
 void send_to_server_sensor(float co, float co2) {
-    json payload = {{"co", co}, {"co2", co2}};
+    json payload = {
+        {Protocol::FIELD_CO, co},
+        {Protocol::FIELD_CO2, co2}
+    };
     publish_to_server(g_sensor_topic, payload.dump());
     cout << "📤 [→서버] CO: " << co << " ppm | CO2: " << co2 << " ppm" << endl;
 }

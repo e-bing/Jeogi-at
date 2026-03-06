@@ -5,6 +5,7 @@
 #include "communication.hpp"
 #include "audio.hpp"
 #include "display.hpp"
+#include "../../protocol/message_types.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -56,12 +57,12 @@ int main() {
         while (true) {
             DeviceStats stats = get_server_stats();
             json payload = {
-                {"device",     "firmware"},
-                {"cpu_usage",  stats.cpu_usage},
-                {"cpu_temp",   stats.cpu_temp},
-                {"disk_usage", stats.disk_usage}
+                {Protocol::FIELD_DEVICE,    "firmware"},
+                {Protocol::FIELD_CPU_USAGE, stats.cpu_usage},
+                {Protocol::FIELD_CPU_TEMP,  stats.cpu_temp},
+                {Protocol::FIELD_DISK_USAGE, stats.disk_usage}
             };
-            publish_to_server("system/firmware", payload.dump());
+            publish_to_server(Protocol::MQTT_TOPIC_SYSTEM_FIRMWARE, payload.dump());
             cout << "📊 시스템 상태 전송: " << payload.dump() << endl;
             this_thread::sleep_for(chrono::seconds(5));
         }

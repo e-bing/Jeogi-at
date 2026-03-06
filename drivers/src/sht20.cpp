@@ -1,5 +1,6 @@
 #include "sht20.hpp"
 #include "communication.hpp"
+#include "../../protocol/message_types.hpp"
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
@@ -60,10 +61,10 @@ void run_sht20_monitor(int fd) {
             if (parse_sht20_string(buf, data)) {
                 // 1. MQTT로 서버에 전송 (sensor/temp_humi)
                 json payload = {
-                    {"temperature", round(data.temperature * 100) / 100.0},
-                    {"humidity",    round(data.humidity    * 100) / 100.0}
+                    {Protocol::FIELD_TEMPERATURE, round(data.temperature * 100) / 100.0},
+                    {Protocol::FIELD_HUMIDITY,    round(data.humidity    * 100) / 100.0}
                 };
-                publish_to_server("sensor/temp_humi", payload.dump());
+                publish_to_server(Protocol::MQTT_TOPIC_TEMP_HUMI, payload.dump());
                 cout << "📤 [SHT20→MQTT] " << payload.dump() << endl;
 
                 // 2. UART로 STM32에 전송 (CMD 0x03)

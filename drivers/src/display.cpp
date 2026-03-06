@@ -1,6 +1,7 @@
 #include "display.hpp"
 #include "communication.hpp"
 #include "config_loader.h"
+#include "../../protocol/message_types.hpp"
 #include <chrono>
 #include <iostream>
 #include <mqtt/async_client.h>
@@ -78,7 +79,7 @@ void init_display(int uart_fd) {
     auto config = load_config();
     string broker = config.value("mqtt_broker", "tcp://localhost:1883");
     string topic =
-        config.value("congestion_topic", "iot/server/status/congestion");
+        config.value("congestion_topic", Protocol::MQTT_TOPIC_CONGESTION_STATUS);
 
     g_display_mqtt = new mqtt::async_client(broker, DISPLAY_CLIENT_ID);
     g_display_cb = new DisplayCallback(uart_fd);
