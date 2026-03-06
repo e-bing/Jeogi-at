@@ -11,16 +11,16 @@ Item {
     height: parent ? parent.height : 0
 
     property var systemData: ({
-            server: {
-                cpu_usage: 0,
-                cpu_temp: 0,
-                disk_usage: 0
+            "server": {
+                "cpu_usage": 0,
+                "cpu_temp": 0,
+                "disk_usage": 0
             },
-            firmware: {
-                cpu_usage: 0,
-                cpu_temp: 0,
-                disk_usage: 0,
-                connected: false
+            "firmware": {
+                "cpu_usage": 0,
+                "cpu_temp": 0,
+                "disk_usage": 0,
+                "connected": false
             }
         })
 
@@ -40,19 +40,18 @@ Item {
         onIsConnectedChanged: {
             if (!client.isConnected) {
                 // 서버 연결 끊기면 펌웨어 포함 모든 데이터 초기화
-                root.systemData = {
-                    server: {
-                        cpu_usage: 0,
-                        cpu_temp: 0,
-                        disk_usage: 0
-                    },
-                    firmware: {
-                        cpu_usage: 0,
-                        cpu_temp: 0,
-                        disk_usage: 0,
-                        connected: false
-                    }
-                };
+                var data = {};
+                data[client.FIELD_SERVER] = {};
+                data[client.FIELD_SERVER][client.FIELD_CPU_USAGE] = 0;
+                data[client.FIELD_SERVER][client.FIELD_CPU_TEMP] = 0;
+                data[client.FIELD_SERVER][client.FIELD_DISK_USAGE] = 0;
+
+                data[client.FIELD_FIRMWARE] = {};
+                data[client.FIELD_FIRMWARE][client.FIELD_CPU_USAGE] = 0;
+                data[client.FIELD_FIRMWARE][client.FIELD_CPU_TEMP] = 0;
+                data[client.FIELD_FIRMWARE][client.FIELD_DISK_USAGE] = 0;
+                data[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] = false;
+                root.systemData = data;
             }
         }
         Component.onCompleted: connectionTimer.start()
@@ -158,17 +157,17 @@ Item {
                 disconnectMsg: "서버 연결 없음"
 
                 stat1Title: "CPU 점유율"
-                stat1Value: root.systemData.server.cpu_usage
+                stat1Value: root.systemData[client.FIELD_SERVER][client.FIELD_CPU_USAGE]
                 stat1Unit: "%"
                 stat1Color: "#0EA5E9"
 
                 stat2Title: "CPU 온도"
-                stat2Value: root.systemData.server.cpu_temp
+                stat2Value: root.systemData[client.FIELD_SERVER][client.FIELD_CPU_TEMP]
                 stat2Unit: "°C"
                 stat2Color: "#F43F5E"
 
                 stat3Title: "디스크 사용량"
-                stat3Value: root.systemData.server.disk_usage
+                stat3Value: root.systemData[client.FIELD_SERVER][client.FIELD_DISK_USAGE]
                 stat3Unit: "%"
                 stat3Color: "#8B5CF6"
             }
@@ -179,24 +178,24 @@ Item {
                 Layout.fillHeight: true
 
                 iconEmoji: "📟"
-                iconBg: root.systemData.firmware.connected ? "#DCFCE7" : "#FEE2E2"
+                iconBg: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? "#DCFCE7" : "#FEE2E2"
                 cardTitle: "에지 디바이스 (Firmware)"
-                cardSub: root.systemData.firmware.connected ? "연결됨 · Raspberry Pi 4" : "연결 끊김"
-                isOnline: root.systemData.firmware.connected
-                opacity: root.systemData.firmware.connected ? 1.0 : 0.55
+                cardSub: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? "연결됨 · Raspberry Pi 4" : "연결 끊김"
+                isOnline: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED]
+                opacity: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? 1.0 : 0.55
 
                 stat1Title: "CPU 점유율"
-                stat1Value: root.systemData.firmware.cpu_usage
+                stat1Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CPU_USAGE]
                 stat1Unit: "%"
                 stat1Color: "#22C55E"
 
                 stat2Title: "CPU 온도"
-                stat2Value: root.systemData.firmware.cpu_temp
+                stat2Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CPU_TEMP]
                 stat2Unit: "°C"
                 stat2Color: "#F97316"
 
                 stat3Title: "디스크 사용량"
-                stat3Value: root.systemData.firmware.disk_usage
+                stat3Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_DISK_USAGE]
                 stat3Unit: "%"
                 stat3Color: "#6366F1"
 

@@ -92,6 +92,16 @@ constexpr const char *FIELD_TEMPERATURE = "temperature";
 constexpr const char *FIELD_HUMIDITY = "humidity";
 
 // ──────────────────────────────────────────
+//  system_monitor  필드명
+// ──────────────────────────────────────────
+constexpr const char *FIELD_CPU_USAGE = "cpu_usage";
+constexpr const char *FIELD_CPU_TEMP = "cpu_temp";
+constexpr const char *FIELD_DISK_USAGE = "disk_usage";
+constexpr const char *FIELD_SERVER = "server";
+constexpr const char *FIELD_FIRMWARE = "firmware";
+constexpr const char *FIELD_CONNECTED = "connected";
+
+// ──────────────────────────────────────────
 //  device_command  필드명 및 장치·액션 값
 // ──────────────────────────────────────────
 constexpr const char *FIELD_DEVICE = "device";
