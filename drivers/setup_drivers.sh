@@ -17,7 +17,7 @@ echo "[1/6] apt 패키지 설치 중..."
 sudo apt-get update -qq
 sudo apt-get install -y \
     build-essential \
-    linux-headers-$(uname -r) \
+    raspberrypi-kernel-headers \
     libi2c-dev \
     nlohmann-json3-dev \
     libssl-dev \
