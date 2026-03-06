@@ -12,6 +12,7 @@
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
+#include <cstdint>
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -51,6 +52,14 @@ class NetworkClient : public QObject {
   Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
   Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
 
+  // System Monitor Fields
+  Q_PROPERTY(QString FIELD_CPU_USAGE READ fieldCpuUsage CONSTANT)
+  Q_PROPERTY(QString FIELD_CPU_TEMP READ fieldCpuTemp CONSTANT)
+  Q_PROPERTY(QString FIELD_DISK_USAGE READ fieldDiskUsage CONSTANT)
+  Q_PROPERTY(QString FIELD_SERVER READ fieldServer CONSTANT)
+  Q_PROPERTY(QString FIELD_FIRMWARE READ fieldFirmware CONSTANT)
+  Q_PROPERTY(QString FIELD_CONNECTED READ fieldConnected CONSTANT)
+
 public:
   explicit NetworkClient(QObject *parent = nullptr);
   ~NetworkClient();
@@ -73,6 +82,14 @@ public:
   QString actionOff() const { return Protocol::ACTION_OFF; }
   QString actionAuto() const { return Protocol::ACTION_AUTO; }
   QString actionManual() const { return Protocol::ACTION_MANUAL; }
+
+  // System Monitor Fields Getters
+  QString fieldCpuUsage() const { return Protocol::FIELD_CPU_USAGE; }
+  QString fieldCpuTemp() const { return Protocol::FIELD_CPU_TEMP; }
+  QString fieldDiskUsage() const { return Protocol::FIELD_DISK_USAGE; }
+  QString fieldServer() const { return Protocol::FIELD_SERVER; }
+  QString fieldFirmware() const { return Protocol::FIELD_FIRMWARE; }
+  QString fieldConnected() const { return Protocol::FIELD_CONNECTED; }
 
   Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
