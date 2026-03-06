@@ -71,7 +71,7 @@ void run_sht20_monitor(int fd) {
                 send_to_stm32_temp_humi(g_uart_fd, data.temperature, data.humidity);
             }
         } else {
-            cerr << "⚠️ SHT20 드라이버 읽기 실패" << endl;
+            cerr << "⚠️ SHT20 온습도 센서 읽기 실패" << endl;
         }
 
         this_thread::sleep_for(chrono::seconds(2));
