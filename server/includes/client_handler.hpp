@@ -17,6 +17,7 @@
 #include <queue>
 
 #include "../../protocol/camera_packet.hpp"
+#include "../../protocol/message_types.hpp"
 #include "command_handler.hpp"
 #include "congestion_analyzer.hpp"
 #include "database.hpp"
