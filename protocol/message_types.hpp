@@ -124,7 +124,7 @@ constexpr const char *ACTION_AUTO = "auto";
 constexpr const char *ACTION_MANUAL = "manual";
 
 // ──────────────────────────────────────────
-//  MQTT 토픽 (서버 ↔ 펌웨어 간, 참조용)
+//  MQTT 토픽 (서버 ↔ 펌웨어 간 통신용)
 // ──────────────────────────────────────────
 constexpr const char *MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
 constexpr const char *MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";

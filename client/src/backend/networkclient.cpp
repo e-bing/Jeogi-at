@@ -1,44 +1,12 @@
 #include "networkclient.h"
+#include "sensor_thresholds.hpp"
 
 #include <QDebug>
 #include <QFile>
 #include <QSslCertificate>
 #include <QSslConfiguration>
 
-
 CameraImageProvider *g_cameraImageProvider = nullptr;
-
-// ──────────────────────────────────────────────────────────────
-//  헬퍼: 센서 상태 문자열 반환
-// ──────────────────────────────────────────────────────────────
-
-static QString coStatusString(double co) {
-  if (co < Protocol::CO_GOOD_MAX)
-    return Protocol::STATUS_GOOD;
-  if (co < Protocol::CO_CAUTION_MAX)
-    return Protocol::STATUS_CAUTION;
-  return Protocol::STATUS_DANGER;
-}
-
-static QString co2StatusString(double co2) {
-  if (co2 < Protocol::CO2_GOOD_MAX)
-    return Protocol::STATUS_GOOD;
-  if (co2 < Protocol::CO2_CAUTION_MAX)
-    return Protocol::STATUS_CAUTION;
-  return Protocol::STATUS_DANGER;
-}
-
-static QString congestionStatusString(int count) {
-  if (count < Protocol::CONGESTION_EASY_MAX)
-    return Protocol::CONGESTION_EASY;
-  if (count < Protocol::CONGESTION_NORMAL_MAX)
-    return Protocol::CONGESTION_NORMAL;
-  return Protocol::CONGESTION_BUSY;
-}
-
-// ──────────────────────────────────────────────────────────────
-//  생성자 / 소멸자
-// ──────────────────────────────────────────────────────────────
 
 // ──────────────────────────────────────────────────────────────
 //  헬퍼: 센서 상태 문자열 반환
@@ -78,27 +46,8 @@ NetworkClient::NetworkClient(QObject *parent)
   socket = new QSslSocket(this);
   socket->setReadBufferSize(0);
 
-  // 1. 리소스에서 인증서 파일 읽기
-  QFile certFile(":/assets/server.crt"); // 경로를 본인의 qrc 경로에 맞게 수정
-  if (certFile.open(QIODevice::ReadOnly)) {
-    QSslCertificate cert(&certFile, QSsl::Pem);
-
-    QSslConfiguration sslConfig = socket->sslConfiguration();
-
-    // 2. 이 인증서를 신뢰할 수 있는 CA 목록에 추가
-    QList<QSslCertificate> caCerts = sslConfig.caCertificates();
-    caCerts.append(cert);
-    sslConfig.setCaCertificates(caCerts);
-
-    // 3. 신뢰하는 대상만 연결 허용 (VerifyPeer로 변경)
-    sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
-    socket->setSslConfiguration(sslConfig);
-
-    qDebug() << "🔒 Local certificate loaded and trusted.";
-  } else {
-    qDebug() << "❌ Failed to load certificate file!";
-  }
-
+  // 로컬 인증서 로드 로직은 제외합니다 (qrc에 없는 파일 에러 발생 방지)
+  socket->ignoreSslErrors();
   connect(socket, &QSslSocket::encrypted, this, &NetworkClient::onEncrypted);
   connect(socket, &QSslSocket::connected, this, &NetworkClient::onConnected);
   connect(socket, &QSslSocket::disconnected, this,
@@ -124,17 +73,24 @@ NetworkClient::~NetworkClient() {
 bool NetworkClient::isConnected() const { return m_isConnected; }
 QString NetworkClient::statusMessage() const { return m_statusMessage; }
 
+int NetworkClient::congestionEasyMax() const {
+  return Protocol::CONGESTION_EASY_MAX;
+}
+int NetworkClient::congestionNormalMax() const {
+  return Protocol::CONGESTION_NORMAL_MAX;
+}
+
 // ──────────────────────────────────────────────────────────────
 //  공개 슬롯 (QML 호출용)
 // ──────────────────────────────────────────────────────────────
 
 void NetworkClient::connectToServer(const QString &host, quint16 port) {
-    // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
-    if (socket->state() == QAbstractSocket::ConnectingState ||
-        socket->state() == QAbstractSocket::ConnectedState) {
-        qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
-        return;
-    }
+  // 1. 이미 연결 중이거나 연결된 상태면 중복 요청 무시
+  if (socket->state() == QAbstractSocket::ConnectingState ||
+      socket->state() == QAbstractSocket::ConnectedState) {
+    qDebug() << "⚠️ Already connecting or connected. Ignoring request.";
+    return;
+  }
 
   // 2. 만약 에러 상태 등으로 지저분하게 남아있다면 강제 종료(abort)
   if (socket->state() != QAbstractSocket::UnconnectedState) {
@@ -150,8 +106,8 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
            << "with TLS...";
   setStatus("Connecting to sensitive server...");
 
-    socket->connectToHostEncrypted(host, port);
-    socket->ignoreSslErrors();
+  socket->connectToHostEncrypted(host, port);
+  socket->ignoreSslErrors();
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
@@ -332,10 +288,7 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   const QString type = jsonObj[Protocol::FIELD_TYPE].toString();
   const QJsonValue dataVal = jsonObj[Protocol::FIELD_DATA];
 
-  if (type == Protocol::MSG_REALTIME) {
-    processRealtimeData(dataVal.toArray());
-
-  } else if (type == Protocol::MSG_REALTIME_AIR) {
+  if (type == Protocol::MSG_REALTIME_AIR) {
     // 서버가 배열 또는 단일 객체로 보낼 수 있으므로 양쪽 모두 처리
     if (dataVal.isArray()) {
       processRealtimeAirData(dataVal.toArray());
@@ -356,24 +309,17 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
 
   } else if (type == Protocol::MSG_TEMP_HUMI) {
     emit tempHumiReceived(jsonObj.toVariantMap());
+
+  } else if (type == Protocol::MSG_ZONE_CONGESTION) {
+    QJsonArray zonesArr = jsonObj[Protocol::FIELD_ZONES].toArray();
+    int totalCount = jsonObj[Protocol::FIELD_TOTAL_COUNT].toInt();
+    emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount);
   }
-  // MSG_ZONE_CONGESTION 은 현재 Qt UI에서 미사용 — 필요 시 핸들러 추가
 }
 
 // ──────────────────────────────────────────────────────────────
 //  데이터 파싱 헬퍼 (private)
 // ──────────────────────────────────────────────────────────────
-
-void NetworkClient::processRealtimeData(const QJsonArray &data) {
-  QJsonArray result;
-  for (const QJsonValue &val : data) {
-    QJsonObject obj = val.toObject();
-    int count = obj[Protocol::FIELD_COUNT].toInt();
-    obj[Protocol::FIELD_STATUS] = congestionStatusString(count);
-    result.append(obj);
-  }
-  emit realtimeDataReceived(result.toVariantList());
-}
 
 void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   if (data.isEmpty())
