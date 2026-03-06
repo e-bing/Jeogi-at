@@ -62,7 +62,7 @@ chmod +x build.sh
 빌드가 완료되면 드라이버 애플리케이션을 실행합니다.
 
 ```bash
-./drivers
+./build/drivers
 ```
 
 ---
