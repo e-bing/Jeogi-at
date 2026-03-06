@@ -116,15 +116,15 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  // test: LED panel
-//  AppTask_Init();
 
   // test: sensor & motor
   // Start Timer with Interrupt
   //  HAL_TIM_Base_Start_IT(&htim3);
-    MQ135_Init();
-    MQ7_Init();
+//    MQ135_Init();
+//    MQ7_Init();
 
+  // test: LED panel
+  AppTask_Init();
 
   // init: sd card & audio amp
   Audio_Init();
@@ -143,7 +143,7 @@ int main(void)
     UART_Handler_Process();
 
     // test: LED panel
-//    AppTask_Run();
+    AppTask_Run();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
