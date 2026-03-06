@@ -1,5 +1,5 @@
-#include <services/audio_player.h>
-#include <drivers/storage/sd_spi.h>
+#include "services/audio_player.h"
+#include "drivers/storage/sd_spi.h"
 #include "spi.h"
 #include "i2s.h"
 
@@ -68,7 +68,8 @@ static void Audio_FillHalf(int16_t *dst)
 
     filling = 1;
 
-    uint32_t t0 = HAL_GetTick();
+    // read latency 측정
+//    uint32_t t0 = HAL_GetTick();
 
     /* Read mono PCM */
     f_read(&wav_file,
@@ -76,11 +77,12 @@ static void Audio_FillHalf(int16_t *dst)
            AUDIO_MONO_SAMPLES * 2,
            &br);
 
-    uint32_t dt = HAL_GetTick() - t0;
-
-    printf("%dB read: %ld ms\r\n",
-           AUDIO_MONO_SAMPLES,
-           dt);
+    // read latency 측정
+//    uint32_t dt = HAL_GetTick() - t0;
+//
+//    printf("%dB read: %ld ms\r\n",
+//           AUDIO_MONO_SAMPLES,
+//           dt);
 
     int samples = br / 2;
 

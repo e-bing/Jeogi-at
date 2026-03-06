@@ -1,5 +1,5 @@
-#ifndef SENSOR_H
-#define SENSOR_H
+#ifndef SENSOR_HPP
+#define SENSOR_HPP
 
 extern int g_uart_fd;
 
@@ -24,4 +24,4 @@ void close_uart(int uart_fd);
  */
 void receive_sensor_data(int uart_fd);
 
-#endif // SENSOR_H
+#endif // SENSOR_HPP

@@ -1,5 +1,6 @@
 // command_handler.cpp
 #include "../includes/command_handler.hpp"
+#include "../../protocol/message_types.hpp"
 
 using json = nlohmann::json;
 using namespace std;
@@ -8,51 +9,51 @@ using namespace std;
 void handle_qt_command(const string& cmd_str) {
   try {
     json data = json::parse(cmd_str);
-    string type = data.value("type", "");
+    string type = data.value(Protocol::FIELD_TYPE, "");
 
-    if (type == "device_command") {
-      json cmdData = data.value("data", json::object());
-      string device = cmdData.value("device", "");
-      string action = cmdData.value("action", "");
+    if (type == Protocol::MSG_DEVICE_COMMAND) {
+      json cmdData = data.value(Protocol::FIELD_DATA, json::object());
+      string device = cmdData.value(Protocol::FIELD_DEVICE, "");
+      string action = cmdData.value(Protocol::FIELD_ACTION, "");
 
       // 1️⃣ 모드 제어 (자동/수동 전환)
-      if (device == "mode_control") {
-        if (action == "auto") {
+      if (device == Protocol::DEVICE_MODE_CONTROL) {
+        if (action == Protocol::ACTION_AUTO) {
           g_auto_mode = true;
           cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
-          send_mode_command("auto");
-        } else if (action == "manual") {
+          send_mode_command(Protocol::ACTION_AUTO);
+        } else if (action == Protocol::ACTION_MANUAL) {
           g_auto_mode = false;
           cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
-          send_mode_command("manual");
+          send_mode_command(Protocol::ACTION_MANUAL);
         }
         return;
       }
 
       // 2️⃣ 장치 제어 (수동 모드일 때만 동작)
       if (!g_auto_mode) {
-        if (device == "motor") {
-          int speed = cmdData.value("speed", 100);
+        if (device == Protocol::DEVICE_MOTOR) {
+          int speed = cmdData.value(Protocol::FIELD_SPEED, 100);
 
-          if (action == "start" || action == "on") {
+          if (action == Protocol::ACTION_START || action == Protocol::ACTION_ON) {
             cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
-            send_motor_command("start", speed);
-          } else if (action == "stop" || action == "off") {
+            send_motor_command(Protocol::ACTION_START, speed);
+          } else if (action == Protocol::ACTION_STOP || action == Protocol::ACTION_OFF) {
             cout << "🛑 [STATUS] MOTOR OFF" << endl;
-            send_motor_command("stop", 0);
+            send_motor_command(Protocol::ACTION_STOP, 0);
           }
-        } else if (device == "speaker") {
-          cout << "🔊 [STATUS] SPEAKER " << (action == "on" ? "ON" : "OFF")
+        } else if (device == Protocol::DEVICE_SPEAKER) {
+          cout << "🔊 [STATUS] SPEAKER " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
                << endl;
-        } else if (device == "lighting") {
-          cout << "💡 [STATUS] LIGHTING " << (action == "on" ? "ON" : "OFF")
+        } else if (device == Protocol::DEVICE_LIGHTING) {
+          cout << "💡 [STATUS] LIGHTING " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
                << endl;
         }
       } else {
         cout << "⚠️ [AUTO MODE] Qt 수동 명령 무시됨 (현재 자동 모드 활성화 중)"
              << endl;
       }
-    }  // if (type == "device_command") 닫기
+    }  // 닫기
   } catch (json::exception& e) {
     cerr << "❌ Qt 명령 파싱 에러: " << e.what() << endl;
   }

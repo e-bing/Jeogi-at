@@ -3,6 +3,8 @@
 
 #include <mqtt/async_client.h>
 
+#include "../../protocol/message_types.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <iostream>
@@ -29,7 +31,7 @@ class CongestionPublisher {
   // MQTT 설정
   const std::string SERVER_ADDRESS{"tcp://localhost:1883"};
   const std::string CLIENT_ID{"MainServer_Congestion_Cpp"};
-  const std::string TOPIC{"iot/server/status/congestion"};
+  const std::string TOPIC{Protocol::MQTT_TOPIC_CONGESTION_STATUS};
 };
 
 #endif  // CONGESTION_PUBLISHER_HPP

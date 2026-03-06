@@ -16,7 +16,7 @@
 
 /* ================= Config ================= */
 
-#define AUDIO_MONO_SAMPLES     8192
+#define AUDIO_MONO_SAMPLES     4096
 #define AUDIO_WAV_HEADER_SIZE  44
 
 /* ================= Public API ================= */

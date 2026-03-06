@@ -1,4 +1,5 @@
 #include "../includes/client_handler.hpp"
+#include "database.hpp"
 
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
@@ -226,9 +227,8 @@ void handle_client(int client_socket) {
 
   cout << "🔒 TLS 연결 성공 (Cipher: " << SSL_get_cipher(ssl) << ")" << endl;
 
-  // Qt 클라이언트 전용 DB 연결
-  DBConfig config;
-  MYSQL* conn = connect_db(config);
+  // DB 호출
+  MYSQL* conn = connect_db();
 
   if (!conn) {
     SSL_shutdown(ssl);
