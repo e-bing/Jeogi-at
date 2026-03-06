@@ -198,8 +198,6 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
     {
         Paint_DrawPoint(57, 24, bottom_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
     }
-
-    HUB75_Display();
 }
 
 static void draw_center_triangle_marker(uint16_t center_x, uint16_t top_y, uint16_t color)
