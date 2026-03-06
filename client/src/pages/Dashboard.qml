@@ -19,10 +19,10 @@ ColumnLayout {
     property int grandTotalOccupants: 0
     property bool isManualMode: false
 
-    property string cam1Source: ""
-    property string cam2Source: ""
-    property string cam3Source: ""
-    property string cam4Source: ""
+    property string cam1Source: "image://camera/1"
+    property string cam2Source: "image://camera/2"
+    property string cam3Source: "image://camera/3"
+    property string cam4Source: "image://camera/4"
 
     property int cam1Count: 0
     property int cam2Count: 0
@@ -313,7 +313,7 @@ ColumnLayout {
                                         id: cameraImage
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
+                                        asynchronous: false
                                         smooth: false
                                         cache: false
                                         source: {

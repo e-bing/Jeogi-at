@@ -12,7 +12,11 @@
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
+<<<<<<< Updated upstream
 #include <cstdint>
+=======
+#include <QQuickImageProvider>
+>>>>>>> Stashed changes
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -137,40 +141,49 @@ private:
 
 class CameraImageResponse : public QQuickImageResponse {
 public:
-  CameraImageResponse(const QImage &img) : m_image(img) {
-    emit finished(); // 이미 이미지가 있으므로 즉시 완료
-  }
-  QQuickTextureFactory *textureFactory() const override {
-    return QQuickTextureFactory::textureFactoryForImage(m_image);
-  }
-
+    CameraImageResponse(const QImage& img) : m_image(img) {
+        QMetaObject::invokeMethod(this, "finished", Qt::QueuedConnection);
+    }
+    QQuickTextureFactory* textureFactory() const override {
+        return QQuickTextureFactory::textureFactoryForImage(m_image);
+    }
 private:
   QImage m_image;
 };
 
-class CameraImageProvider : public QQuickAsyncImageProvider {
+class CameraImageProvider : public QQuickImageProvider {
 public:
-  CameraImageProvider()
-      : QQuickAsyncImageProvider(QQuickImageProvider::Image) {}
+    CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
 
-  QQuickImageResponse *requestImageResponse(const QString &id,
-                                            const QSize &) override {
-    int camId = id.split("?").first().toInt();
-    QMutexLocker locker(&m_mutex);
-    QImage img = m_images.value(camId);
-    if (img.isNull())
-      img = m_prev_images.value(camId);
-    else
-      m_prev_images[camId] = img;
-    return new CameraImageResponse(img.copy());
-  }
-
-  void updateImage(int cameraId, const QByteArray &jpegData) {
-    QImage img;
-    img.loadFromData(jpegData, "JPEG");
+    QImage requestImage(
+        const QString& id, QSize* size, const QSize&) override
     {
-      QMutexLocker locker(&m_mutex);
-      m_images[cameraId] = std::move(img);
+        int camId = id.split("?").first().toInt();
+        QImage result;
+        {
+            QMutexLocker locker(&m_mutex);
+            QImage& img = m_images[camId];
+            if (!img.isNull())
+            {
+                m_prev_images[camId] = img;
+                result = img.copy();
+            }
+            else
+            {
+                result = m_prev_images.value(camId).copy();
+            }
+        }
+        if (size && !result.isNull()) *size = result.size();
+        return result;
+    }
+
+    void updateImage(int cameraId, const QByteArray& jpegData) {
+        QImage img;
+        img.loadFromData(jpegData, "JPEG");
+        {
+            QMutexLocker locker(&m_mutex);
+            m_images[cameraId] = std::move(img);
+        }
     }
   }
 
