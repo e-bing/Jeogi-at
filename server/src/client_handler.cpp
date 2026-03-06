@@ -277,11 +277,6 @@ void handle_client(int client_socket) {
       db_tick = 0;
       try {
         enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                            json{{"type", "realtime"},
-                                 {"title", "🚉 실시간 혼잡도"},
-                                 {"data", get_realtime_congestion(conn)}}
-                                .dump());
-        enqueue_json_packet(send_queue, queue_mutex, queue_cv,
                             json{{"type", "realtime_air"},
                                  {"title", "🌫️ 실시간 공기질"},
                                  {"data", get_realtime_air_quality(conn)}}

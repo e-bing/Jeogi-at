@@ -1,16 +1,20 @@
 // sensor.cpp
 #include "sensor.hpp"
 #include "database.hpp"
+#include "../../protocol/message_types.hpp"
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
 #include <csignal>
-
-#include "../includes/shared_data.hpp"
+#include <mutex>
+#include <thread>
+#include <chrono>
 
 using json = nlohmann::json;
 using namespace std;
 
+// shared_data.hpp에 정의된 전역 변수 참조
+extern string g_mqtt_broker;
 extern volatile sig_atomic_t stop_flag;
 
 static const string CLIENT_ID = "server_sensor_sub";
@@ -68,8 +72,8 @@ void receive_sensor_data(MYSQL* conn) {
         float current_temp, current_humi;
         get_last_temp_humi(current_temp, current_humi);
 
-        /* sensor/air_quality → CO, CO2 수신 시 통합 저장 */
-        if (topic == "sensor/air_quality") {
+        /* CO, CO2 수신 시 통합 저장 */
+        if (topic == Protocol::MQTT_TOPIC_AIR_QUALITY) {
             float co  = data.value("co",  0.0f);
             float co2 = data.value("co2", 0.0f);
             
@@ -86,10 +90,10 @@ void receive_sensor_data(MYSQL* conn) {
             }
         }
 
-        /* sensor/temp_humi → 온습도 수신 시 캐시만 업데이트 */
-        else if (topic == "sensor/temp_humi") {
-            float temp = data.value("temperature", 0.0f);
-            float humi = data.value("humidity",    0.0f);
+        /* 온습도 수신 시 캐시만 업데이트 */
+        else if (topic == Protocol::MQTT_TOPIC_TEMP_HUMI) {
+            float temp = data.value(Protocol::FIELD_TEMPERATURE, 0.0f);
+            float humi = data.value(Protocol::FIELD_HUMIDITY,    0.0f);
 
             // 캐시 업데이트 (Qt 전송 및 다음 DB 저장 시 사용)
             {
@@ -124,10 +128,10 @@ void receive_sensor_data(MYSQL* conn) {
             cout << "✅ 센서 MQTT 구독 연결 완료" << endl;
 
             // CO/CO2 + 온습도 두 토픽 모두 구독
-            client.subscribe("sensor/air_quality", 1)->wait();
+            client.subscribe(Protocol::MQTT_TOPIC_AIR_QUALITY, 1)->wait();
             cout << "📡 구독 시작: sensor/air_quality" << endl;
 
-            client.subscribe("sensor/temp_humi", 1)->wait();
+            client.subscribe(Protocol::MQTT_TOPIC_TEMP_HUMI, 1)->wait();
             cout << "📡 구독 시작: sensor/temp_humi" << endl;
 
             

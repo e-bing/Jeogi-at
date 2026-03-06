@@ -26,8 +26,8 @@ constexpr double CO2_CAUTION_MAX = 600.0; // < 600  → 주의,  >= 600  → 위
 // ──────────────────────────────────────────
 //  혼잡도 임계값  단위: 명(승객 수)
 // ──────────────────────────────────────────
-constexpr int CONGESTION_EASY_MAX = 1;   // < 1  → 여유
-constexpr int CONGESTION_NORMAL_MAX = 2; // < 2 → 보통, >= 2 → 혼잡
+constexpr int CONGESTION_EASY_MAX = 1;    // < 0  → 여유
+constexpr int CONGESTION_NORMAL_MAX = 2; // < 1 → 보통, >= 2 → 혼잡
 
 // ──────────────────────────────────────────
 //  상태 레이블 (Qt UI 표기)

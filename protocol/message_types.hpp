@@ -16,9 +16,6 @@ namespace Protocol {
 //  Server → Qt  메시지 타입
 // ──────────────────────────────────────────
 
-/// 실시간 혼잡도 (플랫폼별 승객 수)
-constexpr const char *MSG_REALTIME = "realtime";
-
 /// 실시간 공기질 (CO, CO2 최신 1건)
 constexpr const char *MSG_REALTIME_AIR = "realtime_air";
 
@@ -28,7 +25,7 @@ constexpr const char *MSG_AIR_STATS = "air_stats";
 /// 승객 흐름 통계 (요일·시간대별 평균 승객 수)
 constexpr const char *MSG_FLOW_STATS = "flow_stats";
 
-/// 존(Zone) 혼잡도 + 총 인원 (실시간, 고주기)
+/// 입구별 혼잡도
 constexpr const char *MSG_ZONE_CONGESTION = "zone_congestion";
 
 /// 서버 시스템 모니터 (CPU/메모리 등)
