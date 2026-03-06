@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
 
+#include "../../protocol/message_types.hpp"
 #include "../includes/shared_data.hpp"
 
 using json = nlohmann::json;
@@ -11,7 +12,7 @@ using namespace std;
 bool g_auto_mode = true;
 
 static const string MQTT_BROKER = g_mqtt_broker;
-static const string MQTT_TOPIC  = "motor/control";
+static const string MQTT_TOPIC  = Protocol::MQTT_TOPIC_MOTOR_CONTROL;
 static const string CLIENT_ID   = "server_motor_pub";
 
 static mqtt::async_client* g_mqtt_client = nullptr; 
@@ -53,9 +54,9 @@ void send_motor_command(const string& action, int speed) {
     }
     try {
         json cmd = {
-            {"type", "motor_control"},
-            {"action", action},
-            {"speed", speed}
+            {Protocol::FIELD_TYPE, Protocol::MSG_MOTOR_CONTROL},
+            {Protocol::FIELD_ACTION, action},
+            {Protocol::FIELD_SPEED, speed}
         };
         string payload = cmd.dump();
         g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
@@ -72,8 +73,8 @@ void send_mode_command(const string& mode) {
     }
     try {
         json cmd = {
-            {"type", "mode_control"},
-            {"action", mode}
+            {Protocol::FIELD_TYPE, Protocol::MSG_MODE_CONTROL},
+            {Protocol::FIELD_ACTION, mode}
         };
         string payload = cmd.dump();
         g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();

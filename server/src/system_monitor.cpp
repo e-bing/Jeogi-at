@@ -10,6 +10,7 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 
+#include "../../protocol/message_types.hpp"
 #include "../includes/shared_data.hpp"
 
 using json = nlohmann::json;
@@ -106,7 +107,7 @@ static float get_disk_usage() {
  */
 DeviceStats get_server_stats() {
   DeviceStats stats;
-  stats.device = "server";
+  stats.device = Protocol::FIELD_SERVER;
   stats.cpu_usage = get_cpu_usage();
   stats.cpu_temp = get_cpu_temp();
   stats.disk_usage = get_disk_usage();
@@ -122,7 +123,7 @@ DeviceStats get_server_stats() {
  * @brief system/firmware 토픽 수신 시 JSON을 파싱해 캐시를 업데이트합니다.
  *
  * 수신 JSON 형식:
- * {"device":"firmware","cpu_usage":23.5,"cpu_temp":47.2,"disk_usage":61.3}
+ * {"device":Protocol::FIELD_FIRMWARE,Protocol::FIELD_CPU_USAGE:23.5,Protocol::FIELD_CPU_TEMP:47.2,Protocol::FIELD_DISK_USAGE:61.3}
  */
 class SystemMonitorCallback : public mqtt::callback {
  public:
@@ -131,10 +132,10 @@ class SystemMonitorCallback : public mqtt::callback {
       json data = json::parse(msg->get_payload_str());
 
       lock_guard<mutex> lock(g_firmware_mutex);
-      g_firmware_stats.device = data.value("device", "firmware");
-      g_firmware_stats.cpu_usage = data.value("cpu_usage", 0.0f);
-      g_firmware_stats.cpu_temp = data.value("cpu_temp", 0.0f);
-      g_firmware_stats.disk_usage = data.value("disk_usage", 0.0f);
+      g_firmware_stats.device = data.value(Protocol::FIELD_DEVICE, Protocol::FIELD_FIRMWARE);
+      g_firmware_stats.cpu_usage = data.value(Protocol::FIELD_CPU_USAGE, 0.0f);
+      g_firmware_stats.cpu_temp = data.value(Protocol::FIELD_CPU_TEMP, 0.0f);
+      g_firmware_stats.disk_usage = data.value(Protocol::FIELD_DISK_USAGE, 0.0f);
       g_firmware_stats.valid = true;
 
       cout << "📥 firmware 시스템 상태 수신: "
@@ -189,10 +190,10 @@ void init_system_monitor() {
  *
  * 전송 JSON 형식:
  * {
- *   "type": "system_monitor",
- *   "server":  { "cpu_usage": 15.2, "cpu_temp": 52.1, "disk_usage": 45.0 },
- *   "firmware": { "cpu_usage": 23.5, "cpu_temp": 47.2, "disk_usage": 61.3,
- * "connected": true }
+ *   Protocol::FIELD_TYPE: Protocol::MSG_SYSTEM_MONITOR,
+ *   "server":  { Protocol::FIELD_CPU_USAGE: 15.2, Protocol::FIELD_CPU_TEMP: 52.1, Protocol::FIELD_DISK_USAGE: 45.0 },
+ *   Protocol::FIELD_FIRMWARE: { Protocol::FIELD_CPU_USAGE: 23.5, Protocol::FIELD_CPU_TEMP: 47.2, Protocol::FIELD_DISK_USAGE: 61.3,
+ * Protocol::FIELD_CONNECTED: true }
  * }
  */
 void send_system_monitor(void* ssl) {
@@ -210,16 +211,16 @@ void send_system_monitor(void* ssl) {
 
   // 3. JSON 조립
   json payload = {
-      {"type", "system_monitor"},
-      {"server",
-       {{"cpu_usage", server.cpu_usage},
-        {"cpu_temp", server.cpu_temp},
-        {"disk_usage", server.disk_usage}}},
-      {"firmware",
-       {{"cpu_usage", firmware.valid ? firmware.cpu_usage : -1.0f},
-        {"cpu_temp", firmware.valid ? firmware.cpu_temp : -1.0f},
-        {"disk_usage", firmware.valid ? firmware.disk_usage : -1.0f},
-        {"connected", firmware.valid}}}};
+      {Protocol::FIELD_TYPE, Protocol::MSG_SYSTEM_MONITOR},
+      {Protocol::FIELD_SERVER,
+       {{Protocol::FIELD_CPU_USAGE, server.cpu_usage},
+        {Protocol::FIELD_CPU_TEMP, server.cpu_temp},
+        {Protocol::FIELD_DISK_USAGE, server.disk_usage}}},
+      {Protocol::FIELD_FIRMWARE,
+       {{Protocol::FIELD_CPU_USAGE, firmware.valid ? firmware.cpu_usage : -1.0f},
+        {Protocol::FIELD_CPU_TEMP, firmware.valid ? firmware.cpu_temp : -1.0f},
+        {Protocol::FIELD_DISK_USAGE, firmware.valid ? firmware.disk_usage : -1.0f},
+        {Protocol::FIELD_CONNECTED, firmware.valid}}}};
 
   // 4. SSL로 Qt에 전송
   string msg = payload.dump() + "\n";
@@ -238,15 +239,15 @@ std::string get_system_monitor_json() {
   }
 
   json payload = {
-      {"type", "system_monitor"},
-      {"server",
-       {{"cpu_usage", server.cpu_usage},
-        {"cpu_temp", server.cpu_temp},
-        {"disk_usage", server.disk_usage}}},
-      {"firmware",
-       {{"cpu_usage", firmware.valid ? firmware.cpu_usage : -1.0f},
-        {"cpu_temp", firmware.valid ? firmware.cpu_temp : -1.0f},
-        {"disk_usage", firmware.valid ? firmware.disk_usage : -1.0f},
-        {"connected", firmware.valid}}}};
+      {Protocol::FIELD_TYPE, Protocol::MSG_SYSTEM_MONITOR},
+      {Protocol::FIELD_SERVER,
+       {{Protocol::FIELD_CPU_USAGE, server.cpu_usage},
+        {Protocol::FIELD_CPU_TEMP, server.cpu_temp},
+        {Protocol::FIELD_DISK_USAGE, server.disk_usage}}},
+      {Protocol::FIELD_FIRMWARE,
+       {{Protocol::FIELD_CPU_USAGE, firmware.valid ? firmware.cpu_usage : -1.0f},
+        {Protocol::FIELD_CPU_TEMP, firmware.valid ? firmware.cpu_temp : -1.0f},
+        {Protocol::FIELD_DISK_USAGE, firmware.valid ? firmware.disk_usage : -1.0f},
+        {Protocol::FIELD_CONNECTED, firmware.valid}}}};
   return payload.dump();
 }

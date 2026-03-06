@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 
+#include "../../protocol/sensor_thresholds.hpp"
 #include "config_manager.hpp"
 #include "shared_data.hpp"
 
@@ -31,19 +32,21 @@ class CongestionAnalyzer {
 
  private:
   void run();
-  int calculateLevel(int count);
+
+    /**
+     * @brief 인원 수 → 혼잡도 레벨 변환
+     *        Protocol::CONGESTION_EASY_MAX, CONGESTION_NORMAL_MAX 기준 사용
+     */
+    int calculateLevel(int count);
+
   bool isInside(const DetectedObject& obj, const ZoneConfig& zone);
 
-  std::vector<ZoneConfig> m_zones;
-  std::vector<int> m_current_levels;  // 결과 저장용 (0:원활, 1:보통, 2:혼잡)
-  std::mutex m_level_mutex;
+    std::vector<ZoneConfig> m_zones;
+    std::vector<int>        m_current_levels;  // 혼잡도 레벨
+    std::mutex              m_level_mutex;
 
-  std::thread m_thread;
-  std::atomic<bool> m_running;
-
-  // 혼잡도 판단 기준 (인원수)
-  int m_threshold_normal = 1;
-  int m_threshold_busy = 2;
+    std::thread          m_thread;
+    std::atomic<bool>    m_running;
 };
 
 #endif  // CONGESTION_ANALYZER_HPP

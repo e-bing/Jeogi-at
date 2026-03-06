@@ -76,7 +76,6 @@ int main() {
 
     close_db(sensor_conn);
   });
-  sensor_thread.detach();
 
   // 펌웨어 라즈베리파이 측 전송 스레드 생성
   CongestionPublisher congestion_pub(g_analyzer);
@@ -171,6 +170,7 @@ int main() {
   running = false;  // 루프 종료 신호
 
   cout << "\nStopping Server..." << endl;
+  if (sensor_thread.joinable()) sensor_thread.join();
   for (auto& t : pi_threads) {
     if (t.joinable()) t.join();
   }
