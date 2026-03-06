@@ -38,16 +38,18 @@ include_directories(
 add_executable(server 
     src/main.cpp 
     src/hanwha_node.cpp 
+    src/parser.cpp
     src/pi_node.cpp 
     src/shared_data.cpp
     src/database.cpp
+    src/command_handler.cpp
     src/sensor.cpp
-    src/qt.cpp
     src/motor.cpp
-    src/parser.cpp
+    src/system_monitor.cpp
     src/congestion_analyzer.cpp
     src/congestion_publisher.cpp
-    src/system_monitor.cpp
+    src/client_handler.cpp
+    src/tls_server.cpp
 )
 
 # 3-1. 설정용 실행 파일 생성

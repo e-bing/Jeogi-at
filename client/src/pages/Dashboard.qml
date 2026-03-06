@@ -76,9 +76,9 @@ ColumnLayout {
     }
 
     function getCongestionColor(sumCount) {
-        if (sumCount < 250)
+        if (sumCount < client.congestionEasyMax)
             return "#22C55E";
-        else if (sumCount < 400)
+        else if (sumCount < client.congestionNormalMax)
             return "#EAB308";
         else
             return "#EF4444";
@@ -105,12 +105,10 @@ ColumnLayout {
             console.log("Dashboard - Status: " + client.statusMessage);
         }
         onRealtimeDataReceived: function (data) {
-            console.log("Dashboard - Realtime Data Received: " + data.length);
+            console.log("Dashboard - Real-time DB Data Received: " + data.length);
+            // 열차 칸 색칠 및 인원수 로직은 이제 onZoneCongestionReceived(실시간 AI)에서만 처리합니다.
+            // 필요 시 배경 통계용으로 저장만 유지
             realtimeData = data;
-            var results = processSectionData(data);
-            sectionAverages = results.averages;
-            sectionSums = results.sums;
-            grandTotalOccupants = results.total;
         }
         onAirStatsReceived: function (data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
@@ -119,19 +117,29 @@ ColumnLayout {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
         }
+        onZoneCongestionReceived: function (zones, totalCount) {
+            // AI 실시간 데이터 (100ms 주기)로 화면 즉시 갱신
+            // 서버에서 오는 zones[0..7]은 각 구역의 실시간 인원수입니다.
+            dashboardRoot.sectionSums = zones;
+            dashboardRoot.grandTotalOccupants = totalCount;
+        }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
-            let url = "image://camera/" + cameraId + "?t=" + timestamp;
+            let url = "image://camera/" + cameraId;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
+                dashboardRoot.cam1Source = "";
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
+                dashboardRoot.cam2Source = "";
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
+                dashboardRoot.cam3Source = "";
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
+                dashboardRoot.cam4Source = "";
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -306,6 +314,8 @@ ColumnLayout {
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
                                         asynchronous: true
+                                        smooth: false
+                                        cache: false
                                         source: {
                                             if (index === 0)
                                                 return dashboardRoot.cam1Source;
@@ -317,11 +327,12 @@ ColumnLayout {
                                                 return dashboardRoot.cam4Source;
                                             return "";
                                         }
-                                        visible: source != ""
-                                        opacity: visible ? 1.0 : 0.0
-                                        Behavior on opacity {
-                                            NumberAnimation {
-                                                duration: 400
+                                        visible: true
+                                        opacity: 1.0
+                                        onStatusChanged: {
+                                            // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
+                                            if (status === Image.Error) {
+                                                source = source;  // 재시도 방지
                                             }
                                         }
                                     }
@@ -827,7 +838,7 @@ ColumnLayout {
                                             dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
                                             console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
                                             if (client && client.sendDeviceCommand) {
-                                                client.sendDeviceCommand("mode_control", dashboardRoot.isManualMode ? "manual" : "auto");
+                                                client.sendDeviceCommand(client.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? client.ACTION_MANUAL : client.ACTION_AUTO);
                                             }
                                         }
                                     }
@@ -845,25 +856,25 @@ ColumnLayout {
                                 model: [
                                     {
                                         name: "환기 팬",
-                                        device: "motor",
+                                        device: client.DEVICE_MOTOR,
                                         icon: "🍃",
                                         active: false
                                     },
                                     {
                                         name: "안내 방송",
-                                        device: "speaker",
+                                        device: client.DEVICE_SPEAKER,
                                         icon: "🔊",
                                         active: false
                                     },
                                     {
                                         name: "디지털",
-                                        device: "digital_display",
+                                        device: client.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
                                         active: false
                                     },
                                     {
                                         name: "야간 조명",
-                                        device: "lighting",
+                                        device: client.DEVICE_LIGHTING,
                                         icon: "💡",
                                         active: false
                                     }
@@ -919,7 +930,7 @@ ColumnLayout {
                                                     modelData.active = next;
                                                     console.log("Device control:", modelData.name, "->", next ? "on" : "off");
                                                     if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(modelData.device, next ? "on" : "off");
+                                                        client.sendDeviceCommand(modelData.device, next ? client.ACTION_ON : client.ACTION_OFF);
                                                     }
                                                 }
                                             }
@@ -1063,16 +1074,16 @@ ColumnLayout {
                             spacing: 10
 
                             property string currentDensity: {
-                                var totalAvg = 0;
-                                var activeSections = 0;
+                                var totalCount = 0;
                                 for (var i = 0; i < 8; i++) {
-                                    if (sectionAverages && sectionAverages[i] > 0) {
-                                        totalAvg += sectionAverages[i];
-                                        activeSections++;
+                                    if (sectionSums && sectionSums.length > i) {
+                                        totalCount += sectionSums[i];
                                     }
                                 }
-                                var avg = activeSections > 0 ? (totalAvg / activeSections) : 0;
-                                return Math.round(avg) + "%";
+                                // 가상의 열차 정원 (예: 한 구역당 100명, 총 800명) 대비 밀집도 계산
+                                var capacity = 800;
+                                var avg = (totalCount / capacity) * 100;
+                                return Math.min(100, Math.round(avg)) + "%";
                             }
 
                             Repeater {

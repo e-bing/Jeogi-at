@@ -151,6 +151,8 @@ void Audio_PlayWav(const char *filename)
         return;
     }
 
+    printf("Play Start: %s\r\n", filename);
+
     /* Skip WAV header */
 	f_lseek(&wav_file, AUDIO_WAV_HEADER_SIZE);
 
@@ -164,8 +166,6 @@ void Audio_PlayWav(const char *filename)
         (uint16_t *)i2s_buf,
         AUDIO_MONO_SAMPLES * 2 * 2
     );
-
-    printf("Play Start: %s\r\n", filename);
 
     /* Playback loop */
     while (!wav_eof) {

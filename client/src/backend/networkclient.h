@@ -7,10 +7,11 @@
 #include <QJsonObject>
 #include <QMutex>
 #include <QObject>
+#include <QQuickAsyncImageProvider>
+#include <QQuickImageProvider>
 #include <QSslError>
 #include <QSslSocket>
 #include <QVariant>
-#include <QQuickImageProvider>
 
 namespace CamProtocol {
 const uint32_t MAGIC_COOKIE = 0xDEADBEEF;
@@ -25,11 +26,30 @@ struct PacketHeader {
 #pragma pack(pop)
 } // namespace CamProtocol
 
+// 공유 프로토콜 정의
+#include "message_types.hpp"
+#include "sensor_thresholds.hpp"
+
 class NetworkClient : public QObject {
   Q_OBJECT
   Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
   Q_PROPERTY(
       QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
+  Q_PROPERTY(int congestionEasyMax READ congestionEasyMax CONSTANT)
+  Q_PROPERTY(int congestionNormalMax READ congestionNormalMax CONSTANT)
+
+  // Device IDs
+  Q_PROPERTY(QString DEVICE_MOTOR READ deviceMotor CONSTANT)
+  Q_PROPERTY(QString DEVICE_SPEAKER READ deviceSpeaker CONSTANT)
+  Q_PROPERTY(QString DEVICE_LIGHTING READ deviceLighting CONSTANT)
+  Q_PROPERTY(QString DEVICE_DIGITAL_DISPLAY READ deviceDigitalDisplay CONSTANT)
+  Q_PROPERTY(QString DEVICE_MODE_CONTROL READ deviceModeControl CONSTANT)
+
+  // Action Values
+  Q_PROPERTY(QString ACTION_ON READ actionOn CONSTANT)
+  Q_PROPERTY(QString ACTION_OFF READ actionOff CONSTANT)
+  Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
+  Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
 
 public:
   explicit NetworkClient(QObject *parent = nullptr);
@@ -37,6 +57,22 @@ public:
 
   bool isConnected() const;
   QString statusMessage() const;
+  int congestionEasyMax() const;
+  int congestionNormalMax() const;
+
+  // Getters for protocol constants
+  QString deviceMotor() const { return Protocol::DEVICE_MOTOR; }
+  QString deviceSpeaker() const { return Protocol::DEVICE_SPEAKER; }
+  QString deviceLighting() const { return Protocol::DEVICE_LIGHTING; }
+  QString deviceDigitalDisplay() const {
+    return Protocol::DEVICE_DIGITAL_DISPLAY;
+  }
+  QString deviceModeControl() const { return Protocol::DEVICE_MODE_CONTROL; }
+
+  QString actionOn() const { return Protocol::ACTION_ON; }
+  QString actionOff() const { return Protocol::ACTION_OFF; }
+  QString actionAuto() const { return Protocol::ACTION_AUTO; }
+  QString actionManual() const { return Protocol::ACTION_MANUAL; }
 
   Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
@@ -50,7 +86,8 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void cameraFrameReceived(int cameraId, const QString &timestamp, const QVariantMap &metadata);
+  void cameraFrameReceived(int cameraId, const QString &timestamp,
+                           const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
 
@@ -81,29 +118,51 @@ private:
   QByteArray m_buffer;
 };
 
-class CameraImageProvider : public QQuickImageProvider {
+class CameraImageResponse : public QQuickImageResponse {
 public:
-    CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
-
-    QImage requestImage(const QString& id, QSize* size, const QSize&) override {
-        QMutexLocker locker(&m_mutex);
-        QImage img = m_images.value(id.split("?").first().toInt());
-        if (size) *size = img.size();
-        return img;
-    }
-
-    void updateImage(int cameraId, const QByteArray& jpegData) {
-        QImage img;
-        img.loadFromData(jpegData, "JPEG");
-        QMutexLocker locker(&m_mutex);
-        m_images[cameraId] = img;
-    }
+  CameraImageResponse(const QImage &img) : m_image(img) {
+    emit finished(); // 이미 이미지가 있으므로 즉시 완료
+  }
+  QQuickTextureFactory *textureFactory() const override {
+    return QQuickTextureFactory::textureFactoryForImage(m_image);
+  }
 
 private:
-    QMap<int, QImage> m_images;
-    QMutex m_mutex;
+  QImage m_image;
 };
 
-extern CameraImageProvider* g_cameraImageProvider;
+class CameraImageProvider : public QQuickAsyncImageProvider {
+public:
+  CameraImageProvider()
+      : QQuickAsyncImageProvider(QQuickImageProvider::Image) {}
+
+  QQuickImageResponse *requestImageResponse(const QString &id,
+                                            const QSize &) override {
+    int camId = id.split("?").first().toInt();
+    QMutexLocker locker(&m_mutex);
+    QImage img = m_images.value(camId);
+    if (img.isNull())
+      img = m_prev_images.value(camId);
+    else
+      m_prev_images[camId] = img;
+    return new CameraImageResponse(img.copy());
+  }
+
+  void updateImage(int cameraId, const QByteArray &jpegData) {
+    QImage img;
+    img.loadFromData(jpegData, "JPEG");
+    {
+      QMutexLocker locker(&m_mutex);
+      m_images[cameraId] = std::move(img);
+    }
+  }
+
+private:
+  QMap<int, QImage> m_images;
+  QMap<int, QImage> m_prev_images;
+  QMutex m_mutex;
+};
+
+extern CameraImageProvider *g_cameraImageProvider;
 
 #endif // NETWORKCLIENT_H
