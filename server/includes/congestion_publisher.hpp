@@ -3,6 +3,8 @@
 
 #include <mqtt/async_client.h>
 
+#include "../../protocol/message_types.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <iostream>
