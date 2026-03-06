@@ -30,8 +30,8 @@ struct PacketHeader {
 } // namespace CamProtocol
 
 // 공유 프로토콜 정의
-#include "message_types.hpp"
-#include "sensor_thresholds.hpp"
+#include "../../protocol/message_types.hpp"
+#include "../../protocol/sensor_thresholds.hpp"
 
 class NetworkClient : public QObject {
   Q_OBJECT
@@ -136,18 +136,6 @@ private:
   QByteArray m_buffer;
 };
 
-class CameraImageResponse : public QQuickImageResponse {
-public:
-    CameraImageResponse(const QImage& img) : m_image(img) {
-        QMetaObject::invokeMethod(this, "finished", Qt::QueuedConnection);
-    }
-    QQuickTextureFactory* textureFactory() const override {
-        return QQuickTextureFactory::textureFactoryForImage(m_image);
-    }
-private:
-  QImage m_image;
-};
-
 class CameraImageProvider : public QQuickImageProvider {
 public:
     CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
@@ -181,7 +169,7 @@ public:
             QMutexLocker locker(&m_mutex);
             m_images[cameraId] = std::move(img);
         }
-  }
+    }
 
 private:
   QMap<int, QImage> m_images;
