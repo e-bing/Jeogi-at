@@ -74,8 +74,8 @@ void receive_sensor_data(MYSQL* conn) {
 
         /* CO, CO2 수신 시 통합 저장 */
         if (topic == Protocol::MQTT_TOPIC_AIR_QUALITY) {
-            float co  = data.value("co",  0.0f);
-            float co2 = data.value("co2", 0.0f);
+            float co  = data.value(Protocol::FIELD_CO,  0.0f);
+            float co2 = data.value(Protocol::FIELD_CO2, 0.0f);
             
             // DB 통합 저장 수행
             if (save_sensor_data(conn_, co, co2, current_temp, current_humi)) {

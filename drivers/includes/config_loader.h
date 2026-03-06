@@ -9,7 +9,7 @@
  * @brief config.json 파일을 읽어 JSON 객체를 반환한다.
  */
 inline nlohmann::json load_config() {
-    std::ifstream file("../config/config.json");
+    std::ifstream file("config/config.json");
     nlohmann::json config;
     
     if (file.is_open()) {
