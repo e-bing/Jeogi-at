@@ -18,10 +18,10 @@ ColumnLayout {
     property int grandTotalOccupants: 0
     property bool isManualMode: false
 
-    property string cam1Source: "image://camera/1"
-    property string cam2Source: "image://camera/2"
-    property string cam3Source: "image://camera/3"
-    property string cam4Source: "image://camera/4"
+    property string cam1Source: ""
+    property string cam2Source: ""
+    property string cam3Source: ""
+    property string cam4Source: ""
 
     property int cam1Count: 0
     property int cam2Count: 0
@@ -117,23 +117,18 @@ ColumnLayout {
             dashboardRoot.grandTotalOccupants = totalCount;
         }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
-            let url = "image://camera/" + cameraId;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
-                dashboardRoot.cam1Source = "";
-                dashboardRoot.cam1Source = url;
+                dashboardRoot.cam1Source = "image://camera/1?" + timestamp;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
-                dashboardRoot.cam2Source = "";
-                dashboardRoot.cam2Source = url;
+                dashboardRoot.cam2Source = "image://camera/2?" + timestamp;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
-                dashboardRoot.cam3Source = "";
-                dashboardRoot.cam3Source = url;
+                dashboardRoot.cam3Source = "image://camera/3?" + timestamp;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
-                dashboardRoot.cam4Source = "";
-                dashboardRoot.cam4Source = url;
+                dashboardRoot.cam4Source = "image://camera/4?" + timestamp;
                 dashboardRoot.cam4Count = objectCount;
             }
         }
@@ -263,11 +258,51 @@ ColumnLayout {
                                     border.color: Style.isDarkMode ? "white" : "#334155"
                                     border.width: 1
 
+                                    Image {
+                                            id: cameraImageBack
+                                            anchors.fill: parent
+                                            fillMode: Image.PreserveAspectCrop
+                                            smooth: false
+                                            cache: false
+                                            visible: true
+                                        }
+
+                                    Image {
+                                        id: cameraImageFront
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: false
+                                        cache: false
+                                        visible: status == Image.Ready
+                                        source: {
+                                            if (index === 0)
+                                                return dashboardRoot.cam1Source;
+                                            if (index === 1)
+                                                return dashboardRoot.cam2Source;
+                                            if (index === 2)
+                                                return dashboardRoot.cam3Source;
+                                            if (index === 3)
+                                                return dashboardRoot.cam4Source;
+                                            return "";
+                                        }
+                                        opacity: 1.0
+                                        onStatusChanged: {
+                                            if (status === Image.Ready) {
+                                                            cameraImageBack.source = source
+                                            }
+                                            if (status === Image.Error) {
+                                                source = source;  // 재시도 방지
+                                            }
+
+                                        }
+                                    }
+
                                     // Placeholder / No Signal state
                                     Rectangle {
                                         anchors.fill: parent
                                         color: "transparent"
-                                        visible: !cameraImage.visible
+                                        visible: cameraImageFront.source === "" && cameraImageBack.source === ""
 
                                         ColumnLayout {
                                             anchors.centerIn: parent
@@ -298,34 +333,6 @@ ColumnLayout {
                                                 color: Style.colorSlate500
                                                 font.pixelSize: 10
                                                 Layout.alignment: Qt.AlignCenter
-                                            }
-                                        }
-                                    }
-
-                                    Image {
-                                        id: cameraImage
-                                        anchors.fill: parent
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: false
-                                        smooth: false
-                                        cache: false
-                                        source: {
-                                            if (index === 0)
-                                                return dashboardRoot.cam1Source;
-                                            if (index === 1)
-                                                return dashboardRoot.cam2Source;
-                                            if (index === 2)
-                                                return dashboardRoot.cam3Source;
-                                            if (index === 3)
-                                                return dashboardRoot.cam4Source;
-                                            return "";
-                                        }
-                                        visible: true
-                                        opacity: 1.0
-                                        onStatusChanged: {
-                                            // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
-                                            if (status === Image.Error) {
-                                                source = source;  // 재시도 방지
                                             }
                                         }
                                     }
@@ -361,7 +368,7 @@ ColumnLayout {
                                         width: 54
                                         height: 22
                                         radius: 6
-                                        color: cameraImage.visible ? "#cc22c55e" : "#cc64748b" // Glassy look
+                                        color: (cameraImageBack.source !== "") ? "#cc22c55e" : "#cc64748b"
                                         border.color: "#33ffffff"
                                         border.width: 1
 
@@ -373,7 +380,7 @@ ColumnLayout {
                                                 height: 8
                                                 radius: 4
                                                 color: "white"
-                                                visible: cameraImage.visible
+                                                visible: cameraImageBack.source !== ""
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
                                                     NumberAnimation {
@@ -389,7 +396,7 @@ ColumnLayout {
                                                 }
                                             }
                                             Text {
-                                                text: cameraImage.visible ? "LIVE" : "OFF"
+                                                text: (cameraImageBack.source !== "") ? "LIVE" : "OFF"
                                                 color: "white"
                                                 font.pixelSize: 11
                                                 font.bold: true
@@ -400,7 +407,7 @@ ColumnLayout {
 
                                     // Object Count Badge
                                     Rectangle {
-                                        visible: cameraImage.visible && getCamCount(index) > 0
+                                        visible: (cameraImageBack.source !== "") && getCamCount(index) > 0
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.topMargin: 40
