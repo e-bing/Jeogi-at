@@ -105,6 +105,7 @@ constexpr const char *FIELD_SPEED = "speed";
 constexpr const char *DEVICE_MOTOR = "motor";
 constexpr const char *DEVICE_SPEAKER = "speaker";
 constexpr const char *DEVICE_LIGHTING = "lighting";
+constexpr const char *DEVICE_DIGITAL_DISPLAY = "digital_display";
 constexpr const char *DEVICE_MODE_CONTROL = "mode_control";
 
 // 액션 값
@@ -120,6 +121,13 @@ constexpr const char *ACTION_MANUAL = "manual";
 // ──────────────────────────────────────────
 constexpr const char *MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
 constexpr const char *MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";
+constexpr const char *MQTT_TOPIC_MOTOR_CONTROL = "motor/control";
+
+// ──────────────────────────────────────────
+//  내부 전송용 명령 타입 (Server → Firmware)
+// ──────────────────────────────────────────
+constexpr const char *MSG_MOTOR_CONTROL = "motor_control";
+constexpr const char *MSG_MODE_CONTROL = "mode_control";
 
 } // namespace Protocol
 

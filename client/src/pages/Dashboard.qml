@@ -838,7 +838,7 @@ ColumnLayout {
                                             dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
                                             console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
                                             if (client && client.sendDeviceCommand) {
-                                                client.sendDeviceCommand("mode_control", dashboardRoot.isManualMode ? "manual" : "auto");
+                                                client.sendDeviceCommand(client.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? client.ACTION_MANUAL : client.ACTION_AUTO);
                                             }
                                         }
                                     }
@@ -856,25 +856,25 @@ ColumnLayout {
                                 model: [
                                     {
                                         name: "환기 팬",
-                                        device: "motor",
+                                        device: client.DEVICE_MOTOR,
                                         icon: "🍃",
                                         active: false
                                     },
                                     {
                                         name: "안내 방송",
-                                        device: "speaker",
+                                        device: client.DEVICE_SPEAKER,
                                         icon: "🔊",
                                         active: false
                                     },
                                     {
                                         name: "디지털",
-                                        device: "digital_display",
+                                        device: client.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
                                         active: false
                                     },
                                     {
                                         name: "야간 조명",
-                                        device: "lighting",
+                                        device: client.DEVICE_LIGHTING,
                                         icon: "💡",
                                         active: false
                                     }
@@ -930,7 +930,7 @@ ColumnLayout {
                                                     modelData.active = next;
                                                     console.log("Device control:", modelData.name, "->", next ? "on" : "off");
                                                     if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(modelData.device, next ? "on" : "off");
+                                                        client.sendDeviceCommand(modelData.device, next ? client.ACTION_ON : client.ACTION_OFF);
                                                     }
                                                 }
                                             }

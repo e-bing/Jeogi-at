@@ -38,6 +38,19 @@ class NetworkClient : public QObject {
   Q_PROPERTY(int congestionEasyMax READ congestionEasyMax CONSTANT)
   Q_PROPERTY(int congestionNormalMax READ congestionNormalMax CONSTANT)
 
+  // Device IDs
+  Q_PROPERTY(QString DEVICE_MOTOR READ deviceMotor CONSTANT)
+  Q_PROPERTY(QString DEVICE_SPEAKER READ deviceSpeaker CONSTANT)
+  Q_PROPERTY(QString DEVICE_LIGHTING READ deviceLighting CONSTANT)
+  Q_PROPERTY(QString DEVICE_DIGITAL_DISPLAY READ deviceDigitalDisplay CONSTANT)
+  Q_PROPERTY(QString DEVICE_MODE_CONTROL READ deviceModeControl CONSTANT)
+
+  // Action Values
+  Q_PROPERTY(QString ACTION_ON READ actionOn CONSTANT)
+  Q_PROPERTY(QString ACTION_OFF READ actionOff CONSTANT)
+  Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
+  Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
+
 public:
   explicit NetworkClient(QObject *parent = nullptr);
   ~NetworkClient();
@@ -46,6 +59,20 @@ public:
   QString statusMessage() const;
   int congestionEasyMax() const;
   int congestionNormalMax() const;
+
+  // Getters for protocol constants
+  QString deviceMotor() const { return Protocol::DEVICE_MOTOR; }
+  QString deviceSpeaker() const { return Protocol::DEVICE_SPEAKER; }
+  QString deviceLighting() const { return Protocol::DEVICE_LIGHTING; }
+  QString deviceDigitalDisplay() const {
+    return Protocol::DEVICE_DIGITAL_DISPLAY;
+  }
+  QString deviceModeControl() const { return Protocol::DEVICE_MODE_CONTROL; }
+
+  QString actionOn() const { return Protocol::ACTION_ON; }
+  QString actionOff() const { return Protocol::ACTION_OFF; }
+  QString actionAuto() const { return Protocol::ACTION_AUTO; }
+  QString actionManual() const { return Protocol::ACTION_MANUAL; }
 
   Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
