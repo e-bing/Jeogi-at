@@ -1,4 +1,5 @@
 #include "../includes/client_handler.hpp"
+
 #include "database.hpp"
 
 extern CongestionAnalyzer g_analyzer;
@@ -56,7 +57,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
   while (*client_connected) {
     auto now = chrono::steady_clock::now();
     // 1. Hanwha 카메라 데이터 전송 (ID: 1, 15 FPS)
-    if (now - last_hw_send >= chrono::milliseconds(10)) {
+    if (now - last_hw_send >= chrono::milliseconds(5)) {
       {
         string json_payload;
         vector<unsigned char> jpg_buffer;
@@ -79,7 +80,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
             // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
             // auto t1 = chrono::steady_clock::now();
             cv::imencode(".jpg", resized_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
+                         {cv::IMWRITE_JPEG_QUALITY, 80});
             // auto t2 = chrono::steady_clock::now();
             // cerr << "[HW encode] "
             //      << chrono::duration_cast<chrono::milliseconds>(t2 -
@@ -105,7 +106,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
     }
 
     // 2. Pi Node 카메라들 (ID: 2~, 5 FPS)
-    if (now - last_pi_send >= chrono::milliseconds(200)) {
+    if (now - last_pi_send >= chrono::milliseconds(5)) {
       lock_guard<mutex> lock(g_node_map_mutex);
       uint32_t id_idx = 2;
       for (auto const& [id, camData] : g_pi_node_map) {
@@ -124,7 +125,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
             cv::Mat bgr_frame;
             cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
             cv::imencode(".jpg", bgr_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
+                         {cv::IMWRITE_JPEG_QUALITY, 80});
 
             // 2. JSON 생성
             json j_pi;
