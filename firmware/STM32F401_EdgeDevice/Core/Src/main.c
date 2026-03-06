@@ -117,7 +117,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // test: LED panel
-//  AppTask_Init();
+  AppTask_Init();
 
   // test: sensor & motor
   // Start Timer with Interrupt
@@ -142,8 +142,11 @@ int main(void)
 	// start: uart handler
     UART_Handler_Process();
 
-    // test: LED panel
-//    AppTask_Run();
+    // start: Audio play
+    Audio_Process();
+
+    // start: LED panel
+    AppTask_Run();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
