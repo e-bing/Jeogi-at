@@ -1,6 +1,7 @@
 /* mq135.c */
 #include "MQ135.h"
 #include "sensor_app.h"
+#include <math.h>
 
 // MQ-135 Related Variables
 uint32_t adc_value_co2 = 0;
@@ -8,6 +9,22 @@ float co2_ppm = 0;
 float ema_co2 = 0;
 
 uint8_t first_run_co2 = 1;
+
+// MQ-135 calibration/tuning constants
+// Input condition: sensor module at 5V, A0 to STM32 through 10k/10k divider
+static const float ADC_VREF = 3.3f;
+static const float ADC_DIVIDER_GAIN = 2.0f; // 10k/10k divider compensation
+static const float VC = 5.0f;
+static const float RL_KOHM = 10.0f;
+static const float R0_KOHM = 20.0f;         // tune per sensor board/environment
+static const float CURVE_A = 116.6020682f;
+static const float CURVE_B = -2.769034857f;
+static const float CAL_GAIN = 1.0f;         // field tuning gain
+static const float CAL_OFFSET = 0.0f;       // field tuning offset (ppm)
+static const float MODEL_MIN_VALID_PPM = 100.0f;
+static const float FALLBACK_LINEAR_PPM_PER_V = 1200.0f; // empirical fallback
+static const float CO2_MIN_CLAMP_PPM = 380.0f;
+static const float CO2_MAX_CLAMP_PPM = 5000.0f;
 
 /**
   * @brief  MQ-135 Initialization
@@ -25,16 +42,50 @@ void MQ135_Init(void)
   */
 float ADC_to_CO2(uint32_t adc_val)
 {
-    float voltage = (adc_val / 4095.0f) * 3.3f;  // 12-bit ADC, 3.3V reference
+    float adc_voltage = (adc_val / 4095.0f) * ADC_VREF;
+    float sensor_voltage = adc_voltage * ADC_DIVIDER_GAIN;
+    float rs;
+    float ratio;
+    float co2_model;
+    float co2;
 
-    // MQ-135 conversion formula (Calibration required for actual environment)
-    // Using a simple linear approximation
-    float co2 = voltage * 1000.0f;  // Example conversion formula
+    if (sensor_voltage <= 0.01f) {
+        return 0.0f;
+    }
+    if (sensor_voltage >= (VC - 0.01f)) {
+        sensor_voltage = VC - 0.01f;
+    }
 
-    // Calibration required as follows for actual use:
-    // float rs_r0 = voltage / 1.0;  // R0 is measured in clean air
-    // co2 = 116.6 * pow(rs_r0, -2.769);
+    // Rs = RL * (Vc - Vout) / Vout
+    rs = ((VC - sensor_voltage) / sensor_voltage) * RL_KOHM;
+    if (rs <= 0.01f) {
+        rs = 0.01f;
+    }
 
+    // MQ-135 logarithmic curve model
+    ratio = rs / R0_KOHM;
+    if (ratio <= 0.001f) {
+        ratio = 0.001f;
+    }
+    co2_model = CURVE_A * powf(ratio, CURVE_B);
+
+    // If model result is unrealistically low, use voltage-based fallback
+    if (!isfinite(co2_model) || (co2_model < MODEL_MIN_VALID_PPM)) {
+        co2 = sensor_voltage * FALLBACK_LINEAR_PPM_PER_V;
+    } else {
+        co2 = co2_model;
+    }
+
+    co2 = (co2 * CAL_GAIN) + CAL_OFFSET;
+    if (co2 < 0.0f) {
+        co2 = 0.0f;
+    }
+    if (co2 < CO2_MIN_CLAMP_PPM) {
+        co2 = CO2_MIN_CLAMP_PPM;
+    }
+    if (co2 > CO2_MAX_CLAMP_PPM) {
+        co2 = CO2_MAX_CLAMP_PPM;
+    }
     return co2;
 }
 

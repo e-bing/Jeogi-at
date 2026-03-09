@@ -8,7 +8,6 @@
 #include <QJsonObject>
 #include <QMutex>
 #include <QObject>
-#include <QQuickAsyncImageProvider>
 #include <QQuickImageProvider>
 #include <QSize>
 #include <QSslError>
@@ -31,8 +30,8 @@ struct PacketHeader {
 } // namespace CamProtocol
 
 // 공유 프로토콜 정의
-#include "message_types.hpp"
-#include "sensor_thresholds.hpp"
+#include "../../protocol/message_types.hpp"
+#include "../../protocol/sensor_thresholds.hpp"
 
 class NetworkClient : public QObject {
   Q_OBJECT
@@ -54,6 +53,10 @@ class NetworkClient : public QObject {
   Q_PROPERTY(QString ACTION_OFF READ actionOff CONSTANT)
   Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
   Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
+  Q_PROPERTY(QString ACTION_1 READ action1 CONSTANT)
+  Q_PROPERTY(QString ACTION_2 READ action2 CONSTANT)
+  Q_PROPERTY(QString ACTION_3 READ action3 CONSTANT)
+  Q_PROPERTY(QString ACTION_4 READ action4 CONSTANT)
 
   // System Monitor Fields
   Q_PROPERTY(QString FIELD_CPU_USAGE READ fieldCpuUsage CONSTANT)
@@ -85,6 +88,10 @@ public:
   QString actionOff() const { return Protocol::ACTION_OFF; }
   QString actionAuto() const { return Protocol::ACTION_AUTO; }
   QString actionManual() const { return Protocol::ACTION_MANUAL; }
+  QString action1() const { return Protocol::ACTION_1; }
+  QString action2() const { return Protocol::ACTION_2; }
+  QString action3() const { return Protocol::ACTION_3; }
+  QString action4() const { return Protocol::ACTION_4; }
 
   // System Monitor Fields Getters
   QString fieldCpuUsage() const { return Protocol::FIELD_CPU_USAGE; }
@@ -137,25 +144,13 @@ private:
   QByteArray m_buffer;
 };
 
-class CameraImageResponse : public QQuickImageResponse {
+class CameraImageProvider : public QQuickImageProvider {
 public:
-  CameraImageResponse(const QImage &img) : m_image(img) {
-    emit finished(); // 이미 이미지가 있으므로 즉시 완료
-  }
-  QQuickTextureFactory *textureFactory() const override {
-    return QQuickTextureFactory::textureFactoryForImage(m_image);
-  }
+  CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
 
-private:
-  QImage m_image;
-};
-
-class CameraImageProvider : public QQuickAsyncImageProvider {
-public:
-  CameraImageProvider() : QQuickAsyncImageProvider() {}
-
-  QQuickImageResponse *requestImageResponse(const QString &id,
-                                            const QSize &) override {
+  QImage requestImage(const QString &id, QSize *size,
+                      const QSize &requestedSize) override {
+    Q_UNUSED(requestedSize);
     int camId = id.split("?").first().toInt();
     QMutexLocker locker(&m_mutex);
     QImage img = m_images.value(camId);
@@ -163,17 +158,20 @@ public:
       img = m_prev_images.value(camId);
     else
       m_prev_images[camId] = img;
-    return new CameraImageResponse(img.copy());
+
+    if (size) {
+      *size = img.size();
+    }
+
+    return img;
   }
 
   void updateImage(int cameraId, const QByteArray &jpegData) {
     QImage img;
-    img.loadFromData(jpegData, "JPEG");
-    {
+    if (img.loadFromData(jpegData, "JPEG")) {
       QMutexLocker locker(&m_mutex);
       m_images[cameraId] = std::move(img);
     }
-  }
 
 private:
   QMap<int, QImage> m_images;

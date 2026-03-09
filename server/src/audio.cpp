@@ -55,10 +55,8 @@ void send_audio_command(const string& action) {
     };
     string payload = cmd.dump();
 
-    // New topic (audio/control) + legacy (speaker/control) 모두 발행해서
-    // Pi/STM32 쪽에서 어떤 토픽을 구독하든 동작하도록 함.
+    // audio/control 토픽만 발행합니다.
     g_mqtt_client->publish(Protocol::MQTT_TOPIC_AUDIO_CONTROL, payload, 1, false)->wait();
-    g_mqtt_client->publish(Protocol::MQTT_TOPIC_SPEAKER_CONTROL, payload, 1, false)->wait();
 
     cout << "✅ MQTT 오디오 명령 전송: " << payload << endl;
   } catch (const mqtt::exception& e) {
