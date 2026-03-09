@@ -106,4 +106,11 @@ std::vector<std::string> send_to_stm32_get_wavs(int uart_fd);
  */
 void send_to_stm32_bulk_congestion(int uart_fd, const std::vector<int>& levels);
 
+/**
+ * @brief 디스플레이 제어 명령을 STM32에 전송합니다. (CMD 0x11)
+ *        패킷: [AA][11][LEN][action...][CRC][55]
+ * @param action 제어 액션 문자열 (예: "on", "off", "1", "2")
+ */
+void send_to_stm32_display_control(int uart_fd, const std::string& action);
+
 #endif // COMMUNICATION_HPP

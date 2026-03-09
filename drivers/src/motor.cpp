@@ -1,11 +1,39 @@
 #include "motor.hpp"
+#include "config_loader.h"
 #include "../../protocol/message_types.hpp"
 #include <iostream>
 #include <fstream>
+#include <mqtt/async_client.h>
+#include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
 using namespace std;
 
 bool g_auto_mode = true;
+
+static const string MOTOR_CLIENT_ID = "motor_pi_motor_sub";
+static mqtt::async_client* g_motor_mqtt = nullptr;
+
+class MotorCallback : public mqtt::callback {
+public:
+    void message_arrived(mqtt::const_message_ptr msg) override {
+        try {
+            json data = json::parse(msg->get_payload_str());
+            string type   = data.value(Protocol::FIELD_TYPE,   "");
+            string action = data.value(Protocol::FIELD_ACTION, "");
+            int    speed  = data.value(Protocol::FIELD_SPEED,  0);
+            handle_mqtt_command(type, action, speed);
+        } catch (const exception& e) {
+            cerr << "[Motor] JSON 파싱 실패: " << e.what() << endl;
+        }
+    }
+
+    void connection_lost(const string& cause) override {
+        cerr << "[Motor] MQTT 연결 끊김: " << cause << endl;
+    }
+};
+
+static MotorCallback* g_motor_cb = nullptr;
 
 /**
  * @brief /dev/motor 디바이스에 속도를 씁니다.
@@ -51,6 +79,34 @@ void auto_motor_control(float co2, float co) {
  * @param action 동작 (Protocol::ACTION_AUTO | Protocol::ACTION_MANUAL | Protocol::ACTION_START | Protocol::ACTION_STOP)
  * @param speed  모터 속도 (0-100, motor_control 시 사용)
  */
+/**
+ * @brief 모터 MQTT 구독을 초기화합니다.
+ *        motor/control 토픽을 구독하여 서버 명령을 처리합니다.
+ *        수신 JSON: {"type": "motor_control"|"mode_control", "action": "...", "speed": N}
+ */
+void init_motor_mqtt() {
+    try {
+        auto config   = load_config();
+        string broker = config.value("mqtt_broker", "tcp://localhost:1883");
+
+        g_motor_mqtt = new mqtt::async_client(broker, MOTOR_CLIENT_ID);
+        g_motor_cb   = new MotorCallback();
+        g_motor_mqtt->set_callback(*g_motor_cb);
+
+        mqtt::connect_options opts;
+        opts.set_keep_alive_interval(20);
+        opts.set_clean_session(true);
+        opts.set_automatic_reconnect(true);
+
+        g_motor_mqtt->connect(opts)->wait();
+        g_motor_mqtt->subscribe(Protocol::MQTT_TOPIC_MOTOR_CONTROL, 1)->wait();
+        cout << "[Motor] MQTT 연결 완료, 구독: "
+             << Protocol::MQTT_TOPIC_MOTOR_CONTROL << endl;
+    } catch (const mqtt::exception& e) {
+        cerr << "[Motor] MQTT 초기화 실패: " << e.what() << endl;
+    }
+}
+
 void handle_mqtt_command(const string& type, const string& action, int speed) {
     if (type == Protocol::MSG_MODE_CONTROL) {
         if (action == Protocol::ACTION_AUTO) {

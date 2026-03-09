@@ -30,6 +30,7 @@ static constexpr uint8_t CMD_GET_CO       = 0x01; // CO 센서 값 요청
 static constexpr uint8_t CMD_GET_CO2      = 0x02; // CO2 센서 값 요청
 static constexpr uint8_t CMD_GET_TEMP_HUM = 0x03; // 온습도 전송 (Pi → STM32)
 static constexpr uint8_t CMD_SET_LED      = 0x10; // LED(혼잡도) 일괄 전송
+static constexpr uint8_t CMD_DISPLAY_CTRL = 0x11; // 디스플레이 제어 명령
 static constexpr uint8_t CMD_PLAY_WAV     = 0x20; // WAV 파일 재생 명령
 static constexpr uint8_t CMD_GET_WAVS     = 0x21; // WAV 파일 목록 요청
 static constexpr uint8_t CMD_RESP_WAVS    = 0x22; // WAV 파일 목록 응답
@@ -377,4 +378,22 @@ void send_to_stm32_bulk_congestion(int uart_fd, const vector<int>& levels) {
     write(uart_fd, pkt.data(), pkt.size());
     tcdrain(uart_fd);
     cout << "📤 [→STM32] BULK_CONGESTION: " << (int)len << "구역" << endl;
+}
+
+void send_to_stm32_display_control(int uart_fd, const string& action) {
+    if (uart_fd < 0 || action.empty() || action.size() > 255) return;
+    lock_guard<mutex> lock(g_uart_mutex);
+
+    uint8_t len = static_cast<uint8_t>(action.size());
+    vector<uint8_t> pkt;
+    pkt.push_back(PKT_STX);
+    pkt.push_back(CMD_DISPLAY_CTRL);
+    pkt.push_back(len);
+    for (char c : action) pkt.push_back(static_cast<uint8_t>(c));
+    pkt.push_back(calc_crc(CMD_DISPLAY_CTRL, len, len ? (uint8_t*)action.data() : nullptr));
+    pkt.push_back(PKT_ETX);
+
+    write(uart_fd, pkt.data(), pkt.size());
+    tcdrain(uart_fd);
+    cout << "📤 [→STM32] DISPLAY_CTRL: " << action << endl;
 }

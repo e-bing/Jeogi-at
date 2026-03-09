@@ -26,6 +26,7 @@ int main() {
 
     // 1. MQTT 초기화 (communication.cpp)
     init_comm_mqtt();
+    init_motor_mqtt();
 
     // 2. UART 초기화 및 CO/CO2 센서 수신 스레드 시작
     g_uart_fd = init_comm_uart("/dev/ttyS0");
@@ -44,9 +45,10 @@ int main() {
         cerr << "❌ SHT20 초기화 실패" << endl;
     }
 
-    // 4. 오디오 초기화 (STM32에서 WAV 목록 수신)
+    // 4. 오디오 초기화 (STM32에서 WAV 목록 수신) + MQTT 구독
     if (g_uart_fd >= 0) {
         init_audio(g_uart_fd);
+        init_audio_mqtt();
     }
 
     // 5. 디스플레이 MQTT 구독 초기화

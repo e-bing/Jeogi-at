@@ -107,6 +107,7 @@ constexpr const char *FIELD_CONNECTED = "connected";
 constexpr const char *FIELD_DEVICE = "device";
 constexpr const char *FIELD_ACTION = "action";
 constexpr const char *FIELD_SPEED = "speed";
+constexpr const char *FIELD_FILENAME = "filename";
 
 // 장치 이름
 constexpr const char *DEVICE_MOTOR = "motor";
@@ -122,6 +123,10 @@ constexpr const char *ACTION_ON = "on";
 constexpr const char *ACTION_OFF = "off";
 constexpr const char *ACTION_AUTO = "auto";
 constexpr const char *ACTION_MANUAL = "manual";
+constexpr const char *ACTION_1 = "1";
+constexpr const char *ACTION_2 = "2";
+constexpr const char *ACTION_3 = "3";
+constexpr const char *ACTION_4 = "4";
 
 // ──────────────────────────────────────────
 //  MQTT 토픽 (서버 ↔ 펌웨어 간 통신용)
@@ -129,13 +134,19 @@ constexpr const char *ACTION_MANUAL = "manual";
 constexpr const char *MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
 constexpr const char *MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";
 constexpr const char *MQTT_TOPIC_MOTOR_CONTROL = "motor/control";
+constexpr const char *MQTT_TOPIC_AUDIO_CONTROL = "audio/control";
+constexpr const char *MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL = "display/control";
 constexpr const char *MQTT_TOPIC_SYSTEM_FIRMWARE = "system/firmware";
-constexpr const char *MQTT_TOPIC_CONGESTION_STATUS = "iot/server/status/congestion";
+constexpr const char *MQTT_TOPIC_CONGESTION_STATUS =
+    "iot/server/status/congestion";
 
 // ──────────────────────────────────────────
 //  내부 전송용 명령 타입 (Server → Firmware)
 // ──────────────────────────────────────────
 constexpr const char *MSG_MOTOR_CONTROL = "motor_control";
+constexpr const char *MSG_AUDIO_CONTROL = "audio_control";
+constexpr const char *MSG_SPEAKER_CONTROL = "speaker_control"; // legacy
+constexpr const char *MSG_DISPLAY_CONTROL = "display_control";
 constexpr const char *MSG_MODE_CONTROL = "mode_control";
 
 } // namespace Protocol
