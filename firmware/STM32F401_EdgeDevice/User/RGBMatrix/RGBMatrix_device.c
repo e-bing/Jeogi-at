@@ -45,37 +45,43 @@ void HUB75_RefreshStep_ISR(void)
     uint8_t *top_ptr = &LED_Buffer[row * LED_Width];
     uint8_t *bot_ptr = &LED_Buffer[(row + (LED_Height / 2)) * LED_Width];
 
-    RGB_OE(1);
+    /* 출력 비활성 */
+    RGB_OE_HIGH();
 
-    for (x = 0; x < LED_Width; x++) {
+    /* 현재 row 데이터 shift */
+    for (x = 0; x < LED_Width; x++)
+    {
         uint8_t top = top_ptr[x];
         uint8_t bot = bot_ptr[x];
 
-        RGB_R1((top & 0x01) ? 1 : 0);
-        RGB_G1((top & 0x02) ? 1 : 0);
-        RGB_B1((top & 0x04) ? 1 : 0);
+        if (top & 0x01) RGB_R1_HIGH(); else RGB_R1_LOW();
+        if (top & 0x02) RGB_G1_HIGH(); else RGB_G1_LOW();
+        if (top & 0x04) RGB_B1_HIGH(); else RGB_B1_LOW();
 
-        RGB_R2((bot & 0x01) ? 1 : 0);
-        RGB_G2((bot & 0x02) ? 1 : 0);
-        RGB_B2((bot & 0x04) ? 1 : 0);
+        if (bot & 0x01) RGB_R2_HIGH(); else RGB_R2_LOW();
+        if (bot & 0x02) RGB_G2_HIGH(); else RGB_G2_LOW();
+        if (bot & 0x04) RGB_B2_HIGH(); else RGB_B2_LOW();
 
-        RGB_CLK(0);
-        RGB_CLK(1);
+        RGB_CLK_LOW();
+        RGB_CLK_HIGH();
     }
 
-    RGB_A((row & 0x01) ? 1 : 0);
-    RGB_B((row & 0x02) ? 1 : 0);
-    RGB_C((row & 0x04) ? 1 : 0);
-    RGB_D((row & 0x08) ? 1 : 0);
-    RGB_E((row & 0x10) ? 1 : 0);
+    /* row address 설정 */
+    if (row & 0x01) RGB_A_HIGH(); else RGB_A_LOW();
+    if (row & 0x02) RGB_B_HIGH(); else RGB_B_LOW();
+    if (row & 0x04) RGB_C_HIGH(); else RGB_C_LOW();
+    if (row & 0x08) RGB_D_HIGH(); else RGB_D_LOW();
 
-    RGB_LAT(1);
-    RGB_LAT(0);
+    /* latch */
+    RGB_LAT_HIGH();
+    RGB_LAT_LOW();
 
-    RGB_OE(0);
+    /* 출력 활성 */
+    RGB_OE_LOW();
 
     row++;
-    if (row >= (LED_Height / 2)) {
+    if (row >= (LED_Height / 2))
+    {
         row = 0;
     }
 }
@@ -115,7 +121,6 @@ void HUB75_RefreshStep(void)
     RGB_B((row & 0x02) ? 1 : 0);
     RGB_C((row & 0x04) ? 1 : 0);
     RGB_D((row & 0x08) ? 1 : 0);
-    RGB_E((row & 0x10) ? 1 : 0);
 
     /* latch */
     RGB_LAT(1);

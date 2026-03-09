@@ -63,9 +63,6 @@ void DWT_Delay(uint32_t us);
 #define RGB_D_HIGH()     GPIO_SET(D_GPIO_Port, D_Pin)
 #define RGB_D_LOW()      GPIO_RESET(D_GPIO_Port, D_Pin)
 
-#define RGB_E_HIGH()     GPIO_SET(E_GPIO_Port, E_Pin)
-#define RGB_E_LOW()      GPIO_RESET(E_GPIO_Port, E_Pin)
-
 /* ---------------- Control pins ---------------- */
 #define RGB_CLK_HIGH()   GPIO_SET(CLK_GPIO_Port, CLK_Pin)
 #define RGB_CLK_LOW()    GPIO_RESET(CLK_GPIO_Port, CLK_Pin)
@@ -93,7 +90,6 @@ void DWT_Delay(uint32_t us);
 #define RGB_B(value)     do { if (value) RGB_B_HIGH(); else RGB_B_LOW(); } while (0)
 #define RGB_C(value)     do { if (value) RGB_C_HIGH(); else RGB_C_LOW(); } while (0)
 #define RGB_D(value)     do { if (value) RGB_D_HIGH(); else RGB_D_LOW(); } while (0)
-#define RGB_E(value)     do { if (value) RGB_E_HIGH(); else RGB_E_LOW(); } while (0)
 
 #define RGB_CLK(value)   do { if (value) RGB_CLK_HIGH(); else RGB_CLK_LOW(); } while (0)
 #define RGB_LAT(value)   do { if (value) RGB_LAT_HIGH(); else RGB_LAT_LOW(); } while (0)
