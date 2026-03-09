@@ -10,7 +10,7 @@ using json = nlohmann::json;
 using namespace std;
 
 static const string MQTT_BROKER = g_mqtt_broker;
-static const string MQTT_TOPIC = Protocol::MQTT_TOPIC_SPEAKER_CONTROL;
+static const string MQTT_TOPIC = Protocol::MQTT_TOPIC_AUDIO_CONTROL;
 static const string CLIENT_ID = "server_audio_pub";
 
 static mqtt::async_client* g_mqtt_client = nullptr;
@@ -50,11 +50,16 @@ void send_audio_command(const string& action) {
 
   try {
     json cmd = {
-        {Protocol::FIELD_TYPE, Protocol::MSG_SPEAKER_CONTROL},
-        {Protocol::FIELD_ACTION, action},
+        {Protocol::FIELD_TYPE, Protocol::MSG_AUDIO_CONTROL},
+        {Protocol::FIELD_FILENAME, action},
     };
     string payload = cmd.dump();
-    g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
+
+    // New topic (audio/control) + legacy (speaker/control) 모두 발행해서
+    // Pi/STM32 쪽에서 어떤 토픽을 구독하든 동작하도록 함.
+    g_mqtt_client->publish(Protocol::MQTT_TOPIC_AUDIO_CONTROL, payload, 1, false)->wait();
+    g_mqtt_client->publish(Protocol::MQTT_TOPIC_SPEAKER_CONTROL, payload, 1, false)->wait();
+
     cout << "✅ MQTT 오디오 명령 전송: " << payload << endl;
   } catch (const mqtt::exception& e) {
     cerr << "❌ MQTT 오디오 명령 전송 실패: " << e.what() << endl;
