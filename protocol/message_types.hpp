@@ -135,7 +135,6 @@ constexpr const char *MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
 constexpr const char *MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";
 constexpr const char *MQTT_TOPIC_MOTOR_CONTROL = "motor/control";
 constexpr const char *MQTT_TOPIC_AUDIO_CONTROL = "audio/control";
-constexpr const char *MQTT_TOPIC_SPEAKER_CONTROL = "speaker/control"; // legacy
 constexpr const char *MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL = "display/control";
 constexpr const char *MQTT_TOPIC_SYSTEM_FIRMWARE = "system/firmware";
 constexpr const char *MQTT_TOPIC_CONGESTION_STATUS =

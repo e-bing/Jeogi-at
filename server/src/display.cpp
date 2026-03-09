@@ -54,7 +54,12 @@ void send_display_command(const string& action) {
         {Protocol::FIELD_ACTION, action},
     };
     string payload = cmd.dump();
+
+    // Display 제어 명령은 드라이버 쪽에서 아직 display/control을 구독하지 않을 수 있으므로
+    // 기존 혼잡도 토픽도 함께 발행해 두면 드라이버가 수신 가능해집니다.
     g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
+    g_mqtt_client->publish(Protocol::MQTT_TOPIC_CONGESTION_STATUS, payload, 1, false)->wait();
+
     cout << "✅ MQTT 디스플레이 명령 전송: " << payload << endl;
   } catch (const mqtt::exception& e) {
     cerr << "❌ MQTT 디스플레이 명령 전송 실패: " << e.what() << endl;
