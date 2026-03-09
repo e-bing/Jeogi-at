@@ -151,6 +151,7 @@ public:
 
   QImage requestImage(const QString &id, QSize *size,
                       const QSize &requestedSize) override {
+    Q_UNUSED(requestedSize);
     int camId = id.split("?").first().toInt();
     QMutexLocker locker(&m_mutex);
     QImage img = m_images.value(camId);
