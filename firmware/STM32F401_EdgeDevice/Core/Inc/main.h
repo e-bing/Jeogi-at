@@ -57,42 +57,42 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SPI2_CS_GPIO_Pin GPIO_PIN_0
+#define SPI2_CS_GPIO_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
-#define CLK_Pin GPIO_PIN_5
-#define CLK_GPIO_Port GPIOA
-#define D_Pin GPIO_PIN_7
-#define D_GPIO_Port GPIOA
-#define R1_Pin GPIO_PIN_12
-#define R1_GPIO_Port GPIOB
-#define G2_Pin GPIO_PIN_6
-#define G2_GPIO_Port GPIOC
-#define B_Pin GPIO_PIN_7
-#define B_GPIO_Port GPIOC
-#define R2_Pin GPIO_PIN_8
-#define R2_GPIO_Port GPIOC
-#define B1_Pin GPIO_PIN_9
-#define B1_GPIO_Port GPIOC
-#define B2_Pin GPIO_PIN_8
-#define B2_GPIO_Port GPIOA
-#define A_Pin GPIO_PIN_9
-#define A_GPIO_Port GPIOA
-#define G1_Pin GPIO_PIN_10
-#define G1_GPIO_Port GPIOA
+#define HUB75_C_Pin GPIO_PIN_6
+#define HUB75_C_GPIO_Port GPIOA
+#define HUB75_D_Pin GPIO_PIN_7
+#define HUB75_D_GPIO_Port GPIOA
+#define HUB75_B1_Pin GPIO_PIN_1
+#define HUB75_B1_GPIO_Port GPIOB
+#define HUB75_G1_Pin GPIO_PIN_2
+#define HUB75_G1_GPIO_Port GPIOB
+#define HUB75_R1_Pin GPIO_PIN_12
+#define HUB75_R1_GPIO_Port GPIOB
+#define HUB75_CLK_Pin GPIO_PIN_13
+#define HUB75_CLK_GPIO_Port GPIOB
+#define HUB75_B2_Pin GPIO_PIN_14
+#define HUB75_B2_GPIO_Port GPIOB
+#define HUB75_R2_Pin GPIO_PIN_15
+#define HUB75_R2_GPIO_Port GPIOB
+#define HUB75_B_Pin GPIO_PIN_11
+#define HUB75_B_GPIO_Port GPIOA
+#define HUB75_A_Pin GPIO_PIN_12
+#define HUB75_A_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
-#define SPI_CS_Pin GPIO_PIN_4
-#define SPI_CS_GPIO_Port GPIOB
-#define C_Pin GPIO_PIN_6
-#define C_GPIO_Port GPIOB
-#define OE_Pin GPIO_PIN_8
-#define OE_GPIO_Port GPIOB
-#define LAT_Pin GPIO_PIN_9
-#define LAT_GPIO_Port GPIOB
+#define HUB75_G2_Pin GPIO_PIN_4
+#define HUB75_G2_GPIO_Port GPIOB
+#define HUB75_LAT_Pin GPIO_PIN_5
+#define HUB75_LAT_GPIO_Port GPIOB
+#define HUB75_OE_Pin GPIO_PIN_6
+#define HUB75_OE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
