@@ -60,7 +60,7 @@ void init_audio(int uart_fd) {
     cout << " - " << f << "\n";
 
   // [테스트용] 초기화 직후 첫 번째 WAV 파일 즉시 재생
-  // if (!g_wav_list.empty()) play_wav(0);
+   if (!g_wav_list.empty()) play_wav(0);
 }
 
 /**
