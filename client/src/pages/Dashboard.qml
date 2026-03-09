@@ -117,22 +117,18 @@ ColumnLayout {
             dashboardRoot.grandTotalOccupants = totalCount;
         }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
-            let url = "image://camera/" + cameraId;
+            let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
-                dashboardRoot.cam1Source = "";
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
-                dashboardRoot.cam2Source = "";
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
-                dashboardRoot.cam3Source = "";
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
-                dashboardRoot.cam4Source = "";
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -306,7 +302,7 @@ ColumnLayout {
                                         id: cameraImage
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
+                                        asynchronous: false
                                         smooth: false
                                         cache: false
                                         source: {
@@ -841,7 +837,7 @@ ColumnLayout {
 
                         GridLayout {
                             Layout.fillWidth: true
-                            columns: 2
+                            columns: 1
                             columnSpacing: 15
                             rowSpacing: 10
 
@@ -851,29 +847,31 @@ ColumnLayout {
                                         name: "환기 팬",
                                         device: client.DEVICE_MOTOR,
                                         icon: "🍃",
-                                        active: false
+                                        type: "toggle",
+                                        options: []
                                     },
                                     {
                                         name: "안내 방송",
                                         device: client.DEVICE_SPEAKER,
                                         icon: "🔊",
-                                        active: false
+                                        type: "buttons",
+                                        options: ["1", "2", "3", "4"]
                                     },
                                     {
-                                        name: "디지털",
+                                        name: "디스플레이",
                                         device: client.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
-                                        active: false
-                                    },
-                                    {
-                                        name: "야간 조명",
-                                        device: client.DEVICE_LIGHTING,
-                                        icon: "💡",
-                                        active: false
+                                        type: "buttons",
+                                        options: ["1", "2", "3"]
                                     }
                                 ]
 
                                 Rectangle {
+                                    id: deviceItem
+                                    property var deviceData: modelData
+                                    property bool isActive: false
+                                    property string activeOption: ""
+
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 50
                                     border.color: Style.colorSlate200
@@ -884,25 +882,28 @@ ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 15
                                         Text {
-                                            text: modelData.icon
+                                            text: deviceItem.deviceData.icon
                                         }
                                         Text {
-                                            text: modelData.name
+                                            text: deviceItem.deviceData.name
                                             font.bold: true
                                             color: "#0F172A" // Persistent Slate 900
                                         }
                                         Item {
                                             Layout.fillWidth: true
                                         }
+
+                                        // 1) Toggle switch
                                         Rectangle {
+                                            visible: deviceItem.deviceData.type === "toggle"
                                             width: 36
                                             height: 20
                                             radius: 10
-                                            color: modelData.active ? Style.colorPrimary : Style.colorSlate300
+                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
 
                                             Rectangle {
                                                 id: knob
-                                                x: modelData.active ? 18 : 2
+                                                x: deviceItem.isActive ? 18 : 2
                                                 y: 2
                                                 width: 16
                                                 height: 16
@@ -919,11 +920,59 @@ ColumnLayout {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
-                                                    var next = !modelData.active;
-                                                    modelData.active = next;
-                                                    console.log("Device control:", modelData.name, "->", next ? "on" : "off");
+                                                    deviceItem.isActive = !deviceItem.isActive;
+                                                    console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
                                                     if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(modelData.device, next ? client.ACTION_ON : client.ACTION_OFF);
+                                                        client.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? client.ACTION_ON : client.ACTION_OFF);
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2) Numbered buttons
+                                        RowLayout {
+                                            visible: deviceItem.deviceData.type === "buttons"
+                                            spacing: 6
+
+                                            Timer {
+                                                id: resetTimer
+                                                interval: 3000
+                                                repeat: false
+                                                onTriggered: {
+                                                    deviceItem.activeOption = "";
+                                                }
+                                            }
+
+                                            Repeater {
+                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
+                                                Rectangle {
+                                                    width: 28
+                                                    height: 28
+                                                    radius: 6
+                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
+                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
+                                                    border.width: 1
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData
+                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
+                                                        font.bold: true
+                                                        font.pixelSize: 13
+                                                    }
+
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var val = modelData;
+                                                            deviceItem.activeOption = val;
+                                                            resetTimer.restart(); // Restart countdown for this row
+                                                            console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
+                                                            if (client && client.sendDeviceCommand) {
+                                                                client.sendDeviceCommand(deviceItem.deviceData.device, val);
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

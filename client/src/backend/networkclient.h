@@ -137,25 +137,12 @@ private:
   QByteArray m_buffer;
 };
 
-class CameraImageResponse : public QQuickImageResponse {
+class CameraImageProvider : public QQuickImageProvider {
 public:
-  CameraImageResponse(const QImage &img) : m_image(img) {
-    emit finished(); // 이미 이미지가 있으므로 즉시 완료
-  }
-  QQuickTextureFactory *textureFactory() const override {
-    return QQuickTextureFactory::textureFactoryForImage(m_image);
-  }
+  CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
 
-private:
-  QImage m_image;
-};
-
-class CameraImageProvider : public QQuickAsyncImageProvider {
-public:
-  CameraImageProvider() : QQuickAsyncImageProvider() {}
-
-  QQuickImageResponse *requestImageResponse(const QString &id,
-                                            const QSize &) override {
+  QImage requestImage(const QString &id, QSize *size,
+                      const QSize &requestedSize) override {
     int camId = id.split("?").first().toInt();
     QMutexLocker locker(&m_mutex);
     QImage img = m_images.value(camId);
@@ -163,13 +150,17 @@ public:
       img = m_prev_images.value(camId);
     else
       m_prev_images[camId] = img;
-    return new CameraImageResponse(img.copy());
+
+    if (size) {
+      *size = img.size();
+    }
+
+    return img;
   }
 
   void updateImage(int cameraId, const QByteArray &jpegData) {
     QImage img;
-    img.loadFromData(jpegData, "JPEG");
-    {
+    if (img.loadFromData(jpegData, "JPEG")) {
       QMutexLocker locker(&m_mutex);
       m_images[cameraId] = std::move(img);
     }
