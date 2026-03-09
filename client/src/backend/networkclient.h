@@ -172,6 +172,7 @@ public:
       QMutexLocker locker(&m_mutex);
       m_images[cameraId] = std::move(img);
     }
+  }
 
 private:
   QMap<int, QImage> m_images;
