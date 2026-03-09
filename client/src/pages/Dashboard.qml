@@ -970,7 +970,15 @@ ColumnLayout {
                                                             resetTimer.restart(); // Restart countdown for this row
                                                             console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
                                                             if (client && client.sendDeviceCommand) {
-                                                                client.sendDeviceCommand(deviceItem.deviceData.device, val);
+                                                                var targetAction = client.ACTION_1; // default fallback
+                                                                if (val === "2")
+                                                                    targetAction = client.ACTION_2;
+                                                                else if (val === "3")
+                                                                    targetAction = client.ACTION_3;
+                                                                else if (val === "4")
+                                                                    targetAction = client.ACTION_4;
+
+                                                                client.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
                                                             }
                                                         }
                                                     }

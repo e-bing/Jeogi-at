@@ -54,6 +54,10 @@ class NetworkClient : public QObject {
   Q_PROPERTY(QString ACTION_OFF READ actionOff CONSTANT)
   Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
   Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
+  Q_PROPERTY(QString ACTION_1 READ action1 CONSTANT)
+  Q_PROPERTY(QString ACTION_2 READ action2 CONSTANT)
+  Q_PROPERTY(QString ACTION_3 READ action3 CONSTANT)
+  Q_PROPERTY(QString ACTION_4 READ action4 CONSTANT)
 
   // System Monitor Fields
   Q_PROPERTY(QString FIELD_CPU_USAGE READ fieldCpuUsage CONSTANT)
@@ -85,6 +89,10 @@ public:
   QString actionOff() const { return Protocol::ACTION_OFF; }
   QString actionAuto() const { return Protocol::ACTION_AUTO; }
   QString actionManual() const { return Protocol::ACTION_MANUAL; }
+  QString action1() const { return Protocol::ACTION_1; }
+  QString action2() const { return Protocol::ACTION_2; }
+  QString action3() const { return Protocol::ACTION_3; }
+  QString action4() const { return Protocol::ACTION_4; }
 
   // System Monitor Fields Getters
   QString fieldCpuUsage() const { return Protocol::FIELD_CPU_USAGE; }
