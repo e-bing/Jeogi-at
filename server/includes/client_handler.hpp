@@ -43,12 +43,6 @@ void enqueue_camera_packet(std::queue<SendPacket>& q, std::mutex& mtx,
 void enqueue_json_packet(std::queue<SendPacket>& q, std::mutex& mtx,
                          std::condition_variable& cv, const string& json_str);
 
-// 영상 프레임을 JPEG 인코딩하여 send_queue에 enqueue하는 스레드 함수
-// Hanwha(ID:1, ~50fps), Pi 노드(ID:2~, 5fps)를 각각 처리
-void video_streaming_worker(std::atomic<bool>* client_connected,
-                            std::queue<SendPacket>& q, std::mutex& mtx,
-                            std::condition_variable& cv);
-
 // Qt 클라이언트로부터 명령을 수신하는 스레드 함수
 // SSL_read를 논블로킹으로 반복하며 '\n' 단위로 명령을 파싱해
 // handle_qt_command로 전달
@@ -63,5 +57,15 @@ void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
 // TLS 핸드셰이크부터 연결 종료까지 Qt 클라이언트 수명주기 전체를 관리
 // reader / writer / video 스레드를 생성하고 DB 데이터를 주기적으로 enqueue
 void handle_client(int client_socket);
+
+// Hanwha 노드 영상 프레임을 JPEG 인코딩하여 send_queue에 enqueue하는 스레드
+// 함수
+void hanwha_worker(std::atomic<bool>* client_connected,
+                   std::queue<SendPacket>& q, std::mutex& mtx,
+                   std::condition_variable& cv);
+
+// Pi 노드 영상 프레임을 JPEG 인코딩하여 send_queue에 enqueue하는 스레드 함수
+void pi_worker(std::atomic<bool>* client_connected, std::queue<SendPacket>& q,
+               std::mutex& mtx, std::condition_variable& cv);
 
 #endif  // CLIENT_HANDLER_HPP
