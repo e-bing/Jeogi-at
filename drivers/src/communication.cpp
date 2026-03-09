@@ -13,6 +13,8 @@
 using json = nlohmann::json;
 using namespace std;
 
+mutex g_uart_mutex;
+
 static const string COMM_CLIENT_ID = "motor_pi_comm_pub";
 
 static mqtt::async_client* g_comm_mqtt   = nullptr;
@@ -220,10 +222,43 @@ void send_to_server_sensor(float co, float co2) {
 ═══════════════════════════════════════════ */
 
 /**
+ * @brief STM32에 CO 센서값을 요청합니다. (CMD 0x01)
+ */
+bool send_to_stm32_get_co(int uart_fd, float& out_co) {
+    if (uart_fd < 0) return false;
+    lock_guard<mutex> lock(g_uart_mutex);
+    uint8_t req[] = {0xAA, 0x01, 0x00, 0x54, 0x55};
+    write(uart_fd, req, sizeof(req));
+    vector<uint8_t> rx;
+    if (read_packet(uart_fd, rx, 300) && rx.size() >= 7 && rx[2] >= 2) {
+        out_co = (float)((rx[3] << 8) | rx[4]) / 100.0f;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief STM32에 CO2 센서값을 요청합니다. (CMD 0x02)
+ */
+bool send_to_stm32_get_co2(int uart_fd, float& out_co2) {
+    if (uart_fd < 0) return false;
+    lock_guard<mutex> lock(g_uart_mutex);
+    uint8_t req[] = {0xAA, 0x02, 0x00, 0x57, 0x55};
+    write(uart_fd, req, sizeof(req));
+    vector<uint8_t> rx;
+    if (read_packet(uart_fd, rx, 300) && rx.size() >= 7 && rx[2] >= 2) {
+        out_co2 = (float)((rx[3] << 8) | rx[4]) / 100.0f;
+        return true;
+    }
+    return false;
+}
+
+/**
  * @brief 온습도 데이터를 STM32에 전송합니다. (CMD 0x03)
  */
 void send_to_stm32_temp_humi(int uart_fd, float temp, float humi) {
     if (uart_fd < 0) return;
+    lock_guard<mutex> lock(g_uart_mutex);
 
     int16_t temp_raw = static_cast<int16_t>(round(temp * 100));
     int16_t humi_raw = static_cast<int16_t>(round(humi * 100));
@@ -251,6 +286,7 @@ void send_to_stm32_temp_humi(int uart_fd, float temp, float humi) {
  */
 void send_to_stm32_play_wav(int uart_fd, const string& filename) {
     if (uart_fd < 0 || filename.size() > 255) return;
+    lock_guard<mutex> lock(g_uart_mutex);
 
     uint8_t len = static_cast<uint8_t>(filename.size());
     vector<uint8_t> pkt;
@@ -271,6 +307,7 @@ void send_to_stm32_play_wav(int uart_fd, const string& filename) {
  */
 vector<string> send_to_stm32_get_wavs(int uart_fd) {
     if (uart_fd < 0) return {};
+    lock_guard<mutex> lock(g_uart_mutex);
 
     uint8_t pkt[5] = {
         PKT_STX, CMD_GET_WAVS, 0x00,
@@ -317,6 +354,7 @@ vector<string> send_to_stm32_get_wavs(int uart_fd) {
  */
 void send_to_stm32_bulk_congestion(int uart_fd, const vector<int>& levels) {
     if (uart_fd < 0 || levels.empty() || levels.size() > 8) return;
+    lock_guard<mutex> lock(g_uart_mutex);
 
     vector<uint8_t> payload;
     payload.reserve(levels.size());

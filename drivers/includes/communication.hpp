@@ -5,6 +5,9 @@
 #include <vector>
 #include <functional>
 #include <cstdint>
+#include <mutex>
+
+extern std::mutex g_uart_mutex;
 
 /* ─────────────────────────────────────────
    초기화
@@ -60,6 +63,22 @@ void send_to_server_sensor(float co, float co2);
 /* ─────────────────────────────────────────
    펌웨어 → STM32 (UART send)
 ───────────────────────────────────────── */
+
+/**
+ * @brief STM32에 CO 센서값을 요청합니다. (CMD 0x01)
+ * @param uart_fd UART 파일 디스크립터
+ * @param out_co  수신된 CO 값 (ppm)
+ * @return 성공 시 true
+ */
+bool send_to_stm32_get_co(int uart_fd, float& out_co);
+
+/**
+ * @brief STM32에 CO2 센서값을 요청합니다. (CMD 0x02)
+ * @param uart_fd  UART 파일 디스크립터
+ * @param out_co2  수신된 CO2 값 (ppm)
+ * @return 성공 시 true
+ */
+bool send_to_stm32_get_co2(int uart_fd, float& out_co2);
 
 /**
  * @brief 온습도 데이터를 STM32에 전송합니다. (CMD 0x03)
