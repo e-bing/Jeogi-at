@@ -259,11 +259,51 @@ ColumnLayout {
                                     border.color: Style.isDarkMode ? "white" : "#334155"
                                     border.width: 1
 
+                                    Image {
+                                            id: cameraImageBack
+                                            anchors.fill: parent
+                                            fillMode: Image.PreserveAspectCrop
+                                            smooth: false
+                                            cache: false
+                                            visible: true
+                                        }
+
+                                    Image {
+                                        id: cameraImageFront
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: false
+                                        cache: false
+                                        visible: status == Image.Ready
+                                        source: {
+                                            if (index === 0)
+                                                return dashboardRoot.cam1Source;
+                                            if (index === 1)
+                                                return dashboardRoot.cam2Source;
+                                            if (index === 2)
+                                                return dashboardRoot.cam3Source;
+                                            if (index === 3)
+                                                return dashboardRoot.cam4Source;
+                                            return "";
+                                        }
+                                        opacity: 1.0
+                                        onStatusChanged: {
+                                            if (status === Image.Ready) {
+                                                            cameraImageBack.source = source
+                                            }
+                                            if (status === Image.Error) {
+                                                source = source;  // 재시도 방지
+                                            }
+
+                                        }
+                                    }
+
                                     // Placeholder / No Signal state
                                     Rectangle {
                                         anchors.fill: parent
                                         color: "transparent"
-                                        visible: !cameraImage.visible
+                                        visible: cameraImageFront.source === "" && cameraImageBack.source === ""
 
                                         ColumnLayout {
                                             anchors.centerIn: parent
@@ -357,7 +397,7 @@ ColumnLayout {
                                         width: 54
                                         height: 22
                                         radius: 6
-                                        color: cameraImage.visible ? "#cc22c55e" : "#cc64748b" // Glassy look
+                                        color: (cameraImageBack.source !== "") ? "#cc22c55e" : "#cc64748b"
                                         border.color: "#33ffffff"
                                         border.width: 1
 
@@ -369,7 +409,7 @@ ColumnLayout {
                                                 height: 8
                                                 radius: 4
                                                 color: "white"
-                                                visible: cameraImage.visible
+                                                visible: cameraImageBack.source !== ""
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
                                                     NumberAnimation {
@@ -385,7 +425,7 @@ ColumnLayout {
                                                 }
                                             }
                                             Text {
-                                                text: cameraImage.visible ? "LIVE" : "OFF"
+                                                text: (cameraImageBack.source !== "") ? "LIVE" : "OFF"
                                                 color: "white"
                                                 font.pixelSize: 11
                                                 font.bold: true
@@ -396,7 +436,7 @@ ColumnLayout {
 
                                     // Object Count Badge
                                     Rectangle {
-                                        visible: cameraImage.visible && getCamCount(index) > 0
+                                        visible: (cameraImageBack.source !== "") && getCamCount(index) > 0
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.topMargin: 40

@@ -1,4 +1,5 @@
 #include "../includes/client_handler.hpp"
+
 #include "database.hpp"
 
 extern CongestionAnalyzer g_analyzer;
@@ -46,107 +47,6 @@ void enqueue_json_packet(std::queue<SendPacket>& q, std::mutex& mtx,
     if (q.size() < 10) q.push(std::move(pkt));
   }
   cv.notify_one();
-}
-
-void video_streaming_worker(std::atomic<bool>* client_connected,
-                            std::queue<SendPacket>& q, std::mutex& mtx,
-                            std::condition_variable& cv) {
-  auto last_hw_send = chrono::steady_clock::now();
-  auto last_pi_send = chrono::steady_clock::now();
-  while (*client_connected) {
-    auto now = chrono::steady_clock::now();
-    // 1. Hanwha 카메라 데이터 전송 (ID: 1, 15 FPS)
-    if (now - last_hw_send >= chrono::milliseconds(10)) {
-      {
-        string json_payload;
-        vector<unsigned char> jpg_buffer;
-        {
-          lock_guard<mutex> lock_frame(g_hw_frame_mutex);
-          lock_guard<mutex> lock_data(g_hw_data_mutex);
-
-          if (!g_hw_frame_buffer.empty()) {
-            // [Step A] YUV Raw -> OpenCV Mat 변환
-            int width = 1920;
-            int height = 1080;
-            cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
-                              g_hw_frame_buffer.data());
-
-            // [Step B] BGR 변환 및 리사이징 (성능을 위해 640x480 권장)
-            cv::Mat bgr_frame, resized_frame;
-            cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
-            cv::resize(bgr_frame, resized_frame, cv::Size(640, 480));
-
-            // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
-            // auto t1 = chrono::steady_clock::now();
-            cv::imencode(".jpg", resized_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
-            // auto t2 = chrono::steady_clock::now();
-            // cerr << "[HW encode] "
-            //      << chrono::duration_cast<chrono::milliseconds>(t2 -
-            //      t1).count()
-            //      << "ms" << endl;
-
-            // [Step D] JSON 생성
-            json j;
-            j["count"] = g_hw_objects.size();
-            for (auto& o : g_hw_objects) {
-              j["objs"].push_back(
-                  {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
-            }
-            json_payload = j.dump();
-          }
-        }
-
-        if (!jpg_buffer.empty()) {
-          enqueue_camera_packet(q, mtx, cv, 1, json_payload, jpg_buffer);
-          last_hw_send = now;
-        }
-      }
-    }
-
-    // 2. Pi Node 카메라들 (ID: 2~, 5 FPS)
-    if (now - last_pi_send >= chrono::milliseconds(200)) {
-      lock_guard<mutex> lock(g_node_map_mutex);
-      uint32_t id_idx = 2;
-      for (auto const& [id, camData] : g_pi_node_map) {
-        string json_payload;
-        vector<unsigned char> jpg_buffer;
-
-        {
-          lock_guard<mutex> d_lock(camData->data_mutex);
-          if (!camData->frame_buffer.empty()) {
-            // 1. Raw YUV -> JPEG 압축 (파이 노드용)
-            // 파이 노드의 해상도(640x480 가정)에 맞춰 Mat 생성
-            int w = 640;
-            int h = 480;
-            cv::Mat yuv_frame(h * 1.5, w, CV_8UC1,
-                              camData->frame_buffer.data());
-            cv::Mat bgr_frame;
-            cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
-            cv::imencode(".jpg", bgr_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
-
-            // 2. JSON 생성
-            json j_pi;
-            j_pi["count"] = camData->objects.size();
-            for (const auto& obj : camData->objects) {
-              j_pi["objs"].push_back(
-                  {{"x", obj.x}, {"y", obj.y}, {"w", obj.w}, {"h", obj.h}});
-            }
-            json_payload = j_pi.dump();
-          }
-        }
-
-        if (!jpg_buffer.empty()) {
-          enqueue_camera_packet(q, mtx, cv, id_idx, json_payload, jpg_buffer);
-        }
-        id_idx++;
-      }
-      last_pi_send = now;
-    }
-
-    this_thread::sleep_for(chrono::milliseconds(5));
-  }
 }
 
 void reader_thread_func(SSL* ssl, std::atomic<bool>* connected) {
@@ -207,6 +107,103 @@ void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
   }
 }
 
+void hanwha_worker(std::atomic<bool>* client_connected,
+                   std::queue<SendPacket>& q, std::mutex& mtx,
+                   std::condition_variable& cv) {
+  auto last_send = chrono::steady_clock::now();
+  while (*client_connected) {
+    auto now = chrono::steady_clock::now();
+    if (now - last_send >= chrono::milliseconds(10)) {  // 100fps 목표
+      string json_payload;
+      vector<unsigned char> jpg_buffer;
+      {
+        lock_guard<mutex> lock_frame(g_hw_frame_mutex);
+        lock_guard<mutex> lock_data(g_hw_data_mutex);
+
+        if (!g_hw_frame_buffer.empty()) {
+          // [Step A] YUV Raw -> OpenCV Mat 변환
+          int width = 1920;
+          int height = 1080;
+          cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
+                            g_hw_frame_buffer.data());
+
+          // [Step B] BGR 변환 및 리사이징 (성능을 위해 640x480 권장)
+          cv::Mat bgr_frame, resized_frame;
+          cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
+          cv::resize(bgr_frame, resized_frame, cv::Size(640, 480));
+
+          // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
+          cv::imencode(".jpg", resized_frame, jpg_buffer,
+                       {cv::IMWRITE_JPEG_QUALITY, 80});
+
+          // [Step D] JSON 생성
+          json j;
+          j[Protocol::FIELD_COUNT] = g_hw_objects.size();
+          for (auto& o : g_hw_objects) {
+            j["objs"].push_back(
+                {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
+          }
+          json_payload = j.dump();
+        }
+      }
+
+      if (!jpg_buffer.empty()) {
+        enqueue_camera_packet(q, mtx, cv, 1, json_payload, jpg_buffer);
+        last_send = now;
+      }
+    }
+    this_thread::sleep_for(chrono::milliseconds(1));
+  }
+}
+
+void pi_worker(std::atomic<bool>* client_connected, std::queue<SendPacket>& q,
+               std::mutex& mtx, std::condition_variable& cv) {
+  auto last_send = chrono::steady_clock::now();
+  while (*client_connected) {
+    auto now = chrono::steady_clock::now();
+    if (now - last_send >= chrono::milliseconds(30)) {  // 33fps
+      lock_guard<mutex> lock(g_node_map_mutex);
+      uint32_t id_idx = 2;
+      for (auto const& [id, camData] : g_pi_node_map) {
+        string json_payload;
+        vector<unsigned char> jpg_buffer;
+
+        {
+          lock_guard<mutex> d_lock(camData->data_mutex);
+          if (!camData->frame_buffer.empty()) {
+            // 1. Raw YUV -> JPEG 압축 (파이 노드용)
+            // 파이 노드의 해상도(640x480 가정)에 맞춰 Mat 생성
+            int w = 640;
+            int h = 480;
+            cv::Mat yuv_frame(h * 1.5, w, CV_8UC1,
+                              camData->frame_buffer.data());
+            cv::Mat bgr_frame;
+            cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
+            cv::imencode(".jpg", bgr_frame, jpg_buffer,
+                         {cv::IMWRITE_JPEG_QUALITY, 80});
+
+            // 2. JSON 생성
+            json j_pi;
+            j_pi[Protocol::FIELD_COUNT] = camData->objects.size();
+            for (const auto& obj : camData->objects) {
+              j_pi["objs"].push_back(
+                  {{"x", obj.x}, {"y", obj.y}, {"w", obj.w}, {"h", obj.h}});
+            }
+            json_payload = j_pi.dump();
+          }
+        }
+
+        if (!jpg_buffer.empty()) {
+          enqueue_camera_packet(q, mtx, cv, id_idx, json_payload, jpg_buffer);
+        }
+        id_idx++;
+      }
+      last_send = now;
+    }
+    this_thread::sleep_for(chrono::milliseconds(5));
+  }
+}
+
 void handle_client(int client_socket) {
   SSL* ssl = SSL_new(g_ssl_ctx);
   if (!ssl) {
@@ -255,9 +252,11 @@ void handle_client(int client_socket) {
   thread r_thread(reader_thread_func, ssl, &client_connected);
 
   // 영상 enqueue 스레드
-  thread v_thread(video_streaming_worker, &client_connected,
-                  std::ref(send_queue), std::ref(queue_mutex),
-                  std::ref(queue_cv));
+  thread v_hw_thread(hanwha_worker, &client_connected, std::ref(send_queue),
+                     std::ref(queue_mutex), std::ref(queue_cv));
+
+  thread v_pi_thread(pi_worker, &client_connected, std::ref(send_queue),
+                     std::ref(queue_mutex), std::ref(queue_cv));
 
   int db_tick = 0;
   int sys_tick = 0;
@@ -265,35 +264,38 @@ void handle_client(int client_socket) {
   while (client_connected) {
     // zone_congestion (100ms 주기)
     if (db_tick % 10 == 0) {
-      enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                          json{{"type", "zone_congestion"},
-                               {"zones", g_analyzer.getCongestionLevels()},
-                               {"total_count", get_total_people_count()}}
-                              .dump());
+      enqueue_json_packet(
+          send_queue, queue_mutex, queue_cv,
+          json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
+               {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
+              .dump());
     }
 
     // DB 데이터 (5초 주기)
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
-        enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                            json{{"type", "realtime_air"},
-                                 {"title", "🌫️ 실시간 공기질"},
-                                 {"data", get_realtime_air_quality(conn)}}
-                                .dump());
         enqueue_json_packet(
             send_queue, queue_mutex, queue_cv,
-            json{{"type", "air_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "📊 공기질 통계"},
-                 {"data", get_air_quality_stats(conn, "CAM-01")}}
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                 {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                 {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
                 .dump());
         enqueue_json_packet(
             send_queue, queue_mutex, queue_cv,
-            json{{"type", "flow_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "👥 승객 흐름 통계"},
-                 {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                 {Protocol::FIELD_CAMERA, "CAM-01"},
+                 {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                 {Protocol::FIELD_DATA, get_air_quality_stats(conn, "CAM-01")}}
+                .dump());
+        enqueue_json_packet(
+            send_queue, queue_mutex, queue_cv,
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                 {Protocol::FIELD_CAMERA, "CAM-01"},
+                 {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                 {Protocol::FIELD_DATA,
+                  get_passenger_flow_stats(conn, "CAM-01")}}
                 .dump());
       } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
@@ -314,7 +316,8 @@ void handle_client(int client_socket) {
   queue_cv.notify_all();  // 대기 중인 스레드 깨우기
   if (r_thread.joinable()) r_thread.join();
   if (w_thread.joinable()) w_thread.join();
-  if (v_thread.joinable()) v_thread.join();
+  if (v_hw_thread.joinable()) v_hw_thread.join();
+  if (v_pi_thread.joinable()) v_pi_thread.join();
 
   SSL_shutdown(ssl);
   SSL_free(ssl);

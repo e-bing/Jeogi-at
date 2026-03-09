@@ -8,7 +8,6 @@
 #include <QJsonObject>
 #include <QMutex>
 #include <QObject>
-#include <QQuickAsyncImageProvider>
 #include <QQuickImageProvider>
 #include <QSize>
 #include <QSslError>
@@ -31,8 +30,8 @@ struct PacketHeader {
 } // namespace CamProtocol
 
 // 공유 프로토콜 정의
-#include "message_types.hpp"
-#include "sensor_thresholds.hpp"
+#include "../../protocol/message_types.hpp"
+#include "../../protocol/sensor_thresholds.hpp"
 
 class NetworkClient : public QObject {
   Q_OBJECT
@@ -173,7 +172,6 @@ public:
       QMutexLocker locker(&m_mutex);
       m_images[cameraId] = std::move(img);
     }
-  }
 
 private:
   QMap<int, QImage> m_images;
