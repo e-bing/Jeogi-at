@@ -60,8 +60,14 @@ Window {
                 Layout.fillHeight: true
                 source: "pages/Dashboard.qml" // Default page
 
-                // padding around content
-
+                onStatusChanged: {
+                    if (status === Loader.Error) {
+                        console.error("Loader Error: Failed to load " + source);
+                    }
+                }
+                onLoaded: {
+                    console.log("Successfully loaded page: " + source);
+                }
             }
 
             // Footer

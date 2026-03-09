@@ -53,6 +53,10 @@ class NetworkClient : public QObject {
   Q_PROPERTY(QString ACTION_OFF READ actionOff CONSTANT)
   Q_PROPERTY(QString ACTION_AUTO READ actionAuto CONSTANT)
   Q_PROPERTY(QString ACTION_MANUAL READ actionManual CONSTANT)
+  Q_PROPERTY(QString ACTION_1 READ action1 CONSTANT)
+  Q_PROPERTY(QString ACTION_2 READ action2 CONSTANT)
+  Q_PROPERTY(QString ACTION_3 READ action3 CONSTANT)
+  Q_PROPERTY(QString ACTION_4 READ action4 CONSTANT)
 
   // System Monitor Fields
   Q_PROPERTY(QString FIELD_CPU_USAGE READ fieldCpuUsage CONSTANT)
@@ -84,6 +88,10 @@ public:
   QString actionOff() const { return Protocol::ACTION_OFF; }
   QString actionAuto() const { return Protocol::ACTION_AUTO; }
   QString actionManual() const { return Protocol::ACTION_MANUAL; }
+  QString action1() const { return Protocol::ACTION_1; }
+  QString action2() const { return Protocol::ACTION_2; }
+  QString action3() const { return Protocol::ACTION_3; }
+  QString action4() const { return Protocol::ACTION_4; }
 
   // System Monitor Fields Getters
   QString fieldCpuUsage() const { return Protocol::FIELD_CPU_USAGE; }
@@ -138,37 +146,31 @@ private:
 
 class CameraImageProvider : public QQuickImageProvider {
 public:
-    CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
+  CameraImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
 
-    QImage requestImage(
-        const QString& id, QSize* size, const QSize&) override
-    {
-        int camId = id.split("?").first().toInt();
-        QImage result;
-        {
-            QMutexLocker locker(&m_mutex);
-            QImage& img = m_images[camId];
-            if (!img.isNull())
-            {
-                m_prev_images[camId] = img;
-                result = img.copy();
-            }
-            else
-            {
-                result = m_prev_images.value(camId).copy();
-            }
-        }
-        if (size && !result.isNull()) *size = result.size();
-        return result;
+  QImage requestImage(const QString &id, QSize *size,
+                      const QSize &requestedSize) override {
+    Q_UNUSED(requestedSize);
+    int camId = id.split("?").first().toInt();
+    QMutexLocker locker(&m_mutex);
+    QImage img = m_images.value(camId);
+    if (img.isNull())
+      img = m_prev_images.value(camId);
+    else
+      m_prev_images[camId] = img;
+
+    if (size) {
+      *size = img.size();
     }
 
-    void updateImage(int cameraId, const QByteArray& jpegData) {
-        QImage img;
-        img.loadFromData(jpegData, "JPEG");
-        {
-            QMutexLocker locker(&m_mutex);
-            m_images[cameraId] = std::move(img);
-        }
+    return img;
+  }
+
+  void updateImage(int cameraId, const QByteArray &jpegData) {
+    QImage img;
+    if (img.loadFromData(jpegData, "JPEG")) {
+      QMutexLocker locker(&m_mutex);
+      m_images[cameraId] = std::move(img);
     }
 
 private:
