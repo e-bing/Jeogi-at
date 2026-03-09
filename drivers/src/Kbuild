@@ -1,0 +1,1 @@
+obj-m := motor_driver.o sht20_driver.o

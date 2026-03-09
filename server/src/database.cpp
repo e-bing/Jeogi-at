@@ -1,7 +1,9 @@
 // database.cpp
+#include <iostream>
 #include "database.hpp"
 #include "config_manager.hpp"
-#include <iostream>
+
+#include "../../protocol/message_types.hpp"
 
 /**
  * @brief config.json에서 DB 접속 정보를 읽어 연결합니다.
@@ -79,10 +81,10 @@ json get_realtime_congestion(MYSQL* conn) {
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {
-    json item = {{"station", row[0] ? row[0] : "N/A"},
-                 {"platform", row[1] ? row[1] : "N/A"},
-                 {"count", row[2] ? stoi(row[2]) : 0},
-                 {"status", row[3] ? row[3] : "정상"}};
+    json item = {{Protocol::FIELD_STATION, row[0] ? row[0] : "N/A"},
+                 {Protocol::FIELD_PLATFORM, row[1] ? row[1] : "N/A"},
+                 {Protocol::FIELD_COUNT, row[2] ? stoi(row[2]) : 0},
+                 {Protocol::FIELD_STATUS, row[3] ? row[3] : "정상"}};
     result.push_back(item);
   }
 
@@ -118,13 +120,13 @@ json get_realtime_air_quality(MYSQL* conn) {
   MYSQL_ROW row;
 
   if ((row = mysql_fetch_row(res))) {
-    json item = {{"station", "Jeogi-Station"},
-                 {"co_level", row[1] ? stod(row[1]) : 0.0},
-                 {"co2_ppm", row[2] ? stod(row[2]) : 0.0},
-                 {"temp", row[3] ? stod(row[3]) : 0.0},    
-                 {"humi", row[4] ? stod(row[4]) : 0.0},
-                 {"fire_detected", row[5] ? stoi(row[5]) == 1 : false},
-                 {"recorded_at", row[6] ? row[6] : "N/A"}};
+    json item = {{Protocol::FIELD_STATION, "Jeogi-Station"},
+                 {Protocol::FIELD_CO_LEVEL, row[1] ? stod(row[1]) : 0.0},
+                 {Protocol::FIELD_CO2_PPM, row[2] ? stod(row[2]) : 0.0},
+                 {Protocol::FIELD_TEMP, row[3] ? stod(row[3]) : 0.0},    
+                 {Protocol::FIELD_HUMI, row[4] ? stod(row[4]) : 0.0},
+                 {Protocol::FIELD_FIRE_DETECTED, row[5] ? stoi(row[5]) == 1 : false},
+                 {Protocol::FIELD_RECORDED_AT, row[6] ? row[6] : "N/A"}};
     result.push_back(item);
   }
 
@@ -158,10 +160,10 @@ json get_air_quality_stats(MYSQL* conn, string cam_id) {
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {
-    json item = {{"day", row[0] ? stoi(row[0]) : 0},
-                 {"hour", row[1] ? stoi(row[1]) : 0},
-                 {"co", row[2] ? stod(row[2]) : 0.0},
-                 {"co2", row[3] ? stod(row[3]) : 0.0}};
+    json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
+                 {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
+                 {Protocol::FIELD_CO, row[2] ? stod(row[2]) : 0.0},
+                 {Protocol::FIELD_CO2, row[3] ? stod(row[3]) : 0.0}};
     result.push_back(item);
   }
 
@@ -193,9 +195,9 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   MYSQL_ROW row;
 
   while ((row = mysql_fetch_row(res))) {
-    json item = {{"day", row[0] ? stoi(row[0]) : 0},
-                 {"hour", row[1] ? stoi(row[1]) : 0},
-                 {"avg_count", row[2] ? (int)stod(row[2]) : 0}};
+    json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
+                 {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
+                 {Protocol::FIELD_AVG_COUNT, row[2] ? (int)stod(row[2]) : 0}};
     result.push_back(item);
   }
 

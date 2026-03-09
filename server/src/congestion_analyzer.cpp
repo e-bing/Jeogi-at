@@ -38,8 +38,8 @@ bool CongestionAnalyzer::isInside(const DetectedObject& obj,
 }
 
 int CongestionAnalyzer::calculateLevel(int count) {
-  if (count < m_threshold_normal) return 0;
-  if (count < m_threshold_busy) return 1;
+  if (count < Protocol::CONGESTION_EASY_MAX)   return 0;
+    if (count < Protocol::CONGESTION_NORMAL_MAX) return 1;
   return 2;
 }
 

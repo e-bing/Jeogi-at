@@ -12,8 +12,10 @@
 #include "fatfs.h"
 #include <stdint.h>
 
-#define AUDIO_MONO_SAMPLES     4096
-#define AUDIO_WAV_HEADER_SIZE  44
+/* ================= Config ================= */
+
+#define AUDIO_MONO_SAMPLES 4096
+#define AUDIO_WAV_HEADER_SIZE 44
 
 void Audio_Init(void);
 uint8_t Audio_StartWav(const char *filename);
@@ -24,7 +26,8 @@ uint8_t Audio_IsPlaying(void);
 extern volatile uint32_t audio_i2s_err_cnt;
 extern volatile uint32_t audio_miss_fill_cnt;
 
-typedef struct {
+typedef struct
+{
     char riff[4];
     uint32_t size;
     char wave[4];

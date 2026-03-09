@@ -1,5 +1,7 @@
 #include "../includes/client_handler.hpp"
 
+#include "database.hpp"
+
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
 
@@ -55,7 +57,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
   while (*client_connected) {
     auto now = chrono::steady_clock::now();
     // 1. Hanwha 카메라 데이터 전송 (ID: 1, 15 FPS)
-    if (now - last_hw_send >= chrono::milliseconds(10)) {
+    if (now - last_hw_send >= chrono::milliseconds(5)) {
       {
         string json_payload;
         vector<unsigned char> jpg_buffer;
@@ -78,7 +80,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
             // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
             // auto t1 = chrono::steady_clock::now();
             cv::imencode(".jpg", resized_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
+                         {cv::IMWRITE_JPEG_QUALITY, 80});
             // auto t2 = chrono::steady_clock::now();
             // cerr << "[HW encode] "
             //      << chrono::duration_cast<chrono::milliseconds>(t2 -
@@ -87,7 +89,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
 
             // [Step D] JSON 생성
             json j;
-            j["count"] = g_hw_objects.size();
+            j[Protocol::FIELD_COUNT] = g_hw_objects.size();
             for (auto& o : g_hw_objects) {
               j["objs"].push_back(
                   {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
@@ -104,7 +106,7 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
     }
 
     // 2. Pi Node 카메라들 (ID: 2~, 5 FPS)
-    if (now - last_pi_send >= chrono::milliseconds(200)) {
+    if (now - last_pi_send >= chrono::milliseconds(5)) {
       lock_guard<mutex> lock(g_node_map_mutex);
       uint32_t id_idx = 2;
       for (auto const& [id, camData] : g_pi_node_map) {
@@ -123,11 +125,11 @@ void video_streaming_worker(std::atomic<bool>* client_connected,
             cv::Mat bgr_frame;
             cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
             cv::imencode(".jpg", bgr_frame, jpg_buffer,
-                         {cv::IMWRITE_JPEG_QUALITY, 40});
+                         {cv::IMWRITE_JPEG_QUALITY, 80});
 
             // 2. JSON 생성
             json j_pi;
-            j_pi["count"] = camData->objects.size();
+            j_pi[Protocol::FIELD_COUNT] = camData->objects.size();
             for (const auto& obj : camData->objects) {
               j_pi["objs"].push_back(
                   {{"x", obj.x}, {"y", obj.y}, {"w", obj.w}, {"h", obj.h}});
@@ -226,9 +228,8 @@ void handle_client(int client_socket) {
 
   cout << "🔒 TLS 연결 성공 (Cipher: " << SSL_get_cipher(ssl) << ")" << endl;
 
-  // Qt 클라이언트 전용 DB 연결
-  DBConfig config;
-  MYSQL* conn = connect_db(config);
+  // DB 호출
+  MYSQL* conn = connect_db();
 
   if (!conn) {
     SSL_shutdown(ssl);
@@ -265,35 +266,38 @@ void handle_client(int client_socket) {
   while (client_connected) {
     // zone_congestion (100ms 주기)
     if (db_tick % 10 == 0) {
-      enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                          json{{"type", "zone_congestion"},
-                               {"zones", g_analyzer.getCongestionLevels()},
-                               {"total_count", get_total_people_count()}}
-                              .dump());
+      enqueue_json_packet(
+          send_queue, queue_mutex, queue_cv,
+          json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
+               {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
+              .dump());
     }
 
     // DB 데이터 (5초 주기)
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
-        enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                            json{{"type", "realtime_air"},
-                                 {"title", "🌫️ 실시간 공기질"},
-                                 {"data", get_realtime_air_quality(conn)}}
-                                .dump());
         enqueue_json_packet(
             send_queue, queue_mutex, queue_cv,
-            json{{"type", "air_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "📊 공기질 통계"},
-                 {"data", get_air_quality_stats(conn, "CAM-01")}}
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                 {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                 {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
                 .dump());
         enqueue_json_packet(
             send_queue, queue_mutex, queue_cv,
-            json{{"type", "flow_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "👥 승객 흐름 통계"},
-                 {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                 {Protocol::FIELD_CAMERA, "CAM-01"},
+                 {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                 {Protocol::FIELD_DATA, get_air_quality_stats(conn, "CAM-01")}}
+                .dump());
+        enqueue_json_packet(
+            send_queue, queue_mutex, queue_cv,
+            json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                 {Protocol::FIELD_CAMERA, "CAM-01"},
+                 {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                 {Protocol::FIELD_DATA,
+                  get_passenger_flow_stats(conn, "CAM-01")}}
                 .dump());
       } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
