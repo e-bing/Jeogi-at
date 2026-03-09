@@ -46,8 +46,8 @@ void handle_qt_command(const string& cmd_str) {
             send_motor_command(Protocol::ACTION_STOP, 0);
           }
         } else if (device == Protocol::DEVICE_SPEAKER) {
-          cout << "🔊 [STATUS] SPEAKER command=" << action << endl;
-          send_speaker_command(action);
+          cout << "🔊 [STATUS] AUDIO command=" << action << endl;
+          send_audio_command(action);
         } else if (device == Protocol::DEVICE_DIGITAL_DISPLAY) {
           cout << "🖥️ [STATUS] DIGITAL DISPLAY command=" << action << endl;
           send_display_command(action);

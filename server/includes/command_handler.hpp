@@ -8,10 +8,10 @@
 
 #include "display.hpp"
 #include "motor.hpp"
-#include "speaker.hpp"
+#include "audio.hpp"
 
 // Qt 클라이언트로부터 수신한 JSON 명령을 파싱하고 처리합니다.
-// 지원 타입: device_command (mode_control / motor / speaker / lighting / digital_display)
+// 지원 타입: device_command (mode_control / motor / audio / lighting / digital_display)
 void handle_qt_command(const std::string& cmd_str);
 
 #endif  // COMMAND_HANDLER_HPP

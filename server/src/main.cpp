@@ -20,7 +20,7 @@
 #include "../includes/database.hpp"
 #include "../includes/display.hpp"
 #include "../includes/motor.hpp"
-#include "../includes/speaker.hpp"
+#include "../includes/audio.hpp"
 #include "../includes/sensor.hpp"
 
 // 모니터링 헤더
@@ -62,7 +62,7 @@ int main() {
 
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
-  init_mqtt_speaker();
+  init_mqtt_audio();
   init_mqtt_display();
   init_system_monitor();
 

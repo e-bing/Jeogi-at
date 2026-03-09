@@ -45,7 +45,7 @@ add_executable(server
     src/command_handler.cpp
     src/sensor.cpp
     src/motor.cpp
-    src/speaker.cpp
+    src/audio.cpp
     src/display.cpp
     src/system_monitor.cpp
     src/congestion_analyzer.cpp

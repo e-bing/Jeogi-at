@@ -1,4 +1,4 @@
-#include "speaker.hpp"
+#include "audio.hpp"
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <mqtt/async_client.h>
@@ -11,12 +11,12 @@ using namespace std;
 
 static const string MQTT_BROKER = g_mqtt_broker;
 static const string MQTT_TOPIC = Protocol::MQTT_TOPIC_SPEAKER_CONTROL;
-static const string CLIENT_ID = "server_speaker_pub";
+static const string CLIENT_ID = "server_audio_pub";
 
 static mqtt::async_client* g_mqtt_client = nullptr;
 static bool g_mqtt_connected = false;
 
-void init_mqtt_speaker() {
+void init_mqtt_audio() {
   if (g_mqtt_connected && g_mqtt_client != nullptr) return;
 
   try {
@@ -42,9 +42,9 @@ void init_mqtt_speaker() {
   }
 }
 
-void send_speaker_command(const string& action) {
+void send_audio_command(const string& action) {
   if (!g_mqtt_connected) {
-    cerr << "❌ MQTT 미연결 - 스피커 명령 전송 불가" << endl;
+    cerr << "❌ MQTT 미연결 - 오디오 명령 전송 불가" << endl;
     return;
   }
 
@@ -55,8 +55,8 @@ void send_speaker_command(const string& action) {
     };
     string payload = cmd.dump();
     g_mqtt_client->publish(MQTT_TOPIC, payload, 1, false)->wait();
-    cout << "✅ MQTT 스피커 명령 전송: " << payload << endl;
+    cout << "✅ MQTT 오디오 명령 전송: " << payload << endl;
   } catch (const mqtt::exception& e) {
-    cerr << "❌ MQTT 스피커 명령 전송 실패: " << e.what() << endl;
+    cerr << "❌ MQTT 오디오 명령 전송 실패: " << e.what() << endl;
   }
 }
