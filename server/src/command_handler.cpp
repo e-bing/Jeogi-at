@@ -1,5 +1,6 @@
 // command_handler.cpp
 #include "../includes/command_handler.hpp"
+
 #include "../../protocol/message_types.hpp"
 
 using json = nlohmann::json;
@@ -35,19 +36,21 @@ void handle_qt_command(const string& cmd_str) {
         if (device == Protocol::DEVICE_MOTOR) {
           int speed = cmdData.value(Protocol::FIELD_SPEED, 100);
 
-          if (action == Protocol::ACTION_START || action == Protocol::ACTION_ON) {
+          if (action == Protocol::ACTION_START ||
+              action == Protocol::ACTION_ON) {
             cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
             send_motor_command(Protocol::ACTION_START, speed);
-          } else if (action == Protocol::ACTION_STOP || action == Protocol::ACTION_OFF) {
+          } else if (action == Protocol::ACTION_STOP ||
+                     action == Protocol::ACTION_OFF) {
             cout << "🛑 [STATUS] MOTOR OFF" << endl;
             send_motor_command(Protocol::ACTION_STOP, 0);
           }
         } else if (device == Protocol::DEVICE_SPEAKER) {
-          cout << "🔊 [STATUS] SPEAKER " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
-               << endl;
-        } else if (device == Protocol::DEVICE_LIGHTING) {
-          cout << "💡 [STATUS] LIGHTING " << (action == Protocol::ACTION_ON ? "ON" : "OFF")
-               << endl;
+          cout << "🔊 [STATUS] AUDIO command=" << action << endl;
+          send_audio_command(action);
+        } else if (device == Protocol::DEVICE_DIGITAL_DISPLAY) {
+          cout << "🖥️ [STATUS] DIGITAL DISPLAY command=" << action << endl;
+          send_display_command(action);
         }
       } else {
         cout << "⚠️ [AUTO MODE] Qt 수동 명령 무시됨 (현재 자동 모드 활성화 중)"
