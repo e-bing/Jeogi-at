@@ -270,7 +270,7 @@ void UART_Handler_Process(void)
         memcpy(filename, pkt.data, pkt.len);
         filename[pkt.len] = '\0';
         //        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
-        Audio_PlayWav(filename);
+        Audio_StartWav(filename);
         UART_SendNACK(CMD_ACK, 0);
         break;
 

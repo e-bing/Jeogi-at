@@ -27,4 +27,10 @@ void auto_motor_control(float co2, float co);
  */
 void handle_mqtt_command(const std::string& type, const std::string& action, int speed);
 
+/**
+ * @brief 모터 MQTT 구독을 초기화합니다.
+ *        motor/control 토픽을 구독하여 서버 명령을 처리합니다.
+ */
+void init_motor_mqtt();
+
 #endif // MOTOR_HPP

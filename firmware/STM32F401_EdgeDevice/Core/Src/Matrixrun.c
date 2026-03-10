@@ -21,7 +21,6 @@ static void MatrixRun_ShowDashboard(void)
   HUB75_Clear();
   Screen_Show_StatusRow(congestion_status);
   Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-  HUB75_Display();
 }
 
 void MatrixRun_Init(void)

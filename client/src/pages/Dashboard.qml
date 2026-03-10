@@ -11,7 +11,6 @@ ColumnLayout {
     height: parent.height
     spacing: 0
 
-    property var realtimeData: []
     property var airStatsData: ({})
     property var tempHumiData: ({})
     property var sectionAverages: []
@@ -104,12 +103,6 @@ ColumnLayout {
         onStatusMessageChanged: {
             console.log("Dashboard - Status: " + client.statusMessage);
         }
-        onRealtimeDataReceived: function (data) {
-            console.log("Dashboard - Real-time DB Data Received: " + data.length);
-            // 열차 칸 색칠 및 인원수 로직은 이제 onZoneCongestionReceived(실시간 AI)에서만 처리합니다.
-            // 필요 시 배경 통계용으로 저장만 유지
-            realtimeData = data;
-        }
         onAirStatsReceived: function (data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
         }
@@ -124,22 +117,18 @@ ColumnLayout {
             dashboardRoot.grandTotalOccupants = totalCount;
         }
         onCameraFrameReceived: function (cameraId, timestamp, metadata) {
-            let url = "image://camera/" + cameraId;
+            let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
-                dashboardRoot.cam1Source = "";
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
-                dashboardRoot.cam2Source = "";
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
-                dashboardRoot.cam3Source = "";
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
-                dashboardRoot.cam4Source = "";
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -270,11 +259,51 @@ ColumnLayout {
                                     border.color: Style.isDarkMode ? "white" : "#334155"
                                     border.width: 1
 
+                                    Image {
+                                            id: cameraImageBack
+                                            anchors.fill: parent
+                                            fillMode: Image.PreserveAspectCrop
+                                            smooth: false
+                                            cache: false
+                                            visible: true
+                                        }
+
+                                    Image {
+                                        id: cameraImageFront
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: false
+                                        cache: false
+                                        visible: status == Image.Ready
+                                        source: {
+                                            if (index === 0)
+                                                return dashboardRoot.cam1Source;
+                                            if (index === 1)
+                                                return dashboardRoot.cam2Source;
+                                            if (index === 2)
+                                                return dashboardRoot.cam3Source;
+                                            if (index === 3)
+                                                return dashboardRoot.cam4Source;
+                                            return "";
+                                        }
+                                        opacity: 1.0
+                                        onStatusChanged: {
+                                            if (status === Image.Ready) {
+                                                            cameraImageBack.source = source
+                                            }
+                                            if (status === Image.Error) {
+                                                source = source;  // 재시도 방지
+                                            }
+
+                                        }
+                                    }
+
                                     // Placeholder / No Signal state
                                     Rectangle {
                                         anchors.fill: parent
                                         color: "transparent"
-                                        visible: !cameraImage.visible
+                                        visible: cameraImageFront.source === "" && cameraImageBack.source === ""
 
                                         ColumnLayout {
                                             anchors.centerIn: parent
@@ -313,7 +342,7 @@ ColumnLayout {
                                         id: cameraImage
                                         anchors.fill: parent
                                         fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
+                                        asynchronous: false
                                         smooth: false
                                         cache: false
                                         source: {
@@ -368,7 +397,7 @@ ColumnLayout {
                                         width: 54
                                         height: 22
                                         radius: 6
-                                        color: cameraImage.visible ? "#cc22c55e" : "#cc64748b" // Glassy look
+                                        color: (cameraImageBack.source !== "") ? "#cc22c55e" : "#cc64748b"
                                         border.color: "#33ffffff"
                                         border.width: 1
 
@@ -380,7 +409,7 @@ ColumnLayout {
                                                 height: 8
                                                 radius: 4
                                                 color: "white"
-                                                visible: cameraImage.visible
+                                                visible: cameraImageBack.source !== ""
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
                                                     NumberAnimation {
@@ -396,7 +425,7 @@ ColumnLayout {
                                                 }
                                             }
                                             Text {
-                                                text: cameraImage.visible ? "LIVE" : "OFF"
+                                                text: (cameraImageBack.source !== "") ? "LIVE" : "OFF"
                                                 color: "white"
                                                 font.pixelSize: 11
                                                 font.bold: true
@@ -407,7 +436,7 @@ ColumnLayout {
 
                                     // Object Count Badge
                                     Rectangle {
-                                        visible: cameraImage.visible && getCamCount(index) > 0
+                                        visible: (cameraImageBack.source !== "") && getCamCount(index) > 0
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.topMargin: 40
@@ -848,7 +877,7 @@ ColumnLayout {
 
                         GridLayout {
                             Layout.fillWidth: true
-                            columns: 2
+                            columns: 1
                             columnSpacing: 15
                             rowSpacing: 10
 
@@ -858,29 +887,31 @@ ColumnLayout {
                                         name: "환기 팬",
                                         device: client.DEVICE_MOTOR,
                                         icon: "🍃",
-                                        active: false
+                                        type: "toggle",
+                                        options: []
                                     },
                                     {
                                         name: "안내 방송",
                                         device: client.DEVICE_SPEAKER,
                                         icon: "🔊",
-                                        active: false
+                                        type: "buttons",
+                                        options: ["1", "2", "3", "4"]
                                     },
                                     {
-                                        name: "디지털",
+                                        name: "디스플레이",
                                         device: client.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
-                                        active: false
-                                    },
-                                    {
-                                        name: "야간 조명",
-                                        device: client.DEVICE_LIGHTING,
-                                        icon: "💡",
-                                        active: false
+                                        type: "buttons",
+                                        options: ["1", "2", "3"]
                                     }
                                 ]
 
                                 Rectangle {
+                                    id: deviceItem
+                                    property var deviceData: modelData
+                                    property bool isActive: false
+                                    property string activeOption: ""
+
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 50
                                     border.color: Style.colorSlate200
@@ -891,25 +922,28 @@ ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 15
                                         Text {
-                                            text: modelData.icon
+                                            text: deviceItem.deviceData.icon
                                         }
                                         Text {
-                                            text: modelData.name
+                                            text: deviceItem.deviceData.name
                                             font.bold: true
                                             color: "#0F172A" // Persistent Slate 900
                                         }
                                         Item {
                                             Layout.fillWidth: true
                                         }
+
+                                        // 1) Toggle switch
                                         Rectangle {
+                                            visible: deviceItem.deviceData.type === "toggle"
                                             width: 36
                                             height: 20
                                             radius: 10
-                                            color: modelData.active ? Style.colorPrimary : Style.colorSlate300
+                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
 
                                             Rectangle {
                                                 id: knob
-                                                x: modelData.active ? 18 : 2
+                                                x: deviceItem.isActive ? 18 : 2
                                                 y: 2
                                                 width: 16
                                                 height: 16
@@ -926,11 +960,67 @@ ColumnLayout {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
-                                                    var next = !modelData.active;
-                                                    modelData.active = next;
-                                                    console.log("Device control:", modelData.name, "->", next ? "on" : "off");
+                                                    deviceItem.isActive = !deviceItem.isActive;
+                                                    console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
                                                     if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(modelData.device, next ? client.ACTION_ON : client.ACTION_OFF);
+                                                        client.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? client.ACTION_ON : client.ACTION_OFF);
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2) Numbered buttons
+                                        RowLayout {
+                                            visible: deviceItem.deviceData.type === "buttons"
+                                            spacing: 6
+
+                                            Timer {
+                                                id: resetTimer
+                                                interval: 3000
+                                                repeat: false
+                                                onTriggered: {
+                                                    deviceItem.activeOption = "";
+                                                }
+                                            }
+
+                                            Repeater {
+                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
+                                                Rectangle {
+                                                    width: 28
+                                                    height: 28
+                                                    radius: 6
+                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
+                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
+                                                    border.width: 1
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData
+                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
+                                                        font.bold: true
+                                                        font.pixelSize: 13
+                                                    }
+
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var val = modelData;
+                                                            deviceItem.activeOption = val;
+                                                            resetTimer.restart(); // Restart countdown for this row
+                                                            console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
+                                                            if (client && client.sendDeviceCommand) {
+                                                                var targetAction = client.ACTION_1; // default fallback
+                                                                if (val === "2")
+                                                                    targetAction = client.ACTION_2;
+                                                                else if (val === "3")
+                                                                    targetAction = client.ACTION_3;
+                                                                else if (val === "4")
+                                                                    targetAction = client.ACTION_4;
+
+                                                                client.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

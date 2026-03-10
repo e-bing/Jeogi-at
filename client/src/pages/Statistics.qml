@@ -10,7 +10,7 @@ ColumnLayout {
     spacing: 20
 
     function getDayName(day) {
-        var days = ["", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"];
+        var days = ["", "일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
         return days[day] ? days[day] : day;
     }
 
@@ -36,17 +36,45 @@ ColumnLayout {
         onStatusMessageChanged: {
             console.log("Statistics - Status: " + client.statusMessage);
         }
-        onRealtimeDataReceived: function (data) {
-            console.log("Statistics - Realtime Data Received: " + data.length);
-            realtimeData = data;
+        onZoneCongestionReceived: function (zones, totalCount) {
+            console.log("Statistics - Zone Congestion Received: " + JSON.stringify(zones));
+            var arr = [];
+            for (var i = 0; i < zones.length; i++) {
+                var count = zones[i];
+                var status = "여유";
+                var color = "#22C55E";
+                if (count >= client.congestionNormalMax) {
+                    status = "혼잡";
+                    color = "#EF4444";
+                } else if (count >= client.congestionEasyMax) {
+                    status = "보통";
+                    color = "#EAB308";
+                }
+                arr.push({
+                    index: i + 1,
+                    count: count,
+                    status: status,
+                    color: color
+                });
+            }
+            realtimeData = arr;
         }
+
         onAirStatsReceived: function (data) {
             console.log("Statistics - Air Stats Received: " + data.length);
-            airStatsData = data;
+            var arr = [];
+            for (var i = 0; i < data.length; ++i)
+                arr.push(data[i]);
+            console.log("Air Stats JSON: " + JSON.stringify(arr));
+            airStatsData = arr;
         }
         onFlowStatsReceived: function (data) {
             console.log("Statistics - Flow Stats Received: " + data.length);
-            flowStatsData = data;
+            var arr = [];
+            for (var i = 0; i < data.length; ++i)
+                arr.push(data[i]);
+            console.log("Flow Stats JSON: " + JSON.stringify(arr));
+            flowStatsData = arr;
         }
 
         Component.onCompleted: {
@@ -192,87 +220,104 @@ ColumnLayout {
 
         // Tab 1: Realtime Congestion
         Item {
-            // Header Row
             ColumnLayout {
                 anchors.fill: parent
-                spacing: 10
+                anchors.margins: 20
+                spacing: 30
+
+                Text {
+                    text: "👥 실시간 혼잡도 현황 (8구간)"
+                    font: Style.fontBold
+                    color: Style.colorSlate800
+                }
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 0
+                    spacing: 15
+                    height: 160
+
                     Repeater {
-                        model: ["역 정보", "현재 구역", "실시간 인원", "상태"]
+                        model: 8
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 40
-                            color: Style.colorTableHeadCongestion
-                            Text {
+                            Layout.fillHeight: true
+                            radius: 8
+                            color: realtimeData[index] ? realtimeData[index].color : "#22C55E"
+                            border.color: "white"
+                            border.width: 1
+
+                            ColumnLayout {
                                 anchors.centerIn: parent
-                                text: modelData
-                                color: "white"
-                                font.bold: true
+                                spacing: 10
+                                Text {
+                                    text: (index + 1)
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignCenter
+                                }
+                                Text {
+                                    text: (realtimeData[index] ? realtimeData[index].count : 0) + "명"
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignCenter
+                                }
                             }
                         }
                     }
                 }
 
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: realtimeData
-                    delegate: RowLayout {
-                        width: ListView.view.width
-                        height: 40
-                        spacing: 0
-
-                        property string status: modelData.status
-
+                // Legend
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 20
+                    RowLayout {
+                        spacing: 8
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            color: Style.colorSurface
-                            border.color: Style.colorTableBorder
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.station
-                                color: Style.colorSlate800
-                            }
+                            width: 12
+                            height: 12
+                            radius: 6
+                            color: "#22C55E"
                         }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            color: Style.colorSurface
-                            border.color: Style.colorTableBorder
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.platform
-                                color: Style.colorSlate800
-                            }
-                        }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            color: Style.colorSurface
-                            border.color: Style.colorTableBorder
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.count + "명"
-                                color: Style.colorSlate800
-                            }
-                        }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            color: Style.colorSurface
-                            border.color: Style.colorTableBorder
-                            Text {
-                                anchors.centerIn: parent
-                                text: (status === "혼잡" ? "🔴 " : (status === "보통" ? "🟡 " : "🟢 ")) + status
-                                color: Style.colorSlate800
-                            }
+                        Text {
+                            text: "여유"
+                            color: Style.colorSlate600
+                            font: Style.fontSmall
                         }
                     }
+                    RowLayout {
+                        spacing: 8
+                        Rectangle {
+                            width: 12
+                            height: 12
+                            radius: 6
+                            color: "#EAB308"
+                        }
+                        Text {
+                            text: "보통"
+                            color: Style.colorSlate600
+                            font: Style.fontSmall
+                        }
+                    }
+                    RowLayout {
+                        spacing: 8
+                        Rectangle {
+                            width: 12
+                            height: 12
+                            radius: 6
+                            color: "#EF4444"
+                        }
+                        Text {
+                            text: "혼잡"
+                            color: Style.colorSlate600
+                            font: Style.fontSmall
+                        }
+                    }
+                }
+
+                Item {
+                    Layout.fillHeight: true
                 }
             }
         }
@@ -360,7 +405,7 @@ ColumnLayout {
                             border.color: Style.colorTableBorder
                             Text {
                                 anchors.centerIn: parent
-                                text: modelData.gas.toFixed(2)
+                                text: modelData.co2 ? modelData.co2.toFixed(2) : "0.00"
                                 color: Style.colorSlate800
                             }
                         }

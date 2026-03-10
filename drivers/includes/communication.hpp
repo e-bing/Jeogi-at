@@ -5,6 +5,9 @@
 #include <vector>
 #include <functional>
 #include <cstdint>
+#include <mutex>
+
+extern std::mutex g_uart_mutex;
 
 /* ─────────────────────────────────────────
    초기화
@@ -62,6 +65,22 @@ void send_to_server_sensor(float co, float co2);
 ───────────────────────────────────────── */
 
 /**
+ * @brief STM32에 CO 센서값을 요청합니다. (CMD 0x01)
+ * @param uart_fd UART 파일 디스크립터
+ * @param out_co  수신된 CO 값 (ppm)
+ * @return 성공 시 true
+ */
+bool send_to_stm32_get_co(int uart_fd, float& out_co);
+
+/**
+ * @brief STM32에 CO2 센서값을 요청합니다. (CMD 0x02)
+ * @param uart_fd  UART 파일 디스크립터
+ * @param out_co2  수신된 CO2 값 (ppm)
+ * @return 성공 시 true
+ */
+bool send_to_stm32_get_co2(int uart_fd, float& out_co2);
+
+/**
  * @brief 온습도 데이터를 STM32에 전송합니다. (CMD 0x03)
  *        패킷: [AA][03][04][TEMP_H][TEMP_L][HUMI_H][HUMI_L][CRC][55]
  */
@@ -86,5 +105,12 @@ std::vector<std::string> send_to_stm32_get_wavs(int uart_fd);
  * @param levels 각 구역 혼잡도 레벨 목록 (0: 여유, 1: 보통, 2: 혼잡, 최대 8개)
  */
 void send_to_stm32_bulk_congestion(int uart_fd, const std::vector<int>& levels);
+
+/**
+ * @brief 디스플레이 제어 명령을 STM32에 전송합니다. (CMD 0x11)
+ *        패킷: [AA][11][LEN][action...][CRC][55]
+ * @param action 제어 액션 문자열 (예: "on", "off", "1", "2")
+ */
+void send_to_stm32_display_control(int uart_fd, const std::string& action);
 
 #endif // COMMUNICATION_HPP
