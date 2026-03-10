@@ -119,6 +119,16 @@ void PiNode::process_loop() {
     if (pkt->stream_index == video_idx) {
       if (avcodec_send_packet(codecCtx, pkt) == 0) {
         while (avcodec_receive_frame(codecCtx, frame) == 0) {
+          static int dbg_cnt = 0;
+          if (dbg_cnt++ < 5) {
+            std::cout << "[" << node_id << "] frame format: " << frame->format
+                      << " width: " << frame->width
+                      << " height: " << frame->height
+                      << " linesize: " << frame->linesize[0] << ","
+                      << frame->linesize[1] << "," << frame->linesize[2]
+                      << std::endl;
+          }
+
           int w = frame->width;
           int h = frame->height;
           size_t y_size = w * h;
@@ -129,14 +139,32 @@ void PiNode::process_loop() {
             auto& camData = it->second;
             std::lock_guard<std::mutex> lock(camData->data_mutex);
 
+            camData->width = frame->width;
+            camData->height = frame->height;
             camData->frame_buffer.resize(y_size + uv_size * 2);
 
             // Y, U, V 플레인을 하나의 벡터에 순서대로 복사
-            memcpy(camData->frame_buffer.data(), frame->data[0], y_size);
-            memcpy(camData->frame_buffer.data() + y_size, frame->data[1],
-                   uv_size);
-            memcpy(camData->frame_buffer.data() + y_size + uv_size,
-                   frame->data[2], uv_size);
+            // memcpy(camData->frame_buffer.data(), frame->data[0], y_size);
+            // memcpy(camData->frame_buffer.data() + y_size, frame->data[1],
+            //        uv_size);
+            // memcpy(camData->frame_buffer.data() + y_size + uv_size,
+            //        frame->data[2], uv_size);
+            // Y 플레인
+            for (int i = 0; i < h; i++) {
+              memcpy(camData->frame_buffer.data() + i * w,
+                     frame->data[0] + i * frame->linesize[0], w);
+            }
+            // U 플레인
+            for (int i = 0; i < h / 2; i++) {
+              memcpy(camData->frame_buffer.data() + y_size + i * (w / 2),
+                     frame->data[1] + i * frame->linesize[1], w / 2);
+            }
+            // V 플레인
+            for (int i = 0; i < h / 2; i++) {
+              memcpy(
+                  camData->frame_buffer.data() + y_size + uv_size + i * (w / 2),
+                  frame->data[2] + i * frame->linesize[2], w / 2);
+            }
           }
         }
       }
