@@ -538,25 +538,24 @@ ColumnLayout {
                                         // onClicked: console.log("Camera " + (index + 1) + " clicked")
 
                                         onClicked: {
-                                                // parent(Rectangle)가 아닌 실제 이미지 객체의 source를 참조
-                                                // 확실한 문자열(String) 처리를 위해 형변환 및 빈 문자열 대체(fallback) 적용
-                                                var targetSource = cameraImageBack.source.toString() || cameraImageFront.source.toString() || "";
+                                            // 소스가 비어있지 않은지 확인 (문자열 강제 형변환)
+                                            var targetSource = String(cameraImageBack.source) || String(cameraImageFront.source);
 
-                                                // 소스가 유효할 때만 팝업을 엽니다.
-                                                if (targetSource !== "") {
-                                                    expandedCameraPopup.currentSource = targetSource;
-                                                    expandedCameraPopup.currentTitle = "CAM-0" + (index + 1) + " 상세화면";
-                                                    expandedCameraPopup.open();
-                                                } else {
-                                                    console.log("카메라 신호가 없어 팝업을 열 수 없습니다.");
-                                                }
+                                            if (targetSource !== "") {
+                                                // Repeater의 현재 index를 팝업에 전달하여 실시간 바인딩 활성화
+                                                expandedCameraPopup.currentCameraIndex = index;
+                                                expandedCameraPopup.currentTitle = "CAM-0" + (index + 1) + " 확대화면";
+                                                expandedCameraPopup.open();
+                                            } else {
+                                                console.log("카메라 신호가 없어 확대할 수 없습니다.");
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    }
                 }
 
                 // Environment Card
@@ -1302,51 +1301,118 @@ ColumnLayout {
         }
     }
     // Dashboard.qml 하단에 추가
-    // Popup {
-    //     id: expandedCameraPopup
-    //     parent: Overlay.overlay
-    //     width: parent.width * 0.9
-    //     height: parent.height * 0.9
-    //     anchors.centerIn: parent
-    //     modal: true
-    //     focus: true
-    //     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    Popup {
+        id: expandedCameraPopup
+        parent: Overlay.overlay
+        width: parent.width * 0.9
+        height: parent.height * 0.9
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    //     property string currentSource: ""
-    //     property string currentTitle: ""
+        // 정적 소스 대신 카메라 인덱스를 받아 동적 바인딩에 사용
+        property int currentCameraIndex: -1
+        property string currentTitle: ""
 
-    //     background: Rectangle {
-    //         color: "black"
-    //         radius: 10
-    //     }
+        background: Rectangle {
+            color: "black"
+            radius: 10
+        }
 
-    //     ColumnLayout {
-    //         anchors.fill: parent
-    //         spacing: 10
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
 
-    //         Text {
-    //             text: expandedCameraPopup.currentTitle
-    //             color: "white"
-    //             font.bold: true
-    //             Layout.alignment: Qt.AlignHCenter
-    //         }
+            Text {
+                text: expandedCameraPopup.currentTitle
+                color: "white"
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
 
-    //         Image {
-    //             id: expandedImage
-    //             source: expandedCameraPopup.currentSource
-    //             fillMode: Image.PreserveAspectFit
-    //             Layout.fillWidth: true
-    //             Layout.fillHeight: true
+            // 팝업 내부 더블 버퍼링 렌더링 영역
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-    //             // 실시간 갱신을 위해 캐시 방지
-    //             cache: false
-    //         }
+                Image {
+                    id: expandedImageBack
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    cache: false
+                    visible: true
+                }
 
-    //         Button {
-    //             text: "닫기"
-    //             Layout.alignment: Qt.AlignHCenter
-    //             onClicked: expandedCameraPopup.close()
-    //         }
-    //     }
-    // }
+                Image {
+                    id: expandedImageFront
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    cache: false
+                    visible: status === Image.Ready
+
+                    // 메인 화면과 동일하게 dashboardRoot의 camXSource 변경을 실시간 감지
+                    source: {
+                        if (expandedCameraPopup.currentCameraIndex === 0)
+                            return dashboardRoot.cam1Source;
+                        if (expandedCameraPopup.currentCameraIndex === 1)
+                            return dashboardRoot.cam2Source;
+                        if (expandedCameraPopup.currentCameraIndex === 2)
+                            return dashboardRoot.cam3Source;
+                        if (expandedCameraPopup.currentCameraIndex === 3)
+                            return dashboardRoot.cam4Source;
+                        return "";
+                    }
+
+                    // 로딩 완료 시 백버퍼 업데이트로 깜빡임 제거
+                    onStatusChanged: {
+                        if (status === Image.Ready) {
+                            expandedImageBack.source = source;
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: 20
+                Layout.preferredWidth: 140
+                Layout.preferredHeight: 44
+
+                radius: height / 2  // 높이의 절반으로 설정하여 완벽한 알약 모양 생성
+
+                // MouseArea의 상태에 따라 배경색 즉각 반영
+                color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
+                border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
+                border.width: 1
+
+                // 부드러운 색상 전환 애니메이션
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "닫기"
+                    color: closeMouseArea.pressed ? "#94A3B8" : "white"
+                    font.pixelSize: 15
+                    font.bold: true
+                    font.letterSpacing: 1.0
+                }
+
+                MouseArea {
+                    id: closeMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor // 마우스를 올렸을 때 클릭 가능한 손가락 커서로 변경
+
+                    onClicked: {
+                        expandedCameraPopup.currentCameraIndex = -1; // 소스 연결 해제
+                        expandedCameraPopup.close();
+                    }
+                }
+            }
+        }
+    }
 }
