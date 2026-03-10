@@ -28,6 +28,26 @@ ColumnLayout {
     property int cam3Count: 0
     property int cam4Count: 0
 
+    property int cam1Fps: 0
+    property int cam2Fps: 0
+    property int cam3Fps: 0
+    property int cam4Fps: 0
+
+    property int _cam1Count: 0
+    property int _cam2Count: 0
+    property int _cam3Count: 0
+    property int _cam4Count: 0
+
+    property int cam1RenderFps: 0
+    property int cam2RenderFps: 0
+    property int cam3RenderFps: 0
+    property int cam4RenderFps: 0
+
+    property int _cam1RenderCount: 0
+    property int _cam2RenderCount: 0
+    property int _cam3RenderCount: 0
+    property int _cam4RenderCount: 0
+
     Timer {
         id: connectionTimer
         interval: 1000
@@ -35,6 +55,34 @@ ColumnLayout {
         onTriggered: {
             console.log("Dashboard - Auto-connecting...");
             client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+        }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            dashboardRoot.cam1Fps = dashboardRoot._cam1Count
+            dashboardRoot.cam2Fps = dashboardRoot._cam2Count
+            dashboardRoot.cam3Fps = dashboardRoot._cam3Count
+            dashboardRoot.cam4Fps = dashboardRoot._cam4Count
+
+            console.log("[FPS] 수신 CAM1:", dashboardRoot._cam1Count,
+                        "CAM2:", dashboardRoot._cam2Count,
+                        "CAM3:", dashboardRoot._cam3Count)
+            console.log("[FPS] 렌더 CAM1:", dashboardRoot._cam1RenderCount,
+                        "CAM2:", dashboardRoot._cam2RenderCount,
+                        "CAM3:", dashboardRoot._cam3RenderCount)
+
+            dashboardRoot._cam1Count = 0
+            dashboardRoot._cam2Count = 0
+            dashboardRoot._cam3Count = 0
+            dashboardRoot._cam4Count = 0
+            dashboardRoot._cam1RenderCount = 0
+            dashboardRoot._cam2RenderCount = 0
+            dashboardRoot._cam3RenderCount = 0
+            dashboardRoot._cam4RenderCount = 0
         }
     }
 
@@ -120,15 +168,19 @@ ColumnLayout {
             let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
+                dashboardRoot._cam1Count++;
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
+                dashboardRoot._cam2Count++;
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
+                dashboardRoot._cam3Count++;
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
+                dashboardRoot._cam4Count++;
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -290,7 +342,11 @@ ColumnLayout {
                                         opacity: 1.0
                                         onStatusChanged: {
                                             if (status === Image.Ready) {
-                                                            cameraImageBack.source = source
+                                                cameraImageBack.source = source;
+                                                if (index === 0) dashboardRoot._cam1RenderCount++;
+                                                else if (index === 1) dashboardRoot._cam2RenderCount++;
+                                                else if (index === 2) dashboardRoot._cam3RenderCount++;
+                                                else if (index === 3) dashboardRoot._cam4RenderCount++;
                                             }
                                             if (status === Image.Error) {
                                                 source = source;  // 재시도 방지
@@ -462,7 +518,12 @@ ColumnLayout {
                                         anchors.right: parent.right
                                         anchors.bottom: parent.bottom
                                         anchors.margins: 12
-                                        text: "CAM-0" + (index + 1)
+                                        // text: "CAM-0" + (index + 1)
+                                        text: {
+                                                let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                           dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                                return "CAM-0" + (index + 1) + "  " + fps[index] + "fps"
+                                            }
                                         color: "white"
                                         font.pixelSize: 12
                                         font.bold: true
@@ -474,11 +535,27 @@ ColumnLayout {
                                     MouseArea {
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        onClicked: console.log("Camera " + (index + 1) + " clicked")
+                                        // onClicked: console.log("Camera " + (index + 1) + " clicked")
+
+                                        onClicked: {
+                                                // parent(Rectangle)가 아닌 실제 이미지 객체의 source를 참조
+                                                // 확실한 문자열(String) 처리를 위해 형변환 및 빈 문자열 대체(fallback) 적용
+                                                var targetSource = cameraImageBack.source.toString() || cameraImageFront.source.toString() || "";
+
+                                                // 소스가 유효할 때만 팝업을 엽니다.
+                                                if (targetSource !== "") {
+                                                    expandedCameraPopup.currentSource = targetSource;
+                                                    expandedCameraPopup.currentTitle = "CAM-0" + (index + 1) + " 상세화면";
+                                                    expandedCameraPopup.open();
+                                                } else {
+                                                    console.log("카메라 신호가 없어 팝업을 열 수 없습니다.");
+                                                }
                                     }
                                 }
                             }
                         }
+                    }
+
                     }
                 }
 
@@ -1224,4 +1301,52 @@ ColumnLayout {
             }
         }
     }
+    // Dashboard.qml 하단에 추가
+    // Popup {
+    //     id: expandedCameraPopup
+    //     parent: Overlay.overlay
+    //     width: parent.width * 0.9
+    //     height: parent.height * 0.9
+    //     anchors.centerIn: parent
+    //     modal: true
+    //     focus: true
+    //     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    //     property string currentSource: ""
+    //     property string currentTitle: ""
+
+    //     background: Rectangle {
+    //         color: "black"
+    //         radius: 10
+    //     }
+
+    //     ColumnLayout {
+    //         anchors.fill: parent
+    //         spacing: 10
+
+    //         Text {
+    //             text: expandedCameraPopup.currentTitle
+    //             color: "white"
+    //             font.bold: true
+    //             Layout.alignment: Qt.AlignHCenter
+    //         }
+
+    //         Image {
+    //             id: expandedImage
+    //             source: expandedCameraPopup.currentSource
+    //             fillMode: Image.PreserveAspectFit
+    //             Layout.fillWidth: true
+    //             Layout.fillHeight: true
+
+    //             // 실시간 갱신을 위해 캐시 방지
+    //             cache: false
+    //         }
+
+    //         Button {
+    //             text: "닫기"
+    //             Layout.alignment: Qt.AlignHCenter
+    //             onClicked: expandedCameraPopup.close()
+    //         }
+    //     }
+    // }
 }
