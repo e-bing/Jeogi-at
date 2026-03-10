@@ -96,6 +96,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+//  HAL_NVIC_SetPriority(SysTick_IRQn, 3, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -147,7 +148,7 @@ int main(void)
     UART_Handler_Process();
 
     // start: LED panel
-    /* ?���???????????? ?��?�� 버퍼 갱신 */
+    /* ?���????????????? ?��?�� 버퍼 갱신 */
     AppTask_Run();
     /* LED panel refresh */
     //    HUB75_RefreshStep();
@@ -226,7 +227,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM4)
   {
     // Set flag to process data in the main loop
-    HUB75_RefreshStep_ISR();
+//    HUB75_RefreshStep_ISR();
   }
 }
 /* USER CODE END 4 */
