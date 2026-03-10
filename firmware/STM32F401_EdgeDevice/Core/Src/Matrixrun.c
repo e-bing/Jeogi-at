@@ -117,5 +117,5 @@ void MatrixRun_SetScreen(uint8_t screen)
     if (screen > 2U) return;
     current_screen = screen;
     last_switch_tick = HAL_GetTick();  // 타이머 리셋 (바로 안 넘어가게)
-    dashboard_dirty = 1U;
+    last_refresh_tick = 0U;
 }
