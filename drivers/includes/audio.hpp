@@ -28,4 +28,10 @@ void play_wav(int index);
  */
 const std::vector<std::string>& get_wav_list();
 
+/**
+ * @brief 오디오 MQTT 구독을 초기화합니다.
+ *        audio/control 토픽을 구독하여 서버 명령을 STM32로 전달합니다.
+ */
+void init_audio_mqtt();
+
 #endif // AUDIO_HPP
