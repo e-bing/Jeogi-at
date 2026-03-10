@@ -276,25 +276,29 @@ void handle_client(int client_socket) {
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
-        enqueue_json_packet(send_queue, queue_mutex, queue_cv,
-                            json{{"type", "realtime_air"},
-                                 {"title", "🌫️ 실시간 공기질"},
-                                 {"data", get_realtime_air_quality(conn)}}
-                                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{"type", "air_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "📊 공기질 통계"},
-                 {"data", get_air_quality_stats(conn, "CAM-01")}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{"type", "flow_stats"},
-                 {"camera", "CAM-01"},
-                 {"title", "👥 승객 흐름 통계"},
-                 {"data", get_passenger_flow_stats(conn, "CAM-01")}}
-                .dump());
+        {
+          auto payload = json{{"type", "realtime_air"},
+                               {"title", "🌫️ 실시간 공기질"},
+                               {"data", get_realtime_air_quality(conn)}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload = json{{"type", "air_stats"},
+                               {"camera", "CAM-01"},
+                               {"title", "📊 공기질 통계"},
+                               {"data", get_air_quality_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload = json{{"type", "flow_stats"},
+                               {"camera", "CAM-01"},
+                               {"title", "👥 승객 흐름 통계"},
+                               {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
       } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }

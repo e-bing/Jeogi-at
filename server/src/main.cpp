@@ -164,11 +164,6 @@ int main() {
       }
     }
 
-    cout << "\r[CONGESTION] ";
-    for (int i = 0; i < 8; ++i) cout << levels[i] << " ";
-
-    cout << "| Total: " << (g_hw_objects.size() + total_pi)
-         << "명 | Pi: " << g_pi_node_map.size() << "  " << flush;
   }
 
   running = false;  // 루프 종료 신호
