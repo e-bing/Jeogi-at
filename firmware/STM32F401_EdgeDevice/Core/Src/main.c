@@ -227,7 +227,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM4)
   {
     // Set flag to process data in the main loop
-//    HUB75_RefreshStep_ISR();
+	  // need compare TIM4_IRQHandler()
+    HUB75_RefreshStep_ISR();
   }
 }
 /* USER CODE END 4 */
