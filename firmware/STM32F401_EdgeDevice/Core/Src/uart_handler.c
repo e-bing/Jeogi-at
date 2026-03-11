@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "uart_handler.h"
 #include "uart_protocol.h"
 #include "Data_Manager.h"
@@ -6,6 +7,8 @@
 #include "services/sd_storage.h"
 #include "mq7.h"
 #include "mq135.h"
+// #include "sht20.h"
+#include "Matrixrun.h"
 
 /* ─────────────────────────────────────────
    내부 변수
@@ -254,6 +257,26 @@ void UART_Handler_Process(void)
                pkt.data[0], pkt.data[7]);
         UART_SendACK(pkt.cmd);
         break;
+
+    case CMD_DISPLAY_CTRL:
+    {
+        if (pkt.len == 0 || pkt.len >= PKT_MAX_DATA_LEN)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        char action[PKT_MAX_DATA_LEN];
+        memcpy(action, pkt.data, pkt.len);
+        action[pkt.len] = '\0';
+
+        printf("[UART] DISPLAY_CTRL: %s\r\n", action);
+
+        int screen = atoi(action) - 1;  // "1"→0, "2"→1, "3"→2
+        MatrixRun_SetScreen((uint8_t)screen);
+
+        UART_SendACK(pkt.cmd);
+        break;
+    }
 
     case CMD_PLAY_WAV:
         printf("[RECV] PLAY_WAV\r\n");
