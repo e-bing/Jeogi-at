@@ -117,6 +117,7 @@ void MatrixRun_SetCongestionBulk(const uint8_t data[8])
 void MatrixRun_SetScreen(uint8_t screen)
 {
     if (screen > 2U) return;
+    HUB75_Clear();
     current_screen = screen;
     last_switch_tick = HAL_GetTick();  // 타이머 리셋 (바로 안 넘어가게)
     last_refresh_tick = 0U;
