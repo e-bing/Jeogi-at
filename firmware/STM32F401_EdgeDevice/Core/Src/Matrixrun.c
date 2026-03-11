@@ -11,14 +11,15 @@ static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
 
-#define DASHBOARD_REFRESH_MS 100U
+#define DASHBOARD_REFRESH_MS 5000U
+
 #define DASHBOARD_SHOW_MS 10000U
 #define GAS_SHOW_MS 5000U
 #define TEMP_HUM_SHOW_MS 5000U
 
 static void MatrixRun_ShowDashboard(void)
 {
-  HUB75_Clear();
+//  HUB75_Clear(); // first clear
   Screen_Show_StatusRow(congestion_status);
   Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
 }
@@ -53,6 +54,7 @@ void MatrixRun_Run(void)
 
   if ((now - last_switch_tick) >= stay_ms)
   {
+    HUB75_Clear();
     current_screen = (uint8_t)((current_screen + 1U) % 3U);
     last_switch_tick = now;
 
