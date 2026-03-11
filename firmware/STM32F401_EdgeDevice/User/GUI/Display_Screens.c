@@ -170,7 +170,7 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
                                          uint16_t top_color,
                                          uint16_t bottom_color)
 {
-    HUB75_Clear();
+    // HUB75_Clear();
     // Two-row layout (top 16px / bottom 16px)
     Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
     Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
