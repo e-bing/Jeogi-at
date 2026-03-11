@@ -22,6 +22,8 @@ struct CameraData {
   std::vector<uint8_t> frame_buffer;
   std::vector<DetectedObject> objects;
   std::mutex data_mutex;
+  int width = 640;
+  int height = 480;
 };
 
 extern std::map<std::string, std::shared_ptr<CameraData>> g_pi_node_map;
