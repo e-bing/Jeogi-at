@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# sudo 없이 실행하면 자동으로 sudo로 재실행
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 SRC_DIR="$SCRIPT_DIR/src"
 
@@ -28,6 +33,7 @@ fi
 
 sudo chmod 666 /dev/motor 2>/dev/null && echo "✅ /dev/motor 권한 설정 완료"
 sudo chmod 666 /dev/sht20 2>/dev/null && echo "✅ /dev/sht20 권한 설정 완료"
+sudo chmod 666 /dev/ttyS0 2>/dev/null && echo "✅ /dev/ttyS0 권한 설정 완료"
 
 echo ""
 echo "=============================================="

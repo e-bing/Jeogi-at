@@ -172,9 +172,9 @@ void pi_worker(std::atomic<bool>* client_connected, std::queue<SendPacket>& q,
           lock_guard<mutex> d_lock(camData->data_mutex);
           if (!camData->frame_buffer.empty()) {
             // 1. Raw YUV -> JPEG 압축 (파이 노드용)
-            // 파이 노드의 해상도(640x480 가정)에 맞춰 Mat 생성
-            int w = 640;
-            int h = 480;
+            // 해상도는 frame_buffer 크기로 동적 계산
+            int w = camData->width;
+            int h = camData->height;
             cv::Mat yuv_frame(h * 1.5, w, CV_8UC1,
                               camData->frame_buffer.data());
             cv::Mat bgr_frame;
@@ -276,27 +276,30 @@ void handle_client(int client_socket) {
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
-                 {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
-                 {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
-                 {Protocol::FIELD_CAMERA, "CAM-01"},
-                 {Protocol::FIELD_TITLE, "📊 공기질 통계"},
-                 {Protocol::FIELD_DATA, get_air_quality_stats(conn, "CAM-01")}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
-                 {Protocol::FIELD_CAMERA, "CAM-01"},
-                 {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
-                 {Protocol::FIELD_DATA,
-                  get_passenger_flow_stats(conn, "CAM-01")}}
-                .dump());
+        {
+          auto payload = json{{"type", "realtime_air"},
+                              {"title", "🌫️ 실시간 공기질"},
+                              {"data", get_realtime_air_quality(conn)}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload = json{{"type", "air_stats"},
+                              {"camera", "CAM-01"},
+                              {"title", "📊 공기질 통계"},
+                              {"data", get_air_quality_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload =
+              json{{"type", "flow_stats"},
+                   {"camera", "CAM-01"},
+                   {"title", "👥 승객 흐름 통계"},
+                   {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+                  .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
       } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }
