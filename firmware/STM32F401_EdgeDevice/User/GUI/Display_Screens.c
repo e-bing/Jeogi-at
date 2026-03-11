@@ -70,11 +70,11 @@ static int clamp_int(int v, int lo, int hi)
 
 static uint16_t co2_to_color(int co2_ppm)
 {
-    if (co2_ppm <= 300)
+    if (co2_ppm <= 400)
     {
         return GREEN;
     }
-    if (co2_ppm <= 600)
+    if (co2_ppm <= 700)
     {
         return YELLOW;
     }
@@ -170,8 +170,6 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
                                          uint16_t top_color,
                                          uint16_t bottom_color)
 {
-    HUB75_Clear();
-
     // Two-row layout (top 16px / bottom 16px)
     Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
     Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
@@ -316,4 +314,3 @@ void Screen_Show_TempHum(DB_Data_t *data)
 
     Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *", 5, 3, 1U, 0U, WHITE, WHITE);
 }
-
