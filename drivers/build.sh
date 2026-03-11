@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# sudo 없이 실행하면 자동으로 sudo로 재실행
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 SRC_DIR="$SCRIPT_DIR/src"
 
