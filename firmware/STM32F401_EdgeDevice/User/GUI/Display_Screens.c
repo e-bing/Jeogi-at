@@ -170,8 +170,7 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
                                          uint16_t top_color,
                                          uint16_t bottom_color)
 {
-    //    HUB75_Clear();
-
+    HUB75_Clear();
     // Two-row layout (top 16px / bottom 16px)
     Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
     Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
@@ -240,7 +239,7 @@ void Screen_Show_StatusRow(const uint8_t status[8])
     uint8_t left_good = 0;
     uint8_t right_good = 0;
     const uint16_t center_x = 34;
-    const uint16_t guide_y = 26;
+    const uint16_t guide_y = 27;
 
     for (i = 0; i < 8; i++)
     {
