@@ -318,13 +318,19 @@ vector<string> send_to_stm32_get_wavs(int uart_fd) {
         PKT_ETX
     };
 
+    tcflush(uart_fd, TCIFLUSH);
     write(uart_fd, pkt, sizeof(pkt));
     tcdrain(uart_fd);
     cout << "📤 [→STM32] GET_WAVS" << endl;
 
     vector<uint8_t> rx;
-    if (!read_packet(uart_fd, rx, 5000)) {
+    if (!read_packet(uart_fd, rx, 10000)) {
         cerr << "❌ GET_WAVS 응답 타임아웃" << endl;
+        return {};
+    }
+
+    if (rx[1] != CMD_RESP_WAVS) {
+        cerr << "❌ GET_WAVS 잘못된 응답 CMD: " << hex << (int)rx[1] << dec << endl;
         return {};
     }
 
