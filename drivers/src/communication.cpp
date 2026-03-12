@@ -231,8 +231,8 @@ bool send_to_stm32_get_co(int uart_fd, float& out_co) {
     uint8_t req[] = {0xAA, 0x01, 0x00, 0x54, 0x55};
     write(uart_fd, req, sizeof(req));
     vector<uint8_t> rx;
-    if (read_packet(uart_fd, rx, 300) && rx.size() >= 7 && rx[2] >= 2) {
-        out_co = (float)((rx[3] << 8) | rx[4]) / 100.0f;
+    if (read_packet(uart_fd, rx, 300) && rx.size() >= 9 && rx[2] >= 4) {
+        out_co = (float)((rx[5] << 8) | rx[6]) / 100.0f;
         return true;
     }
     return false;
@@ -247,8 +247,8 @@ bool send_to_stm32_get_co2(int uart_fd, float& out_co2) {
     uint8_t req[] = {0xAA, 0x02, 0x00, 0x57, 0x55};
     write(uart_fd, req, sizeof(req));
     vector<uint8_t> rx;
-    if (read_packet(uart_fd, rx, 300) && rx.size() >= 7 && rx[2] >= 2) {
-        out_co2 = (float)((rx[3] << 8) | rx[4]) / 100.0f;
+    if (read_packet(uart_fd, rx, 300) && rx.size() >= 9 && rx[2] >= 4) {
+        out_co2 = (float)((rx[5] << 8) | rx[6]) / 100.0f;
         return true;
     }
     return false;
