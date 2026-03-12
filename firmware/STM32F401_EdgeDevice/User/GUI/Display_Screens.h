@@ -7,6 +7,6 @@
 
 void Screen_Show_CO2(DB_Data_t* data);
 void Screen_Show_TempHum(DB_Data_t* data);
-void Screen_Show_StatusRow(const uint8_t status[8]);
+void Screen_Show_StatusRow(const uint8_t status[8], uint8_t guide_mode);
 
 #endif
