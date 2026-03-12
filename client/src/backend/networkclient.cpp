@@ -304,6 +304,9 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   } else if (type == Protocol::MSG_FLOW_STATS) {
     processFlowStatsData(dataVal.toArray());
 
+  } else if (type == "temp_humi_stats") {
+    processTempHumiStatsData(dataVal.toArray());
+
   } else if (type == Protocol::MSG_SYSTEM_MONITOR) {
     processSystemMonitorData(jsonObj);
 
@@ -401,6 +404,14 @@ void NetworkClient::processFlowStatsData(const QJsonArray &data) {
     result.append(obj);
   }
   emit flowStatsReceived(result.toVariantList());
+}
+
+void NetworkClient::processTempHumiStatsData(const QJsonArray &data) {
+  QJsonArray result;
+  for (const QJsonValue &val : data) {
+    result.append(val.toObject());
+  }
+  emit tempHumiStatsReceived(result.toVariantList());
 }
 
 void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {
