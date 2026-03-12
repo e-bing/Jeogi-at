@@ -17,6 +17,7 @@ ColumnLayout {
     property var realtimeData: []
     property var airStatsData: []
     property var flowStatsData: []
+    property var tempHumiStatsData: []
 
     Timer {
         id: connectionTimer
@@ -75,6 +76,13 @@ ColumnLayout {
                 arr.push(data[i]);
             console.log("Flow Stats JSON: " + JSON.stringify(arr));
             flowStatsData = arr;
+        }
+        onTempHumiStatsReceived: function (data) {
+            console.log("Statistics - Temp/Humi Stats Received: " + data.length);
+            var arr = [];
+            for (var i = 0; i < data.length; ++i)
+                arr.push(data[i]);
+            tempHumiStatsData = arr;
         }
 
         Component.onCompleted: {
@@ -185,6 +193,24 @@ ColumnLayout {
                 text: tab2.text
                 font: Style.fontRegular
                 color: tab2.checked ? Style.colorSlate800 : Style.colorSlate600
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideNone
+            }
+        }
+        TabButton {
+            id: tab4
+            text: "🌡️ 온습도 통계"
+            Layout.fillWidth: true
+            background: Rectangle {
+                color: tab4.checked ? Style.colorSurface : Style.colorSlate200
+                border.color: Style.colorTableBorder
+                border.width: 1
+            }
+            contentItem: Text {
+                text: tab4.text
+                font: Style.fontRegular
+                color: tab4.checked ? Style.colorSlate800 : Style.colorSlate600
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideNone
@@ -329,11 +355,6 @@ ColumnLayout {
                 width: parent.width
                 spacing: 20
 
-                Text {
-                    text: "일주일간의 공기질(CO, 가스) 분석 데이터입니다."
-                    color: Style.colorSlate500
-                }
-
                 // Group by Day logic is complex in QML directly without a proper model
                 // For simplicity, we just list them all or rely on C++ grouping.
                 // Assuming flat list for now or we update C++ to send grouped data.
@@ -347,7 +368,7 @@ ColumnLayout {
                         width: parent.width
                         spacing: 0
                         Repeater {
-                            model: ["요일", "시간", "CO (ppm)\n(임계값: 25)", "CO2 (ppm)\n(임계값: 600)", "상태"]
+                            model: ["요일", "시간", "CO (ppm)", "CO2 (ppm)", "상태"]
                             Rectangle {
                                 Layout.fillWidth: true
                                 height: 40
@@ -425,7 +446,89 @@ ColumnLayout {
             }
         }
 
-        // Tab 3: Flow Stats
+        // Tab 3: Temp/Humi Stats
+        ScrollView {
+            contentWidth: availableWidth
+            ColumnLayout {
+                width: parent.width
+                spacing: 20
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 400
+                    clip: true
+                    model: tempHumiStatsData
+                    header: RowLayout {
+                        width: parent.width
+                        spacing: 0
+                        Repeater {
+                            model: ["요일", "시간", "온도 (°C)", "습도 (%)"]
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 40
+                                color: "#3B82F6"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData
+                                    color: "white"
+                                    font.bold: true
+                                }
+                            }
+                        }
+                    }
+                    delegate: RowLayout {
+                        width: parent.width
+                        height: 40
+                        spacing: 0
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 40
+                            color: Style.colorSurface
+                            border.color: Style.colorTableBorder
+                            Text {
+                                anchors.centerIn: parent
+                                text: getDayName(modelData.day)
+                                color: Style.colorSlate800
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 40
+                            color: Style.colorSurface
+                            border.color: Style.colorTableBorder
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.hour + "시"
+                                color: Style.colorSlate800
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 40
+                            color: Style.colorSurface
+                            border.color: Style.colorTableBorder
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.temp.toFixed(1) + "°C"
+                                color: Style.colorSlate800
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 40
+                            color: Style.colorSurface
+                            border.color: Style.colorTableBorder
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.humi.toFixed(1) + "%"
+                                color: Style.colorSlate800
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tab 4: Flow Stats
         ScrollView {
             contentWidth: availableWidth
             ColumnLayout {
