@@ -28,17 +28,22 @@ void receive_sensor_data(int uart_fd) {
 
     cout << "🚀 센서 데이터 수집 시작 (1초 주기)" << endl;
 
+    static float last_co  = 0.0f;
+    static float last_co2 = 0.0f;
+
     while (true) {
-        float current_co  = 0.0f;
-        float current_co2 = 0.0f;
+        float current_co  = last_co;
+        float current_co2 = last_co2;
 
         // 1. CO 요청
-        send_to_stm32_get_co(uart_fd, current_co);
+        if (send_to_stm32_get_co(uart_fd, current_co))
+            last_co = current_co;
 
         this_thread::sleep_for(chrono::milliseconds(100));
 
         // 2. CO2 요청
-        send_to_stm32_get_co2(uart_fd, current_co2);
+        if (send_to_stm32_get_co2(uart_fd, current_co2))
+            last_co2 = current_co2;
 
         // 3. 서버로 CO/CO2 전송
         send_to_server_sensor(current_co, current_co2);
