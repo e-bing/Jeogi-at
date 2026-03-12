@@ -28,6 +28,26 @@ ColumnLayout {
     property int cam3Count: 0
     property int cam4Count: 0
 
+    property int cam1Fps: 0
+    property int cam2Fps: 0
+    property int cam3Fps: 0
+    property int cam4Fps: 0
+
+    property int _cam1Count: 0
+    property int _cam2Count: 0
+    property int _cam3Count: 0
+    property int _cam4Count: 0
+
+    property int cam1RenderFps: 0
+    property int cam2RenderFps: 0
+    property int cam3RenderFps: 0
+    property int cam4RenderFps: 0
+
+    property int _cam1RenderCount: 0
+    property int _cam2RenderCount: 0
+    property int _cam3RenderCount: 0
+    property int _cam4RenderCount: 0
+
     Timer {
         id: connectionTimer
         interval: 1000
@@ -35,6 +55,34 @@ ColumnLayout {
         onTriggered: {
             console.log("Dashboard - Auto-connecting...");
             client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+        }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            dashboardRoot.cam1Fps = dashboardRoot._cam1Count
+            dashboardRoot.cam2Fps = dashboardRoot._cam2Count
+            dashboardRoot.cam3Fps = dashboardRoot._cam3Count
+            dashboardRoot.cam4Fps = dashboardRoot._cam4Count
+
+            console.log("[FPS] 수신 CAM1:", dashboardRoot._cam1Count,
+                        "CAM2:", dashboardRoot._cam2Count,
+                        "CAM3:", dashboardRoot._cam3Count)
+            console.log("[FPS] 렌더 CAM1:", dashboardRoot._cam1RenderCount,
+                        "CAM2:", dashboardRoot._cam2RenderCount,
+                        "CAM3:", dashboardRoot._cam3RenderCount)
+
+            dashboardRoot._cam1Count = 0
+            dashboardRoot._cam2Count = 0
+            dashboardRoot._cam3Count = 0
+            dashboardRoot._cam4Count = 0
+            dashboardRoot._cam1RenderCount = 0
+            dashboardRoot._cam2RenderCount = 0
+            dashboardRoot._cam3RenderCount = 0
+            dashboardRoot._cam4RenderCount = 0
         }
     }
 
@@ -120,15 +168,19 @@ ColumnLayout {
             let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
+                dashboardRoot._cam1Count++;
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
             } else if (cameraId === 2) {
+                dashboardRoot._cam2Count++;
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
             } else if (cameraId === 3) {
+                dashboardRoot._cam3Count++;
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
             } else if (cameraId === 4) {
+                dashboardRoot._cam4Count++;
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
             }
@@ -290,7 +342,11 @@ ColumnLayout {
                                         opacity: 1.0
                                         onStatusChanged: {
                                             if (status === Image.Ready) {
-                                                            cameraImageBack.source = source
+                                                cameraImageBack.source = source;
+                                                if (index === 0) dashboardRoot._cam1RenderCount++;
+                                                else if (index === 1) dashboardRoot._cam2RenderCount++;
+                                                else if (index === 2) dashboardRoot._cam3RenderCount++;
+                                                else if (index === 3) dashboardRoot._cam4RenderCount++;
                                             }
                                             if (status === Image.Error) {
                                                 source = source;  // 재시도 방지
@@ -462,7 +518,12 @@ ColumnLayout {
                                         anchors.right: parent.right
                                         anchors.bottom: parent.bottom
                                         anchors.margins: 12
-                                        text: "CAM-0" + (index + 1)
+                                        // text: "CAM-0" + (index + 1)
+                                        text: {
+                                                let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                           dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                                return "CAM-0" + (index + 1) + "  " + fps[index] + "fps"
+                                            }
                                         color: "white"
                                         font.pixelSize: 12
                                         font.bold: true
@@ -474,12 +535,27 @@ ColumnLayout {
                                     MouseArea {
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        onClicked: console.log("Camera " + (index + 1) + " clicked")
+                                        // onClicked: console.log("Camera " + (index + 1) + " clicked")
+
+                                        onClicked: {
+                                            // 소스가 비어있지 않은지 확인 (문자열 강제 형변환)
+                                            var targetSource = String(cameraImageBack.source) || String(cameraImageFront.source);
+
+                                            if (targetSource !== "") {
+                                                // Repeater의 현재 index를 팝업에 전달하여 실시간 바인딩 활성화
+                                                expandedCameraPopup.currentCameraIndex = index;
+                                                expandedCameraPopup.currentTitle = "CAM-0" + (index + 1) + " 확대화면";
+                                                expandedCameraPopup.open();
+                                            } else {
+                                                console.log("카메라 신호가 없어 확대할 수 없습니다.");
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
                 }
 
                 // Environment Card
@@ -1219,6 +1295,121 @@ ColumnLayout {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    // Dashboard.qml 하단에 추가
+    Popup {
+        id: expandedCameraPopup
+        parent: Overlay.overlay
+        width: parent.width * 0.9
+        height: parent.height * 0.9
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        // 정적 소스 대신 카메라 인덱스를 받아 동적 바인딩에 사용
+        property int currentCameraIndex: -1
+        property string currentTitle: ""
+
+        background: Rectangle {
+            color: "black"
+            radius: 10
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            Text {
+                text: expandedCameraPopup.currentTitle
+                color: "white"
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            // 팝업 내부 더블 버퍼링 렌더링 영역
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                Image {
+                    id: expandedImageBack
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    cache: false
+                    visible: true
+                }
+
+                Image {
+                    id: expandedImageFront
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    cache: false
+                    visible: status === Image.Ready
+
+                    // 메인 화면과 동일하게 dashboardRoot의 camXSource 변경을 실시간 감지
+                    source: {
+                        if (expandedCameraPopup.currentCameraIndex === 0)
+                            return dashboardRoot.cam1Source;
+                        if (expandedCameraPopup.currentCameraIndex === 1)
+                            return dashboardRoot.cam2Source;
+                        if (expandedCameraPopup.currentCameraIndex === 2)
+                            return dashboardRoot.cam3Source;
+                        if (expandedCameraPopup.currentCameraIndex === 3)
+                            return dashboardRoot.cam4Source;
+                        return "";
+                    }
+
+                    // 로딩 완료 시 백버퍼 업데이트로 깜빡임 제거
+                    onStatusChanged: {
+                        if (status === Image.Ready) {
+                            expandedImageBack.source = source;
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: 20
+                Layout.preferredWidth: 140
+                Layout.preferredHeight: 44
+
+                radius: height / 2  // 높이의 절반으로 설정하여 완벽한 알약 모양 생성
+
+                // MouseArea의 상태에 따라 배경색 즉각 반영
+                color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
+                border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
+                border.width: 1
+
+                // 부드러운 색상 전환 애니메이션
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "닫기"
+                    color: closeMouseArea.pressed ? "#94A3B8" : "white"
+                    font.pixelSize: 15
+                    font.bold: true
+                    font.letterSpacing: 1.0
+                }
+
+                MouseArea {
+                    id: closeMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor // 마우스를 올렸을 때 클릭 가능한 손가락 커서로 변경
+
+                    onClicked: {
+                        expandedCameraPopup.currentCameraIndex = -1; // 소스 연결 해제
+                        expandedCameraPopup.close();
                     }
                 }
             }

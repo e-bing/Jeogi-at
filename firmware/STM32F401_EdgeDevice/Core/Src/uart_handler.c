@@ -1,13 +1,14 @@
+#include <stdlib.h>
 #include "uart_handler.h"
 #include "uart_protocol.h"
 #include "Data_Manager.h"
-#include "usart.h" // CubeMX 생성 파일 (huart2 등)
+#include "usart.h"
 #include "services/audio_player.h"
 #include "services/sd_storage.h"
-// #include "led_panel.h"
 #include "mq7.h"
 #include "mq135.h"
 // #include "sht20.h"
+#include "Matrixrun.h"
 
 /* ─────────────────────────────────────────
    내부 변수
@@ -85,7 +86,7 @@ void UART_RxCallback(uint8_t byte)
         if (rxPkt.len > PKT_MAX_DATA_LEN)
         {
             // 길이 오류: 즉시 리셋
-            printf("LEN FAIL len=%u max=%u\r\n", rxPkt.len, PKT_MAX_DATA_LEN);
+//            printf("LEN FAIL len=%u max=%u\r\n", rxPkt.len, PKT_MAX_DATA_LEN);
             rxState = STATE_WAIT_STX;
             break;
         }
@@ -112,7 +113,6 @@ void UART_RxCallback(uint8_t byte)
             {
                 pktReady = 1;
                 pendingPkt = rxPkt;
-                printf("OK cmd=%02X len=%d\r\n", rxPkt.cmd, rxPkt.len);
             }
             else
             {
@@ -258,6 +258,26 @@ void UART_Handler_Process(void)
         UART_SendACK(pkt.cmd);
         break;
 
+    case CMD_DISPLAY_CTRL:
+    {
+        if (pkt.len == 0 || pkt.len >= PKT_MAX_DATA_LEN)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        char action[PKT_MAX_DATA_LEN];
+        memcpy(action, pkt.data, pkt.len);
+        action[pkt.len] = '\0';
+
+        printf("[UART] DISPLAY_CTRL: %s\r\n", action);
+
+        int screen = atoi(action) - 1;  // "1"→0, "2"→1, "3"→2
+        MatrixRun_SetScreen((uint8_t)screen);
+
+        UART_SendACK(pkt.cmd);
+        break;
+    }
+
     case CMD_PLAY_WAV:
         printf("[RECV] PLAY_WAV\r\n");
         if (pkt.len == 0 || pkt.len > 255)
@@ -269,8 +289,8 @@ void UART_Handler_Process(void)
         char filename[256];
         memcpy(filename, pkt.data, pkt.len);
         filename[pkt.len] = '\0';
-        //        if (!wav_exists(filename)) { send_nack(ERR_NOT_FOUND); break; }
-        Audio_PlayWav(filename);
+
+        Audio_StartWav(filename);
         UART_SendNACK(CMD_ACK, 0);
         break;
 
@@ -280,9 +300,7 @@ void UART_Handler_Process(void)
         uint8_t data[255];
         uint8_t len;
 
-//        sd_print_files();
         sd_read_files("/", data, &len);
-        //			if (sd_read_files("/", data, &len) != FR_OK) return;
         SendPacket(CMD_RESP_WAVS, data, len);
 
         break;

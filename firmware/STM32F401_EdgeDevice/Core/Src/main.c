@@ -96,6 +96,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+//  HAL_NVIC_SetPriority(SysTick_IRQn, 3, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -114,14 +115,18 @@ int main(void)
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_USART6_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
+  // test: LED panel & timer
+  AppTask_Init();
+  HAL_TIM_Base_Start_IT(&htim4);
 
   // test: sensor & motor
   // Start Timer with Interrupt
-  //  HAL_TIM_Base_Start_IT(&htim3);
-//    MQ135_Init();
-//    MQ7_Init();
+  //    HAL_TIM_Base_Start_IT(&htim3);
+  MQ135_Init();
+  MQ7_Init();
 
   // test: LED panel
   AppTask_Init();
@@ -139,11 +144,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	// start: uart handler
+    // start: uart handler
     UART_Handler_Process();
 
-    // test: LED panel
+    // start: LED panel
+    /* ?���????????????? ?��?�� 버퍼 갱신 */
     AppTask_Run();
+    /* LED panel refresh */
+    //    HUB75_RefreshStep();
+
+    // start: Audio play
+    Audio_Process();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -203,12 +215,20 @@ void SystemClock_Config(void)
  * @brief  Timer Period Elapsed Callback (Triggered every 1 second)
  * @param  htim: Timer handle
  */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM3)
   {
     // Set flag to process data in the main loop
     timer_flag = 1;
+  }
+
+  if (htim->Instance == TIM4)
+  {
+    // Set flag to process data in the main loop
+	  // need compare TIM4_IRQHandler()
+    HUB75_RefreshStep_ISR();
   }
 }
 /* USER CODE END 4 */

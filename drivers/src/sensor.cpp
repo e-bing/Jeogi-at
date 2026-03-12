@@ -28,38 +28,22 @@ void receive_sensor_data(int uart_fd) {
 
     cout << "🚀 센서 데이터 수집 시작 (1초 주기)" << endl;
 
+    static float last_co  = 0.0f;
+    static float last_co2 = 0.0f;
+
     while (true) {
-        float current_co  = 0.0f;
-        float current_co2 = 0.0f;
-        vector<uint8_t> rx_pkt;
+        float current_co  = last_co;
+        float current_co2 = last_co2;
 
-        // 1. GET_CO 요청 전송 및 응답 수신 (300ms 대기)
-        // 패킷: [AA][01][00][54][55]
-        uint8_t req_co[] = {0xAA, 0x01, 0x00, 0x54, 0x55};
-        write(uart_fd, req_co, sizeof(req_co));
-
-        if (read_packet(uart_fd, rx_pkt, 300)) {
-            // 응답 프레임: [STX][CMD][LEN][DATA...][CRC][ETX]
-            // rx_pkt[3], rx_pkt[4] = CO 값 상위/하위 바이트, 단위: 0.01 ppm
-            if (rx_pkt.size() >= 7) {
-                current_co = (float)((rx_pkt[3] << 8) | rx_pkt[4]) / 100.0f;
-            }
-        }
+        // 1. CO 요청
+        if (send_to_stm32_get_co(uart_fd, current_co))
+            last_co = current_co;
 
         this_thread::sleep_for(chrono::milliseconds(100));
 
-        // 2. GET_CO2 요청 전송 및 응답 수신 (300ms 대기)
-        // 패킷: [AA][02][00][57][55]
-        uint8_t req_co2[] = {0xAA, 0x02, 0x00, 0x57, 0x55};
-        write(uart_fd, req_co2, sizeof(req_co2));
-
-        rx_pkt.clear();
-        if (read_packet(uart_fd, rx_pkt, 300)) {
-            // rx_pkt[3], rx_pkt[4] = CO2 값 상위/하위 바이트, 단위: 0.01 ppm
-            if (rx_pkt.size() >= 7) {
-                current_co2 = (float)((rx_pkt[3] << 8) | rx_pkt[4]) / 100.0f;
-            }
-        }
+        // 2. CO2 요청
+        if (send_to_stm32_get_co2(uart_fd, current_co2))
+            last_co2 = current_co2;
 
         // 3. 서버로 CO/CO2 전송
         send_to_server_sensor(current_co, current_co2);

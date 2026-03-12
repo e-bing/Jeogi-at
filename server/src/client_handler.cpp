@@ -175,9 +175,9 @@ void pi_worker(std::atomic<bool> *client_connected, std::queue<SendPacket> &q,
           lock_guard<mutex> d_lock(camData->data_mutex);
           if (!camData->frame_buffer.empty()) {
             // 1. Raw YUV -> JPEG 압축 (파이 노드용)
-            // 파이 노드의 해상도(640x480 가정)에 맞춰 Mat 생성
-            int w = 640;
-            int h = 480;
+            // 해상도는 frame_buffer 크기로 동적 계산
+            int w = camData->width;
+            int h = camData->height;
             cv::Mat yuv_frame(h * 1.5, w, CV_8UC1,
                               camData->frame_buffer.data());
             cv::Mat bgr_frame;

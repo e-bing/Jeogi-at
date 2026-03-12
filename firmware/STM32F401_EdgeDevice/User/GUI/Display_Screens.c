@@ -70,11 +70,11 @@ static int clamp_int(int v, int lo, int hi)
 
 static uint16_t co2_to_color(int co2_ppm)
 {
-    if (co2_ppm <= 300)
+    if (co2_ppm <= 400)
     {
         return GREEN;
     }
-    if (co2_ppm <= 600)
+    if (co2_ppm <= 700)
     {
         return YELLOW;
     }
@@ -163,15 +163,16 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
                                          int bottom_deci_value,
                                          const char *top_unit,
                                          const char *bottom_unit,
-                                         uint16_t value_x_offset,
+                                         uint16_t top_value_x_offset,
+                                         uint16_t bottom_value_x_offset,
                                          uint16_t unit_x_offset,
+                                         uint16_t bottom_label_x_offset,
                                          uint8_t top_show_decimal,
                                          uint8_t show_color_box,
                                          uint16_t top_color,
                                          uint16_t bottom_color)
 {
-    HUB75_Clear();
-
+    // HUB75_Clear();
     // Two-row layout (top 16px / bottom 16px)
     Paint_DrawRectangle(1, 1, 64, 15, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
     Paint_DrawRectangle(1, 17, 64, 32, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
@@ -179,11 +180,11 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
     Paint_DrawString_EN(5, 5, top_label, &Font8, BLACK, RED);
     if (top_show_decimal != 0U)
     {
-        draw_tiny_7seg_1decimal((uint16_t)(22 + value_x_offset), 7, top_deci_value, WHITE);
+        draw_tiny_7seg_1decimal((uint16_t)(22 + top_value_x_offset), 7, top_deci_value, WHITE);
     }
     else
     {
-        draw_tiny_7seg_3digit((uint16_t)(23 + value_x_offset), 7, top_deci_value / 10, WHITE);
+        draw_tiny_7seg_3digit((uint16_t)(23 + top_value_x_offset), 7, top_deci_value / 10, WHITE);
     }
     Paint_DrawString_EN((uint16_t)(37 + unit_x_offset), 5, top_unit, &Font8, BLACK, YELLOW);
     if (show_color_box != 0U)
@@ -191,15 +192,13 @@ static void Screen_Show_DualMetricLayout(const char *top_label,
         Paint_DrawPoint(57, 8, top_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
     }
 
-    Paint_DrawString_EN(5, 21, bottom_label, &Font8, BLACK, BLUE);
-    draw_tiny_7seg_1decimal((uint16_t)(22 + value_x_offset), 23, bottom_deci_value, WHITE);
+    Paint_DrawString_EN((uint16_t)(5 + bottom_label_x_offset), 21, bottom_label, &Font8, BLACK, BLUE);
+    draw_tiny_7seg_1decimal((uint16_t)(22 + bottom_value_x_offset), 23, bottom_deci_value, WHITE);
     Paint_DrawString_EN((uint16_t)(37 + unit_x_offset), 21, bottom_unit, &Font8, BLACK, YELLOW);
     if (show_color_box != 0U)
     {
         Paint_DrawPoint(57, 24, bottom_color, DOT_PIXEL_4X4, DOT_STYLE_DFT);
     }
-
-    HUB75_Display();
 }
 
 static void draw_center_triangle_marker(uint16_t center_x, uint16_t top_y, uint16_t color)
@@ -227,22 +226,30 @@ static void draw_long_left_arrow(uint16_t start_x, uint16_t y, uint16_t color)
 static void draw_long_right_arrow(uint16_t start_x, uint16_t y, uint16_t color)
 {
     // Pointed head (vertical heights: 1,3,5,7 from tip outward)
-    Paint_DrawLine(60, y, 60, y, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawLine(59, y - 1, 59, y + 1, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawLine(58, y - 2, 58, y + 2, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawLine(57, y - 3, 57, y + 3, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(62, y, 62, y, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(61, y - 1, 61, y + 1, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(60, y - 2, 60, y + 2, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(59, y - 3, 59, y + 3, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
 
     // Long shaft
-    Paint_DrawLine(start_x, y, 56, y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
+    Paint_DrawLine(start_x, y, 58, y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
 }
 
-void Screen_Show_StatusRow(const uint8_t status[8])
+static void draw_small_up_arrow(uint16_t center_x, uint16_t tip_y, uint16_t color)
+{
+    Paint_DrawPoint(center_x, tip_y, color, DOT_PIXEL_1X1, DOT_STYLE_DFT);
+    Paint_DrawLine(center_x - 1, tip_y + 1, center_x + 1, tip_y + 1, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(center_x - 2, tip_y + 2, center_x + 2, tip_y + 2, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    Paint_DrawLine(center_x, tip_y + 3, center_x, tip_y + 5, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+}
+
+void Screen_Show_StatusRow(const uint8_t status[8], uint8_t guide_mode)
 {
     uint8_t i;
     uint8_t left_good = 0;
     uint8_t right_good = 0;
     const uint16_t center_x = 34;
-    const uint16_t guide_y = 26;
+    const uint16_t guide_y = 27;
 
     for (i = 0; i < 8; i++)
     {
@@ -280,19 +287,38 @@ void Screen_Show_StatusRow(const uint8_t status[8])
     // Current position marker between car 4 and 5
     draw_center_triangle_marker(center_x, 21, RED);
 
-    // Guidance arrow toward side with more GREEN cars
-    if (left_good > right_good)
+    // Clear only the guidance area so previous mode graphics do not remain.
+    Paint_DrawRectangle(1, 24, 64, 32, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+
+    if (guide_mode == 0U)
     {
-        draw_long_left_arrow(center_x - 3, guide_y, GREEN);
-    }
-    else if (right_good > left_good)
-    {
-        draw_long_right_arrow(center_x + 3, guide_y, GREEN);
+        // Guidance arrow toward side with more GREEN cars
+        if (left_good > right_good)
+        {
+            draw_long_left_arrow(center_x - 3, guide_y, GREEN);
+        }
+        else if (right_good > left_good)
+        {
+            draw_long_right_arrow(center_x + 3, guide_y, GREEN);
+        }
+        else
+        {
+            draw_long_left_arrow(center_x - 3, guide_y, GREEN);
+            draw_long_right_arrow(center_x + 3, guide_y, GREEN);
+        }
     }
     else
     {
-        draw_long_left_arrow(center_x - 3, guide_y, GREEN);
-        draw_long_right_arrow(center_x + 3, guide_y, GREEN);
+        // Highlight all low-congestion platforms (status==0) with green upward arrows.
+        for (i = 0; i < 8; i++)
+        {
+            if (status[i] == 0U)
+            {
+                uint16_t car_x_start = 7 + (i * 7);
+                uint16_t arrow_center_x = car_x_start + 2;
+                draw_small_up_arrow(arrow_center_x, 25, GREEN);
+            }
+        }
     }
 }
 
@@ -308,7 +334,8 @@ void Screen_Show_CO2(DB_Data_t *data)
     co2_color = co2_to_color(co2_ppm);
     co_color = co_to_color(co_ppm);
 
-    Screen_Show_DualMetricLayout("CO2", "CO", co2_ppm * 10, co_ppm, "PPM", "PPM", 0, 0, 0U, 1U, co2_color, co_color);
+    Screen_Show_DualMetricLayout("CO2", "CO", co2_ppm * 10, co_ppm, "PPM", "PPM",
+                                 0, 4, 0, 0, 0U, 1U, co2_color, co_color);
 }
 
 void Screen_Show_TempHum(DB_Data_t *data)
@@ -316,6 +343,6 @@ void Screen_Show_TempHum(DB_Data_t *data)
     int temp_deci = (int)(data->temp_val * 10.0 + 0.5);
     int hum_deci = (int)(data->hum_val * 10.0 + 0.5);
 
-    Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *", 5, 3, 1U, 0U, WHITE, WHITE);
+    Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *",
+                                 5, 5, 3, 2, 1U, 0U, WHITE, WHITE);
 }
-

@@ -18,7 +18,9 @@
 // 센서, 모터 및 DB 관련 헤더
 #include "../includes/client_handler.hpp"
 #include "../includes/database.hpp"
+#include "../includes/display.hpp"
 #include "../includes/motor.hpp"
+#include "../includes/audio.hpp"
 #include "../includes/sensor.hpp"
 
 // 모니터링 헤더
@@ -60,6 +62,8 @@ int main() {
 
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
+  init_mqtt_audio();
+  init_mqtt_display();
   init_system_monitor();
 
   // 2. 센서 통신 스레드 시작 (UART + DB)
@@ -160,11 +164,6 @@ int main() {
       }
     }
 
-    cout << "\r[CONGESTION] ";
-    for (int i = 0; i < 8; ++i) cout << levels[i] << " ";
-
-    cout << "| Total: " << (g_hw_objects.size() + total_pi)
-         << "명 | Pi: " << g_pi_node_map.size() << "  " << flush;
   }
 
   running = false;  // 루프 종료 신호

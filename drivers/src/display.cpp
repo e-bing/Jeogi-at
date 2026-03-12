@@ -29,8 +29,21 @@ public:
     try {
       json data = json::parse(msg->get_payload_str());
 
+      // display/control: {"type": "display_control", "action": "on"/"off"/...}
+      if (data.value(Protocol::FIELD_TYPE, "") == Protocol::MSG_DISPLAY_CONTROL) {
+        string action = data.value(Protocol::FIELD_ACTION, "");
+        if (action.empty()) {
+          cerr << "[Display] JSON 오류: action 누락" << endl;
+          return;
+        }
+        cout << "[Display] 제어 명령 수신: " << action << endl;
+        send_to_stm32_display_control(uart_fd_, action);
+        return;
+      }
+
+      // iot/server/status/congestion: {"levels": [...], "update_time": ...}
       if (!data.contains("levels") || !data["levels"].is_array()) {
-        cerr << "[Display] JSON 오류: levels 누락" << endl;
+        cerr << "[Display] JSON 오류: 알 수 없는 메시지" << endl;
         return;
       }
 
@@ -43,7 +56,6 @@ public:
         levels.push_back(v.get<int>());
       }
 
-      // update_time 기준 30초 이상 지연 시 경고
       if (data.contains("update_time")) {
         long long update_time = data["update_time"].get<long long>();
         auto now = chrono::system_clock::to_time_t(chrono::system_clock::now());
@@ -92,7 +104,9 @@ void init_display(int uart_fd) {
 
     g_display_mqtt->connect(opts)->wait();
     g_display_mqtt->subscribe(topic, 1)->wait();
-    cout << "[Display] MQTT 연결 완료, 구독: " << topic << endl;
+    g_display_mqtt->subscribe(Protocol::MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL, 1)->wait();
+    cout << "[Display] MQTT 연결 완료, 구독: " << topic
+         << ", " << Protocol::MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL << endl;
   } catch (const mqtt::exception &e) {
     cerr << "[Display] MQTT 초기화 실패: " << e.what() << endl;
   }

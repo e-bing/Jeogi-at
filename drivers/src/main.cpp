@@ -9,13 +9,15 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <csignal>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 using namespace std;
 
 // STM32와 연결된 UART fd. sensor.cpp, sht20.cpp, audio.cpp, display.cpp에서 공유 사용
-int g_uart_fd = -1;
+int g_uart_fd  = -1;
+int g_sht20_fd = -1;
 
 int main() {
     cout << "========================================" << endl;
@@ -24,6 +26,7 @@ int main() {
 
     // 1. MQTT 초기화 (communication.cpp)
     init_comm_mqtt();
+    init_motor_mqtt();
 
     // 2. UART 초기화 및 CO/CO2 센서 수신 스레드 시작
     g_uart_fd = init_comm_uart("/dev/ttyS0");
@@ -34,17 +37,18 @@ int main() {
     }
 
     // 3. SHT20 온습도 센서 초기화 및 모니터링 스레드 시작
-    int sht20_fd = init_sht20();
-    if (sht20_fd >= 0) {
-        thread([sht20_fd]() { run_sht20_monitor(sht20_fd); }).detach();
+    g_sht20_fd = init_sht20();
+    if (g_sht20_fd >= 0) {
+        thread([]() { run_sht20_monitor(g_sht20_fd); }).detach();
         cout << "📡 SHT20 온습도 모니터링 시작" << endl;
     } else {
         cerr << "❌ SHT20 초기화 실패" << endl;
     }
 
-    // 4. 오디오 초기화 (STM32에서 WAV 목록 수신)
+    // 4. 오디오 초기화 (STM32에서 WAV 목록 수신) + MQTT 구독
     if (g_uart_fd >= 0) {
         init_audio(g_uart_fd);
+        init_audio_mqtt();
     }
 
     // 5. 디스플레이 MQTT 구독 초기화
@@ -68,13 +72,17 @@ int main() {
         }
     }).detach();
 
+    signal(SIGINT, [](int) {
+        close_uart(g_uart_fd);
+        close_sht20(g_sht20_fd);
+        exit(0);
+    });
+
     cout << "✅ 모든 서비스 가동 중" << endl;
 
     while (true) {
         this_thread::sleep_for(chrono::hours(24));
     }
 
-    close_uart(g_uart_fd);
-    close_sht20(sht20_fd);
     return 0;
 }

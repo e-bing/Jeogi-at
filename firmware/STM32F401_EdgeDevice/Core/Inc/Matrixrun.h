@@ -6,5 +6,6 @@
 void MatrixRun_Init(void);
 void MatrixRun_Run(void);
 void MatrixRun_SetCongestionBulk(const uint8_t data[8]);
+void MatrixRun_SetScreen(uint8_t screen);
 
 #endif /* MATRIXRUN_H */

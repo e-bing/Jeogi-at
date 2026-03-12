@@ -1,34 +1,3 @@
-/*****************************************************************************
-* | File      	:   RGBMatrix_device.h
-* | Author      :   Waveshare team
-* | Function    :   Hardware underlying interface
-* | Info        :
-*                Used to shield the underlying layers of each master 
-*                and enhance portability
-*----------------
-* |	This version:   V1.0
-* | Date        :   2023-10-21
-* | Info        :
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documnetation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to  whom the Software is
-# furished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS OR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
-******************************************************************************/
 #ifndef _DEV_CONFIG_H_
 #define _DEV_CONFIG_H_
 
@@ -40,44 +9,93 @@
 #include <string.h>
 #include "fonts.h"
 
-
-
 #define UBYTE   uint8_t
 #define UWORD   uint16_t
 #define UDOUBLE uint32_t
 
 #include "GUI_Paint.h"
 
-#define LED_chain 2 // STM32F103RB  MAX = 3 ,There is not enough memory, the maximum cache size is 3
-#define LED_Width 64 * LED_chain
+#define LED_chain 2
+#define LED_Width  (64 * LED_chain)
 #define LED_Height 32
 
-#define SCROLL_SPEED 5 // The minimum scroll speed is not less than 5. If it is less than 5, misalignment will occur.
-
+#define SCROLL_SPEED 5
 #define HAL_DELAY_NEWBIE 0
 
 void DWT_Init(void);
 void DWT_Delay(uint32_t us);
 
+/* =========================================================
+ * Fast GPIO control using BSRR
+ * ========================================================= */
+#define GPIO_SET(port, pin)      ((port)->BSRR = (pin))
+#define GPIO_RESET(port, pin)    ((port)->BSRR = ((uint32_t)(pin) << 16U))
+
+/* ---------------- RGB data pins ---------------- */
+#define RGB_R1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_12)
+#define RGB_R1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_12)
+
+#define RGB_G1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_2)
+#define RGB_G1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_2)
+
+#define RGB_B1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_1)
+#define RGB_B1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_1)
+
+#define RGB_R2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_15)
+#define RGB_R2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_15)
+
+#define RGB_G2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_4)
+#define RGB_G2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_4)
+
+#define RGB_B2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_14)
+#define RGB_B2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_14)
 
 
-#define RGB_R1(value)  HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_G1(value)  HAL_GPIO_WritePin(G1_GPIO_Port, G1_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_B1(value)  HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
+/* ---------------- Row select pins ---------------- */
+#define RGB_A_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_12)
+#define RGB_A_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_12)
 
-#define RGB_R2(value)  HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_G2(value)  HAL_GPIO_WritePin(G2_GPIO_Port, G2_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_B2(value)  HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
+#define RGB_B_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_11)
+#define RGB_B_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_11)
 
-#define RGB_A(value)  HAL_GPIO_WritePin(A_GPIO_Port, A_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_B(value)  HAL_GPIO_WritePin(B_GPIO_Port, B_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_C(value)  HAL_GPIO_WritePin(C_GPIO_Port, C_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_D(value)  HAL_GPIO_WritePin(D_GPIO_Port, D_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_E(value)  HAL_GPIO_WritePin(E_GPIO_Port, E_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
+#define RGB_C_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_6)
+#define RGB_C_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_6)
 
-#define RGB_CLK(value)  HAL_GPIO_WritePin(CLK_GPIO_Port, CLK_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_LAT(value)  HAL_GPIO_WritePin(LAT_GPIO_Port, LAT_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
-#define RGB_OE(value)   HAL_GPIO_WritePin(OE_GPIO_Port, OE_Pin,(value >= 1)? GPIO_PIN_SET: GPIO_PIN_RESET)
+#define RGB_D_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_7)
+#define RGB_D_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_7)
+
+
+/* ---------------- Control pins ---------------- */
+#define RGB_CLK_HIGH()   GPIO_SET(GPIOB, GPIO_PIN_13)
+#define RGB_CLK_LOW()    GPIO_RESET(GPIOB, GPIO_PIN_13)
+
+#define RGB_LAT_HIGH()   GPIO_SET(GPIOB, GPIO_PIN_5)
+#define RGB_LAT_LOW()    GPIO_RESET(GPIOB, GPIO_PIN_5)
+
+#define RGB_OE_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_6)
+#define RGB_OE_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_6)
+
+/* -------------------------------------------------
+ * Optional compatibility macros
+ * 기존 코드 많이 건드리기 싫으면 임시로 유지 가능
+ * 성능상으론 HIGH/LOW 직접 호출이 더 낫다
+ * ------------------------------------------------- */
+#define RGB_R1(value)    do { if (value) RGB_R1_HIGH(); else RGB_R1_LOW(); } while (0)
+#define RGB_G1(value)    do { if (value) RGB_G1_HIGH(); else RGB_G1_LOW(); } while (0)
+#define RGB_B1(value)    do { if (value) RGB_B1_HIGH(); else RGB_B1_LOW(); } while (0)
+
+#define RGB_R2(value)    do { if (value) RGB_R2_HIGH(); else RGB_R2_LOW(); } while (0)
+#define RGB_G2(value)    do { if (value) RGB_G2_HIGH(); else RGB_G2_LOW(); } while (0)
+#define RGB_B2(value)    do { if (value) RGB_B2_HIGH(); else RGB_B2_LOW(); } while (0)
+
+#define RGB_A(value)     do { if (value) RGB_A_HIGH(); else RGB_A_LOW(); } while (0)
+#define RGB_B(value)     do { if (value) RGB_B_HIGH(); else RGB_B_LOW(); } while (0)
+#define RGB_C(value)     do { if (value) RGB_C_HIGH(); else RGB_C_LOW(); } while (0)
+#define RGB_D(value)     do { if (value) RGB_D_HIGH(); else RGB_D_LOW(); } while (0)
+
+#define RGB_CLK(value)   do { if (value) RGB_CLK_HIGH(); else RGB_CLK_LOW(); } while (0)
+#define RGB_LAT(value)   do { if (value) RGB_LAT_HIGH(); else RGB_LAT_LOW(); } while (0)
+#define RGB_OE(value)    do { if (value) RGB_OE_HIGH(); else RGB_OE_LOW(); } while (0)
 
 void HUB75_Init(void);
 void RGBMatrixWriteData(void);
@@ -89,12 +107,7 @@ void scrollRight(void);
 void scrollUp(void);
 void scrollDown(void);
 
-
-
-
-
-
-
-
+void HUB75_RefreshStep(void);
+void HUB75_RefreshStep_ISR(void);
 
 #endif

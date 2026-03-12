@@ -8,20 +8,23 @@
 static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
 static uint8_t dashboard_dirty = 1U;
 static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
+static uint8_t dashboard_guide_mode = 0U; // 0: side guidance, 1: per-platform up arrows
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
+static uint32_t last_dashboard_mode_tick = 0U;
 
-#define DASHBOARD_REFRESH_MS 100U
+#define DASHBOARD_REFRESH_MS 5000U
+#define DASHBOARD_GUIDE_TOGGLE_MS 2000U
+
 #define DASHBOARD_SHOW_MS 10000U
 #define GAS_SHOW_MS 5000U
 #define TEMP_HUM_SHOW_MS 5000U
 
 static void MatrixRun_ShowDashboard(void)
 {
-  HUB75_Clear();
-  Screen_Show_StatusRow(congestion_status);
+//  HUB75_Clear(); // first clear
+  Screen_Show_StatusRow(congestion_status, dashboard_guide_mode);
   Paint_DrawRectangle(1, 1, 64, 32, RED, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-  HUB75_Display();
 }
 
 void MatrixRun_Init(void)
@@ -29,14 +32,17 @@ void MatrixRun_Init(void)
   MatrixRun_ShowDashboard();
   dashboard_dirty = 0U;
   current_screen = 0U;
+  dashboard_guide_mode = 0U;
   last_refresh_tick = HAL_GetTick();
   last_switch_tick = HAL_GetTick();
+  last_dashboard_mode_tick = HAL_GetTick();
 }
 
 void MatrixRun_Run(void)
 {
   uint32_t now = HAL_GetTick();
   uint8_t need_refresh;
+  uint8_t screen_changed = 0U;
   uint32_t stay_ms;
 
   if (current_screen == 0U)
@@ -54,16 +60,31 @@ void MatrixRun_Run(void)
 
   if ((now - last_switch_tick) >= stay_ms)
   {
+    HUB75_Clear();
     current_screen = (uint8_t)((current_screen + 1U) % 3U);
     last_switch_tick = now;
+    screen_changed = 1U;
 
     if (current_screen == 0U)
     {
       dashboard_dirty = 1U;
+      dashboard_guide_mode = 0U;
+      last_dashboard_mode_tick = now;
     }
   }
 
-  need_refresh = (current_screen == 0U) ? dashboard_dirty : 0U;
+  if ((current_screen == 0U) && ((now - last_dashboard_mode_tick) >= DASHBOARD_GUIDE_TOGGLE_MS))
+  {
+    dashboard_guide_mode = (uint8_t)(dashboard_guide_mode ^ 1U);
+    last_dashboard_mode_tick = now;
+    dashboard_dirty = 1U;
+  }
+
+  need_refresh = screen_changed;
+  if ((current_screen == 0U) && (dashboard_dirty != 0U))
+  {
+    need_refresh = 1U;
+  }
   if ((now - last_refresh_tick) >= DASHBOARD_REFRESH_MS)
   {
     need_refresh = 1U;
@@ -111,4 +132,13 @@ void MatrixRun_SetCongestionBulk(const uint8_t data[8])
   {
     dashboard_dirty = 1U;
   }
+}
+
+void MatrixRun_SetScreen(uint8_t screen)
+{
+    if (screen > 2U) return;
+    HUB75_Clear();
+    current_screen = screen;
+    last_switch_tick = HAL_GetTick();  // 타이머 리셋 (바로 안 넘어가게)
+    last_refresh_tick = 0U;
 }
