@@ -50,8 +50,8 @@ void AppTask_Init(void)
   HUB75_Init();
 
   Data_Manager_Init();
-  MQ7_Init();
-  MQ135_Init();
+  // MQ7_Init();
+  // MQ135_Init();
   Data_Manager_SetSensorValues(MQ7_ReadCO(&hadc1, SENSOR_EMA_ALPHA),
                                MQ135_ReadCO2(&hadc1, SENSOR_EMA_ALPHA));
   Data_Manager_SetTempHumValues(24.5f, 51.0f);
