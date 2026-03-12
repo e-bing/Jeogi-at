@@ -171,6 +171,43 @@ json get_air_quality_stats(MYSQL* conn, string cam_id) {
   return result;
 }
 
+json get_temp_humi_stats(MYSQL* conn, string cam_id) {
+  string sql = R"(
+        SELECT
+            DAYOFWEEK(recorded_at) AS d_idx,
+            HOUR(recorded_at) AS hour,
+            AVG(temperature) AS avg_temp,
+            AVG(humidity) AS avg_humi
+        FROM air_stats
+        WHERE station_id = 1
+          AND temperature IS NOT NULL
+          AND humidity IS NOT NULL
+        GROUP BY d_idx, hour;
+    )";
+
+  json result = json::array();
+
+  if (mysql_query(conn, sql.c_str())) {
+    cerr << "온습도 통계 쿼리 실패: " << mysql_error(conn) << endl;
+    return result;
+  }
+
+  MYSQL_RES* res = mysql_store_result(conn);
+  if (!res) return result;
+  MYSQL_ROW row;
+
+  while ((row = mysql_fetch_row(res))) {
+    json item = {{Protocol::FIELD_DAY,  row[0] ? stoi(row[0]) : 0},
+                 {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
+                 {Protocol::FIELD_TEMP, row[2] ? stod(row[2]) : 0.0},
+                 {Protocol::FIELD_HUMI, row[3] ? stod(row[3]) : 0.0}};
+    result.push_back(item);
+  }
+
+  mysql_free_result(res);
+  return result;
+}
+
 json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   string sql = R"(
         SELECT

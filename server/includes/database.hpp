@@ -30,6 +30,7 @@ json get_realtime_air_quality(MYSQL* conn);
 
 // 통계 데이터 조회
 json get_air_quality_stats(MYSQL* conn, string cam_id);
+json get_temp_humi_stats(MYSQL* conn, string cam_id);
 json get_passenger_flow_stats(MYSQL* conn, string cam_id);
 
 #endif // DATABASE_HPP

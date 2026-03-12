@@ -292,6 +292,14 @@ void handle_client(int client_socket) {
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
+          auto payload = json{{"type", "temp_humi_stats"},
+                              {"camera", "CAM-01"},
+                              {"title", "🌡️ 온습도 통계"},
+                              {"data", get_temp_humi_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
           auto payload =
               json{{"type", "flow_stats"},
                    {"camera", "CAM-01"},
