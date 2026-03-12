@@ -115,6 +115,7 @@ void handle_mqtt_command(const string& type, const string& action, int speed) {
         } else if (action == Protocol::ACTION_MANUAL) {
             g_auto_mode = false;
             cout << "👤 모드 변경: 수동 모드" << endl;
+            control_motor(0);
         }
     } else if (type == Protocol::MSG_MOTOR_CONTROL) {
         if (g_auto_mode) {
