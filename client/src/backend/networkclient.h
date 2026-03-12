@@ -117,6 +117,7 @@ signals:
                            const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
+  void tempHumiStatsReceived(QVariantList data);
 
 private slots:
   void onEncrypted();
@@ -138,6 +139,7 @@ private:
   void processRealtimeAirData(const QJsonArray &data);
   void processAirStatsData(const QJsonArray &data);
   void processFlowStatsData(const QJsonArray &data);
+  void processTempHumiStatsData(const QJsonArray &data);
   void processSystemMonitorData(const QJsonObject &obj);
   void processJsonResponse(const QByteArray &line);
 

@@ -25,6 +25,9 @@ constexpr const char *MSG_AIR_STATS = "air_stats";
 /// 승객 흐름 통계 (요일·시간대별 평균 승객 수)
 constexpr const char *MSG_FLOW_STATS = "flow_stats";
 
+/// 온습도 통계 (요일·시간대별 평균)
+constexpr const char *MSG_TEMP_HUMI_STATS = "temp_humi_stats";
+
 /// 입구별 혼잡도
 constexpr const char *MSG_ZONE_CONGESTION = "zone_congestion";
 
