@@ -2,6 +2,7 @@
 #include "database.hpp"
 #include "config_manager.hpp"
 #include <iostream>
+#include <vector>
 
 
 #include "../../protocol/message_types.hpp"
@@ -48,6 +49,21 @@ bool save_sensor_data(MYSQL *conn, float co, float co2, float temp,
     return false;
   }
   std::cout << "✅ DB 통합 저장 완료 (CO/CO2/Temp/Humi)" << endl;
+  return true;
+}
+
+bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::vector<int>& levels) {
+  for (int i = 0; i < 8; ++i) {
+    string sql =
+        "INSERT INTO camera_stats (station_id, camera_id, platform_no, passenger_count, congestion_stat, recorded_at) "
+        "VALUES (1, 'CAM-01', '" + to_string(i + 1) + "', " +
+        to_string(counts[i]) + ", " + to_string(levels[i]) + ", NOW())";
+
+    if (mysql_query(conn, sql.c_str())) {
+      cerr << "❌ camera_stats 저장 실패 (platform " << (i + 1) << "): " << mysql_error(conn) << endl;
+      return false;
+    }
+  }
   return true;
 }
 
@@ -218,7 +234,8 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
         SELECT
             DAYOFWEEK(recorded_at) AS d_idx,
             HOUR(recorded_at) AS hour,
-            AVG(passenger_count) AS avg_p
+            AVG(passenger_count) AS avg_p,
+            AVG(congestion_stat) AS avg_c
         FROM camera_stats
         WHERE camera_id = ')" +
                cam_id + R"('
@@ -240,7 +257,8 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   while ((row = mysql_fetch_row(res))) {
     json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
                  {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
-                 {Protocol::FIELD_AVG_COUNT, row[2] ? (int)stod(row[2]) : 0}};
+                 {Protocol::FIELD_AVG_COUNT, row[2] ? (int)stod(row[2]) : 0},
+                 {"avg_congestion", row[3] ? stod(row[3]) : 0.0}};
     result.push_back(item);
   }
 

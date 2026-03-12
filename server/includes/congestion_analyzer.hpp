@@ -29,6 +29,8 @@ class CongestionAnalyzer {
 
   // 분석된 8개 구역의 혼잡도(0,1,2)를 반환
   std::vector<int> getCongestionLevels();
+  // 분석된 8개 구역의 실제 인원수를 반환
+  std::vector<int> getCongestionCounts();
 
  private:
   void run();
@@ -43,6 +45,7 @@ class CongestionAnalyzer {
 
     std::vector<ZoneConfig> m_zones;
     std::vector<int>        m_current_levels;  // 혼잡도 레벨
+    std::vector<int>        m_current_counts;  // 구역별 인원수
     std::mutex              m_level_mutex;
 
     std::thread          m_thread;

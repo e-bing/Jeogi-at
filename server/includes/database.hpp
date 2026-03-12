@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 using json = nlohmann::json;
 using namespace std;
@@ -21,6 +22,7 @@ void close_db(MYSQL *conn);
 // 센서 데이터 저장
 bool save_sensor_data(MYSQL *conn, float co_value, float co2_value, float temp,
                       float humidity);
+bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::vector<int>& levels);
 
 // 실시간 데이터 조회
 json get_realtime_congestion(MYSQL *conn);

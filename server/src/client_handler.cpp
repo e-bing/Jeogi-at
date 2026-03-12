@@ -279,6 +279,7 @@ void handle_client(int client_socket) {
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
+        save_camera_stats(conn, g_analyzer.getCongestionCounts(), g_analyzer.getCongestionLevels());
         {
           auto payload = json{{"type", "realtime_air"},
                               {"title", "🌫️ 실시간 공기질"},
