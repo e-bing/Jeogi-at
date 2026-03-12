@@ -359,7 +359,18 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   double co = latestObj[Protocol::FIELD_CO_LEVEL].toDouble();
 
-  // UI 일관성을 위해 두 필드 모두 확실히 설정
+  // 온습도 필드 매핑 및 신호 발생 (Dashboard.qml 호환성)
+  if (latestObj.contains(Protocol::FIELD_TEMP) ||
+      latestObj.contains(Protocol::FIELD_HUMI)) {
+    QVariantMap thMap;
+    double temp = latestObj[Protocol::FIELD_TEMP].toDouble();
+    double humi = latestObj[Protocol::FIELD_HUMI].toDouble();
+    thMap["temperature"] = temp;
+    thMap["humidity"] = humi;
+    emit tempHumiReceived(thMap);
+  }
+
+  // UI 일관성을 위해 필드 설정
   latestObj[Protocol::FIELD_CO2_PPM] = co2;
   latestObj[Protocol::FIELD_CO_LEVEL] = co;
 
@@ -369,6 +380,8 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   qDebug() << "🕙 Recorded At:" << latestTime;
   qDebug() << "🌫️ CO2:" << co2 << "(raw_ppm)";
   qDebug() << "🌫️ CO:" << co << "(raw_level)";
+  qDebug() << "🌡️ Temp:" << latestObj[Protocol::FIELD_TEMP].toDouble() << "°C";
+  qDebug() << "💧 Humi:" << latestObj[Protocol::FIELD_HUMI].toDouble() << "%";
   qDebug() << "-----------------------------------------";
 
   latestObj[Protocol::FIELD_CO_STATUS] = coStatusString(co);
