@@ -279,35 +279,39 @@ void handle_client(int client_socket) {
     if (++db_tick >= 500) {
       db_tick = 0;
       try {
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
-                 {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
-                 {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
-                 {Protocol::FIELD_CAMERA, "CAM-01"},
-                 {Protocol::FIELD_TITLE, "📊 공기질 통계"},
-                 {Protocol::FIELD_DATA, get_air_quality_stats(conn, "CAM-01")}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
-                 {Protocol::FIELD_CAMERA, "CAM-01"},
-                 {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
-                 {Protocol::FIELD_DATA,
-                  get_passenger_flow_stats(conn, "CAM-01")}}
-                .dump());
-        enqueue_json_packet(
-            send_queue, queue_mutex, queue_cv,
-            json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
-                 {Protocol::FIELD_CAMERA, "CAM-01"},
-                 {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
-                 {Protocol::FIELD_DATA, get_temp_humi_stats(conn, "CAM-01")}}
-                .dump());
-      } catch (const exception &e) {
+        {
+          auto payload = json{{"type", "realtime_air"},
+                              {"title", "🌫️ 실시간 공기질"},
+                              {"data", get_realtime_air_quality(conn)}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload = json{{"type", "air_stats"},
+                              {"camera", "CAM-01"},
+                              {"title", "📊 공기질 통계"},
+                              {"data", get_air_quality_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload = json{{"type", "temp_humi_stats"},
+                              {"camera", "CAM-01"},
+                              {"title", "🌡️ 온습도 통계"},
+                              {"data", get_temp_humi_stats(conn, "CAM-01")}}
+                             .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload =
+              json{{"type", "flow_stats"},
+                   {"camera", "CAM-01"},
+                   {"title", "👥 승객 흐름 통계"},
+                   {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+                  .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+      } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }
     }
