@@ -35,6 +35,10 @@ public:
 
       int index = stoi(filename) - 1;
       cout << "[Audio] 재생 명령 수신: " << filename << " → index " << index << endl;
+      if (g_wav_list.empty()) {
+          cerr << "[Audio] WAV 목록 미수신 - 재생 불가" << endl;
+          return;
+      }
       play_wav(index);
     } catch (const exception &e) {
       cerr << "[Audio] JSON 파싱 실패: " << e.what() << endl;
