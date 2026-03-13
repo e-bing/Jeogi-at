@@ -271,12 +271,13 @@ void handle_client(int client_socket) {
           send_queue, queue_mutex, queue_cv,
           json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
                {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {"zone_counts", g_analyzer.getCongestionCounts()},
                {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
               .dump());
     }
 
-    // DB 데이터 (5초 주기)
-    if (++db_tick >= 500) {
+    // DB 데이터 (1초 주기)
+    if (++db_tick >= 100) {
       db_tick = 0;
       try {
         save_camera_stats(conn, g_analyzer.getCongestionCounts(), g_analyzer.getCongestionLevels());

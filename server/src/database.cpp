@@ -3,9 +3,27 @@
 #include "config_manager.hpp"
 #include <iostream>
 #include <vector>
+#include <chrono>
+#include <ctime>
 
 
 #include "../../protocol/message_types.hpp"
+
+static std::string get_sim_timestamp() {
+  static auto real_start = std::chrono::system_clock::now();
+
+  int scale = 3600;
+
+  auto now = std::chrono::system_clock::now();
+  long long elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - real_start).count();
+
+  auto sim = real_start + std::chrono::seconds(elapsed * scale);
+  std::time_t t = std::chrono::system_clock::to_time_t(sim);
+  std::tm* tm = std::localtime(&t);
+  char buf[32];
+  std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+  return std::string(buf);
+}
 
 /**
  * @brief config.json에서 DB 접속 정보를 읽어 연결합니다.
@@ -42,7 +60,7 @@ bool save_sensor_data(MYSQL *conn, float co, float co2, float temp,
                "temperature, humidity, fire_detected, recorded_at) "
                "VALUES (1, " +
                to_string(co) + ", " + to_string(co2) + ", " + to_string(temp) +
-               ", " + to_string(humi) + ", 0, NOW())";
+               ", " + to_string(humi) + ", 0, '" + get_sim_timestamp() + "')";
 
   if (mysql_query(conn, sql.c_str())) {
     cerr << "❌ DB 통합 저장 실패: " << mysql_error(conn) << endl;
@@ -57,7 +75,7 @@ bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::v
     string sql =
         "INSERT INTO camera_stats (station_id, camera_id, platform_no, passenger_count, congestion_stat, recorded_at) "
         "VALUES (1, 'CAM-01', '" + to_string(i + 1) + "', " +
-        to_string(counts[i]) + ", " + to_string(levels[i]) + ", NOW())";
+        to_string(counts[i]) + ", " + to_string(levels[i]) + ", '" + get_sim_timestamp() + "')";
 
     if (mysql_query(conn, sql.c_str())) {
       cerr << "❌ camera_stats 저장 실패 (platform " << (i + 1) << "): " << mysql_error(conn) << endl;
@@ -234,12 +252,14 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
         SELECT
             DAYOFWEEK(recorded_at) AS d_idx,
             HOUR(recorded_at) AS hour,
+            platform_no,
             AVG(passenger_count) AS avg_p,
             AVG(congestion_stat) AS avg_c
         FROM camera_stats
         WHERE camera_id = ')" +
                cam_id + R"('
-        GROUP BY d_idx, hour;
+        GROUP BY d_idx, hour, platform_no
+        ORDER BY d_idx, hour, CAST(platform_no AS UNSIGNED);
     )";
 
   json result = json::array();
@@ -257,8 +277,9 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   while ((row = mysql_fetch_row(res))) {
     json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
                  {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
-                 {Protocol::FIELD_AVG_COUNT, row[2] ? (int)stod(row[2]) : 0},
-                 {"avg_congestion", row[3] ? stod(row[3]) : 0.0}};
+                 {"platform", row[2] ? stoi(row[2]) : 0},
+                 {Protocol::FIELD_AVG_COUNT, row[3] ? (int)stod(row[3]) : 0},
+                 {"avg_congestion", row[4] ? stod(row[4]) : 0.0}};
     result.push_back(item);
   }
 
