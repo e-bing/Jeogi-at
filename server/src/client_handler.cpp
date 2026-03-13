@@ -271,43 +271,42 @@ void handle_client(int client_socket) {
           send_queue, queue_mutex, queue_cv,
           json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
                {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {"zone_counts", g_analyzer.getCongestionCounts()},
                {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
               .dump());
     }
 
-    // DB 데이터 (5초 주기)
-    if (++db_tick >= 500) {
+    // DB 데이터 (1초 주기)
+    if (++db_tick >= 100) {
       db_tick = 0;
       try {
+        save_camera_stats(conn, g_analyzer.getCongestionCounts(), g_analyzer.getCongestionLevels(), g_analyzer.getCameraIds());
         {
-          auto payload = json{{"type", "realtime_air"},
-                              {"title", "🌫️ 실시간 공기질"},
-                              {"data", get_realtime_air_quality(conn)}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                              {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                              {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{"type", "air_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "📊 공기질 통계"},
-                              {"data", get_air_quality_stats(conn, "CAM-01")}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                              {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                              {Protocol::FIELD_DATA, get_air_quality_stats(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{"type", "temp_humi_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "🌡️ 온습도 통계"},
-                              {"data", get_temp_humi_stats(conn, "CAM-01")}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
+                              {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
+                              {Protocol::FIELD_DATA, get_temp_humi_stats(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
           auto payload =
-              json{{"type", "flow_stats"},
-                   {"camera", "CAM-01"},
-                   {"title", "👥 승객 흐름 통계"},
-                   {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                   {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                   {Protocol::FIELD_DATA, get_passenger_flow_stats(conn)}}
                   .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
