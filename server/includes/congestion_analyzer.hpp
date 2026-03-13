@@ -31,6 +31,8 @@ class CongestionAnalyzer {
   std::vector<int> getCongestionLevels();
   // 분석된 8개 구역의 실제 인원수를 반환
   std::vector<int> getCongestionCounts();
+  // 8개 구역의 camera_id를 반환 (zone_id 순서)
+  std::vector<std::string> getCameraIds();
 
  private:
   void run();

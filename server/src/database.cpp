@@ -70,11 +70,11 @@ bool save_sensor_data(MYSQL *conn, float co, float co2, float temp,
   return true;
 }
 
-bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::vector<int>& levels) {
+bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::vector<int>& levels, const std::vector<std::string>& cam_ids) {
   for (int i = 0; i < 8; ++i) {
     string sql =
         "INSERT INTO camera_stats (station_id, camera_id, platform_no, passenger_count, congestion_stat, recorded_at) "
-        "VALUES (1, 'CAM-01', '" + to_string(i + 1) + "', " +
+        "VALUES (1, '" + cam_ids[i] + "', '" + to_string(i + 1) + "', " +
         to_string(counts[i]) + ", " + to_string(levels[i]) + ", '" + get_sim_timestamp() + "')";
 
     if (mysql_query(conn, sql.c_str())) {
@@ -172,17 +172,15 @@ json get_realtime_air_quality(MYSQL *conn) {
   return result;
 }
 
-json get_air_quality_stats(MYSQL *conn, string cam_id) {
+json get_air_quality_stats(MYSQL *conn) {
   string sql = R"(
         SELECT
-            DAYOFWEEK(C.recorded_at) AS d_idx,
-            HOUR(C.recorded_at) AS hour,
-            AVG(A.co_level) AS avg_co,
-            AVG(A.toxic_gas_level) AS avg_co2
-        FROM camera_stats C
-        JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
-        WHERE C.camera_id = ')" +
-               cam_id + R"('
+            DAYOFWEEK(recorded_at) AS d_idx,
+            HOUR(recorded_at) AS hour,
+            AVG(co_level) AS avg_co,
+            AVG(toxic_gas_level) AS avg_co2
+        FROM air_stats
+        WHERE station_id = 1
         GROUP BY d_idx, hour;
     )";
 
@@ -210,7 +208,7 @@ json get_air_quality_stats(MYSQL *conn, string cam_id) {
   return result;
 }
 
-json get_temp_humi_stats(MYSQL* conn, string cam_id) {
+json get_temp_humi_stats(MYSQL* conn) {
   string sql = R"(
         SELECT
             DAYOFWEEK(recorded_at) AS d_idx,
@@ -247,7 +245,7 @@ json get_temp_humi_stats(MYSQL* conn, string cam_id) {
   return result;
 }
 
-json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
+json get_passenger_flow_stats(MYSQL* conn) {
   string sql = R"(
         SELECT
             DAYOFWEEK(recorded_at) AS d_idx,
@@ -256,8 +254,7 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
             AVG(passenger_count) AS avg_p,
             AVG(congestion_stat) AS avg_c
         FROM camera_stats
-        WHERE camera_id = ')" +
-               cam_id + R"('
+        WHERE station_id = 1
         GROUP BY d_idx, hour, platform_no
         ORDER BY d_idx, hour, CAST(platform_no AS UNSIGNED);
     )";

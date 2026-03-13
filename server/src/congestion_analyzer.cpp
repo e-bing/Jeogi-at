@@ -113,3 +113,13 @@ std::vector<int> CongestionAnalyzer::getCongestionCounts() {
   std::lock_guard<std::mutex> lock(m_level_mutex);
   return m_current_counts;
 }
+
+std::vector<std::string> CongestionAnalyzer::getCameraIds() {
+  std::lock_guard<std::mutex> lock(m_level_mutex);
+  std::vector<std::string> ids(8, "");
+  for (const auto& z : m_zones) {
+    if (z.zone_id >= 1 && z.zone_id <= 8)
+      ids[z.zone_id - 1] = z.camera_id;
+  }
+  return ids;
+}
