@@ -2,53 +2,58 @@
 #include "drivers/storage/sd_spi.h"
 #include "spi.h"
 #include "i2s.h"
+
 #include <string.h>
 #include <stdio.h>
 
-/* ================= Buffer ================= */
+/* ================= Queue Config ================= */
 
-static int16_t mono_buf[AUDIO_MONO_SAMPLES];
+#define AUDIO_PLAYER_QUEUE_MAX   16U
+#define AUDIO_PLAYER_NAME_MAX    32U
+
+/* ================= Audio Buffers ================= */
+
+/* mono PCM read buffer */
+static int16_t s_monoBuf[AUDIO_PLAYER_MONO_SAMPLES];
 
 /* stereo double buffer
-   half0: i2s_buf[0 ... AUDIO_MONO_SAMPLES*2 - 1]
-   half1: i2s_buf[AUDIO_MONO_SAMPLES*2 ... end]
-*/
-static int16_t i2s_buf[AUDIO_MONO_SAMPLES * 2 * 2];
+ * half0: s_i2sBuf[0 ... AUDIO_PLAYER_MONO_SAMPLES*2 - 1]
+ * half1: s_i2sBuf[AUDIO_PLAYER_MONO_SAMPLES*2 ... end]
+ */
+static int16_t s_i2sBuf[AUDIO_PLAYER_MONO_SAMPLES * 2 * 2];
 
-static FIL wav_file;
+/* ================= File ================= */
 
-/* ================= Queue ================= */
+static FIL s_wavFile;
 
-#define AUDIO_QUEUE_MAX 16
-#define AUDIO_NAME_MAX  32
+/* ================= Audio Queue ================= */
 
-static char audio_queue[AUDIO_QUEUE_MAX][AUDIO_NAME_MAX];
-static volatile uint8_t q_head = 0;
-static volatile uint8_t q_tail = 0;
+static char s_audioQueue[AUDIO_PLAYER_QUEUE_MAX][AUDIO_PLAYER_NAME_MAX];
+static volatile uint8_t s_queueHead = 0;
+static volatile uint8_t s_queueTail = 0;
 
-/* ================= Status ================= */
+/* ================= Playback State ================= */
 
-volatile uint8_t buf_evt = 0;
-volatile uint8_t wav_eof = 0;
+static volatile uint8_t s_bufferEvent = 0;
+static volatile uint8_t s_wavEof = 0;
+static volatile uint8_t s_isFilling = 0;
+static volatile uint8_t s_isPlaying = 0;
+static volatile uint8_t s_stopPending = 0;
+
+/* ================= Debug Counters ================= */
 
 volatile uint32_t audio_i2s_err_cnt = 0;
 volatile uint32_t audio_miss_fill_cnt = 0;
 
-static volatile uint8_t filling = 0;
-static volatile uint8_t audio_playing = 0;
+/* ================= Internal Function Prototypes ================= */
 
-/* EOF 이후 마지막 DMA half 전송 완료까지 기다리기 위한 플래그 */
-static volatile uint8_t stop_pending = 0;
-
-/* ================= Internal ================= */
-
-static void Audio_FillHalf(int16_t *dst);
-static uint8_t Audio_QueueIsEmpty(void);
-static uint8_t Audio_QueueIsFull(void);
-static void Audio_QueueClear(void);
-static uint8_t Audio_Enqueue(const char *filename);
-static uint8_t Audio_Dequeue(char *out);
-static void Audio_PlayNextFromQueue(void);
+static void AudioPlayer_FillHalfBuffer(int16_t *dst);
+static uint8_t AudioPlayer_IsQueueEmpty(void);
+static uint8_t AudioPlayer_IsQueueFull(void);
+static void AudioPlayer_ClearQueue(void);
+static uint8_t AudioPlayer_Enqueue(const char *filename);
+static uint8_t AudioPlayer_Dequeue(char *out);
+static void AudioPlayer_PlayNextFromQueue(void);
 
 /* ================= Init ================= */
 
@@ -68,129 +73,133 @@ void Audio_Init(void)
             HAL_SPI_Init(&hspi2);
         }
 
-        FRESULT res = f_mount(&USERFatFS, USERPath, 1);
-        printf("FATFS mount = %d\r\n", res);
+        {
+            FRESULT res = f_mount(&USERFatFS, USERPath, 1);
+            printf("FATFS mount = %d\r\n", res);
+        }
     }
 }
 
 /* ================= Queue ================= */
 
-static uint8_t Audio_QueueIsEmpty(void)
+static uint8_t AudioPlayer_IsQueueEmpty(void)
 {
-    return (q_head == q_tail);
+    return (s_queueHead == s_queueTail);
 }
 
-static uint8_t Audio_QueueIsFull(void)
+static uint8_t AudioPlayer_IsQueueFull(void)
 {
-    return (((q_tail + 1) % AUDIO_QUEUE_MAX) == q_head);
+    return (((s_queueTail + 1U) % AUDIO_PLAYER_QUEUE_MAX) == s_queueHead);
 }
 
-static void Audio_QueueClear(void)
+static void AudioPlayer_ClearQueue(void)
 {
-    q_head = 0;
-    q_tail = 0;
+    s_queueHead = 0;
+    s_queueTail = 0;
 }
 
-static uint8_t Audio_Enqueue(const char *filename)
+static uint8_t AudioPlayer_Enqueue(const char *filename)
 {
-    if (Audio_QueueIsFull())
+    if (AudioPlayer_IsQueueFull())
     {
         printf("Audio Queue Full\r\n");
         return 0;
     }
 
-    strncpy(audio_queue[q_tail], filename, AUDIO_NAME_MAX - 1);
-    audio_queue[q_tail][AUDIO_NAME_MAX - 1] = '\0';
-    q_tail = (q_tail + 1) % AUDIO_QUEUE_MAX;
+    strncpy(s_audioQueue[s_queueTail], filename, AUDIO_PLAYER_NAME_MAX - 1U);
+    s_audioQueue[s_queueTail][AUDIO_PLAYER_NAME_MAX - 1U] = '\0';
+
+    s_queueTail = (s_queueTail + 1U) % AUDIO_PLAYER_QUEUE_MAX;
     return 1;
 }
 
-static uint8_t Audio_Dequeue(char *out)
+static uint8_t AudioPlayer_Dequeue(char *out)
 {
-    if (Audio_QueueIsEmpty())
+    if (AudioPlayer_IsQueueEmpty())
     {
         return 0;
     }
 
-    strncpy(out, audio_queue[q_head], AUDIO_NAME_MAX);
-    out[AUDIO_NAME_MAX - 1] = '\0';
-    q_head = (q_head + 1) % AUDIO_QUEUE_MAX;
+    strncpy(out, s_audioQueue[s_queueHead], AUDIO_PLAYER_NAME_MAX);
+    out[AUDIO_PLAYER_NAME_MAX - 1U] = '\0';
+
+    s_queueHead = (s_queueHead + 1U) % AUDIO_PLAYER_QUEUE_MAX;
     return 1;
 }
 
-static void Audio_PlayNextFromQueue(void)
+static void AudioPlayer_PlayNextFromQueue(void)
 {
-    char name[AUDIO_NAME_MAX];
+    char filename[AUDIO_PLAYER_NAME_MAX];
 
-    if (audio_playing)
+    if (s_isPlaying)
     {
         return;
     }
 
-    if (Audio_Dequeue(name))
+    if (AudioPlayer_Dequeue(filename))
     {
-        Audio_StartWav(name);
+        Audio_StartWav(filename);
     }
 }
 
-/* ================= Internal Fill ================= */
+/* ================= Buffer Fill ================= */
 
-static void Audio_FillHalf(int16_t *dst)
+static void AudioPlayer_FillHalfBuffer(int16_t *dst)
 {
-    UINT br = 0;
+    UINT bytesRead = 0;
 
-    if (wav_eof)
+    if (s_wavEof)
     {
-        memset(dst, 0, AUDIO_MONO_SAMPLES * 2 * sizeof(int16_t));
+        memset(dst, 0, AUDIO_PLAYER_MONO_SAMPLES * 2 * sizeof(int16_t));
         return;
     }
 
-    if (filling)
+    if (s_isFilling)
     {
         audio_miss_fill_cnt++;
     }
 
-    filling = 1;
+    s_isFilling = 1;
 
-    /* Read mono PCM */
-    f_read(&wav_file,
-           mono_buf,
-           AUDIO_MONO_SAMPLES * 2,
-           &br);
+    /* Read mono PCM data */
+    f_read(&s_wavFile,
+           s_monoBuf,
+           AUDIO_PLAYER_MONO_SAMPLES * 2,
+           &bytesRead);
 
     {
-        int samples = br / 2;
+        int sampleCount = (int)(bytesRead / 2U);
 
-        if (samples == 0)
+        if (sampleCount == 0)
         {
-            wav_eof = 1;
-            memset(dst, 0, AUDIO_MONO_SAMPLES * 2 * sizeof(int16_t));
-            filling = 0;
+            s_wavEof = 1;
+            memset(dst, 0, AUDIO_PLAYER_MONO_SAMPLES * 2 * sizeof(int16_t));
+            s_isFilling = 0;
             return;
         }
 
         /* mono -> stereo */
-        for (int i = 0; i < samples; i++)
+        for (int i = 0; i < sampleCount; i++)
         {
-            int16_t v = mono_buf[i];
-            dst[i * 2] = v;
-            dst[i * 2 + 1] = v;
+            int16_t sample = s_monoBuf[i];
+            dst[i * 2]     = sample;
+            dst[i * 2 + 1] = sample;
         }
 
-        /* 남는 구간 zero padding */
-        for (int i = samples; i < AUDIO_MONO_SAMPLES; i++)
+        /* zero padding */
+        for (int i = sampleCount; i < AUDIO_PLAYER_MONO_SAMPLES; i++)
         {
-            dst[i * 2] = 0;
+            dst[i * 2]     = 0;
             dst[i * 2 + 1] = 0;
         }
 
-        if (samples < AUDIO_MONO_SAMPLES)
+        if (sampleCount < AUDIO_PLAYER_MONO_SAMPLES)
         {
-            wav_eof = 1;
+            s_wavEof = 1;
         }
     }
 
-    filling = 0;
+    s_isFilling = 0;
 }
 
 /* ================= DMA Callbacks ================= */
@@ -199,7 +208,7 @@ void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
 {
     if (hi2s == &hi2s3)
     {
-        buf_evt |= 0x01;
+        s_bufferEvent |= 0x01;
     }
 }
 
@@ -207,7 +216,7 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
     if (hi2s == &hi2s3)
     {
-        buf_evt |= 0x02;
+        s_bufferEvent |= 0x02;
     }
 }
 
@@ -223,18 +232,17 @@ void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s)
 
 uint8_t Audio_StartWav(const char *filename)
 {
-    if (audio_playing)
+    if (s_isPlaying)
     {
-        /* 현재 재생 중이면 새로 시작하지 않음 */
         return 0;
     }
 
-    buf_evt = 0;
-    wav_eof = 0;
-    filling = 0;
-    stop_pending = 0;
+    s_bufferEvent = 0;
+    s_wavEof = 0;
+    s_isFilling = 0;
+    s_stopPending = 0;
 
-    if (f_open(&wav_file, filename, FA_READ) != FR_OK)
+    if (f_open(&s_wavFile, filename, FA_READ) != FR_OK)
     {
         printf("WAV Open Fail: %s\r\n", filename);
         return 0;
@@ -242,119 +250,116 @@ uint8_t Audio_StartWav(const char *filename)
 
     printf("Play Start: %s\r\n", filename);
 
-    if (f_lseek(&wav_file, AUDIO_WAV_HEADER_SIZE) != FR_OK)
+    if (f_lseek(&s_wavFile, AUDIO_PLAYER_WAV_HEADER_SIZE) != FR_OK)
     {
-        f_close(&wav_file);
+        f_close(&s_wavFile);
         return 0;
     }
 
-    memset(mono_buf, 0, sizeof(mono_buf));
-    memset(i2s_buf, 0, sizeof(i2s_buf));
+    memset(s_monoBuf, 0, sizeof(s_monoBuf));
+    memset(s_i2sBuf, 0, sizeof(s_i2sBuf));
 
     /* pre-fill */
-    Audio_FillHalf(&i2s_buf[0]);
-    Audio_FillHalf(&i2s_buf[AUDIO_MONO_SAMPLES * 2]);
+    AudioPlayer_FillHalfBuffer(&s_i2sBuf[0]);
+    AudioPlayer_FillHalfBuffer(&s_i2sBuf[AUDIO_PLAYER_MONO_SAMPLES * 2]);
 
-    if (HAL_I2S_Transmit_DMA(
-            &hi2s3,
-            (uint16_t *)i2s_buf,
-            AUDIO_MONO_SAMPLES * 2 * 2) != HAL_OK)
+    if (HAL_I2S_Transmit_DMA(&hi2s3,
+                             (uint16_t *)s_i2sBuf,
+                             AUDIO_PLAYER_MONO_SAMPLES * 2 * 2) != HAL_OK)
     {
-        f_close(&wav_file);
+        f_close(&s_wavFile);
         printf("I2S DMA Start Fail\r\n");
         return 0;
     }
 
-    audio_playing = 1;
+    s_isPlaying = 1;
     return 1;
 }
 
-
-// usage : Audio_Guide((char[8]){0, 1, 0, 1, 1, 0, 0, 0});
+/* usage: Audio_Guide((uint8_t[8]){0, 1, 0, 1, 1, 0, 0, 0}); */
 void Audio_Guide(const uint8_t *congestion)
 {
-    Audio_QueueClear();
+    AudioPlayer_ClearQueue();
 
-    Audio_Enqueue("guide_start.wav");
+    AudioPlayer_Enqueue("guide_start.wav");
 
     for (int i = 0; i < 8; i++)
     {
         if (congestion[i])
         {
-            char name[AUDIO_NAME_MAX];
-            sprintf(name, "guide_%d.wav", i + 1);
-            Audio_Enqueue(name);
+            char filename[AUDIO_PLAYER_NAME_MAX];
+            sprintf(filename, "guide_%d.wav", i + 1);
+            AudioPlayer_Enqueue(filename);
         }
     }
 
-    Audio_Enqueue("guide_end.wav");
+    AudioPlayer_Enqueue("guide_end.wav");
 
-    Audio_PlayNextFromQueue();
+    AudioPlayer_PlayNextFromQueue();
 }
 
 void Audio_Process(void)
 {
-    if (audio_playing)
+    if (s_isPlaying)
     {
-        if (buf_evt & 0x01)
+        if (s_bufferEvent & 0x01)
         {
-            buf_evt &= ~0x01;
-            Audio_FillHalf(&i2s_buf[0]);
+            s_bufferEvent &= (uint8_t)~0x01;
+            AudioPlayer_FillHalfBuffer(&s_i2sBuf[0]);
 
-            if (wav_eof)
+            if (s_wavEof)
             {
-                stop_pending = 1;
+                s_stopPending = 1;
             }
         }
 
-        if (buf_evt & 0x02)
+        if (s_bufferEvent & 0x02)
         {
-            buf_evt &= ~0x02;
-            Audio_FillHalf(&i2s_buf[AUDIO_MONO_SAMPLES * 2]);
+            s_bufferEvent &= (uint8_t)~0x02;
+            AudioPlayer_FillHalfBuffer(&s_i2sBuf[AUDIO_PLAYER_MONO_SAMPLES * 2]);
 
-            if (wav_eof)
+            if (s_wavEof)
             {
-                stop_pending = 1;
+                s_stopPending = 1;
             }
         }
 
-        /* EOF가 발생한 뒤, 0 padding된 마지막 버퍼까지 흘려보낸 후 정지 */
-        if (stop_pending && wav_eof)
+        /* stop after last zero-padded buffer has been handed off */
+        if (s_stopPending && s_wavEof)
         {
-            /* 여기선 단순화해서 다음 complete 이벤트 이후 정지하도록 처리 */
-            if (buf_evt == 0)
+            if (s_bufferEvent == 0)
             {
                 Audio_Stop();
             }
         }
     }
 
-    if (!audio_playing)
+    if (!s_isPlaying)
     {
-        Audio_PlayNextFromQueue();
+        AudioPlayer_PlayNextFromQueue();
     }
 }
 
 void Audio_Stop(void)
 {
-    if (!audio_playing)
+    if (!s_isPlaying)
     {
         return;
     }
 
     HAL_I2S_DMAStop(&hi2s3);
-    f_close(&wav_file);
+    f_close(&s_wavFile);
 
-    audio_playing = 0;
-    wav_eof = 0;
-    buf_evt = 0;
-    filling = 0;
-    stop_pending = 0;
+    s_isPlaying   = 0;
+    s_wavEof      = 0;
+    s_bufferEvent = 0;
+    s_isFilling   = 0;
+    s_stopPending = 0;
 
     printf("Play End\r\n");
 }
 
 uint8_t Audio_IsPlaying(void)
 {
-    return audio_playing;
+    return s_isPlaying;
 }

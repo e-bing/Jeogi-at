@@ -290,7 +290,8 @@ void UART_Handler_Process(void)
         memcpy(filename, pkt.data, pkt.len);
         filename[pkt.len] = '\0';
 
-        Audio_StartWav(filename);
+//        Audio_StartWav(filename);
+        Audio_Guide((uint8_t[8]){0, 1, 0, 1, 1, 0, 0, 0});
 
         UART_SendNACK(CMD_ACK, 0);
         break;
