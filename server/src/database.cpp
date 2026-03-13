@@ -146,7 +146,7 @@ json get_air_quality_stats(MYSQL *conn, string cam_id) {
             IFNULL(AVG(A.co_level), 0) AS avg_co,
             IFNULL(AVG(A.toxic_gas_level), 0) AS avg_co2
         FROM camera_stats C
-        LEFT JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
+        LEFT JOIN air_stats A ON ABS(TIMESTAMPDIFF(SECOND, C.recorded_at, A.recorded_at)) <= 5 AND C.station_id = A.station_id
         WHERE C.camera_id = ')" +
                cam_id + R"('
         GROUP BY d_idx, hour
@@ -185,7 +185,7 @@ json get_temp_humi_stats(MYSQL* conn, string cam_id) {
             IFNULL(AVG(A.temperature), 0) AS avg_temp,
             IFNULL(AVG(A.humidity), 0) AS avg_humi
         FROM camera_stats C
-        LEFT JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
+        LEFT JOIN air_stats A ON ABS(TIMESTAMPDIFF(SECOND, C.recorded_at, A.recorded_at)) <= 5 AND C.station_id = A.station_id
         WHERE C.camera_id = ')" + cam_id + R"('
         GROUP BY d_idx, hour
         ORDER BY d_idx, hour;
@@ -241,7 +241,7 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   while ((row = mysql_fetch_row(res))) {
     json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
                  {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
-                 {Protocol::FIELD_PLATFORM_NO, row[2] ? stoi(row[2]) : 0},
+                 {Protocol::FIELD_PLATFORM, row[2] ? row[2] : "0"},
                  {Protocol::FIELD_AVG_COUNT, row[3] ? (int)stod(row[3]) : 0}};
     result.push_back(item);
   }

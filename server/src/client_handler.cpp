@@ -261,8 +261,9 @@ void handle_client(int client_socket) {
   thread v_pi_thread(pi_worker, &client_connected, std::ref(send_queue),
                      std::ref(queue_mutex), std::ref(queue_cv));
 
-  int db_tick = 0;
-  int sys_tick = 0;
+  // 한 번은 즉시 전송하기 위해 tick 초기값을 500으로 설정
+  int db_tick = 500;
+  int sys_tick = 500;
 
   while (client_connected) {
     // zone_congestion (100ms 주기)
