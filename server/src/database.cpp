@@ -143,13 +143,14 @@ json get_air_quality_stats(MYSQL *conn, string cam_id) {
         SELECT
             DAYOFWEEK(C.recorded_at) AS d_idx,
             HOUR(C.recorded_at) AS hour,
-            AVG(A.co_level) AS avg_co,
-            AVG(A.toxic_gas_level) AS avg_co2
+            IFNULL(AVG(A.co_level), 0) AS avg_co,
+            IFNULL(AVG(A.toxic_gas_level), 0) AS avg_co2
         FROM camera_stats C
-        JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
+        LEFT JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
         WHERE C.camera_id = ')" +
                cam_id + R"('
-        GROUP BY d_idx, hour;
+        GROUP BY d_idx, hour
+        ORDER BY d_idx, hour;
     )";
 
   json result = json::array();
@@ -179,15 +180,15 @@ json get_air_quality_stats(MYSQL *conn, string cam_id) {
 json get_temp_humi_stats(MYSQL* conn, string cam_id) {
   string sql = R"(
         SELECT
-            DAYOFWEEK(recorded_at) AS d_idx,
-            HOUR(recorded_at) AS hour,
-            AVG(temperature) AS avg_temp,
-            AVG(humidity) AS avg_humi
-        FROM air_stats
-        WHERE station_id = 1
-          AND temperature IS NOT NULL
-          AND humidity IS NOT NULL
-        GROUP BY d_idx, hour;
+            DAYOFWEEK(C.recorded_at) AS d_idx,
+            HOUR(C.recorded_at) AS hour,
+            IFNULL(AVG(A.temperature), 0) AS avg_temp,
+            IFNULL(AVG(A.humidity), 0) AS avg_humi
+        FROM camera_stats C
+        LEFT JOIN air_stats A ON C.recorded_at = A.recorded_at AND C.station_id = A.station_id
+        WHERE C.camera_id = ')" + cam_id + R"('
+        GROUP BY d_idx, hour
+        ORDER BY d_idx, hour;
     )";
 
   json result = json::array();
@@ -218,11 +219,11 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
         SELECT
             DAYOFWEEK(recorded_at) AS d_idx,
             HOUR(recorded_at) AS hour,
+            platform_no,
             AVG(passenger_count) AS avg_p
         FROM camera_stats
-        WHERE camera_id = ')" +
-               cam_id + R"('
-        GROUP BY d_idx, hour;
+        GROUP BY d_idx, hour, platform_no
+        ORDER BY d_idx, hour, platform_no;
     )";
 
   json result = json::array();
@@ -240,7 +241,8 @@ json get_passenger_flow_stats(MYSQL* conn, string cam_id) {
   while ((row = mysql_fetch_row(res))) {
     json item = {{Protocol::FIELD_DAY, row[0] ? stoi(row[0]) : 0},
                  {Protocol::FIELD_HOUR, row[1] ? stoi(row[1]) : 0},
-                 {Protocol::FIELD_AVG_COUNT, row[2] ? (int)stod(row[2]) : 0}};
+                 {Protocol::FIELD_PLATFORM_NO, row[2] ? stoi(row[2]) : 0},
+                 {Protocol::FIELD_AVG_COUNT, row[3] ? (int)stod(row[3]) : 0}};
     result.push_back(item);
   }
 

@@ -14,6 +14,12 @@ ColumnLayout {
         return days[day] ? days[day] : day;
     }
 
+    function getCongestionColor(count) {
+        if (count >= client.congestionNormalMax) return "#EF4444"; // Busy
+        if (count >= client.congestionEasyMax) return "#EAB308";   // Normal
+        return "#22C55E";                                         // Easy
+    }
+
     property var realtimeData: []
     property var airStatsData: []
     property var flowStatsData: []
@@ -71,10 +77,32 @@ ColumnLayout {
         }
         onFlowStatsReceived: function (data) {
             console.log("Statistics - Flow Stats Received: " + data.length);
+            var groups = {};
+            for (var i = 0; i < data.length; ++i) {
+                var item = data[i];
+                var key = item.day + "_" + item.hour;
+                if (!groups[key]) {
+                    groups[key] = {
+                        day: item.day,
+                        hour: item.hour,
+                        platforms: [0, 0, 0, 0, 0, 0, 0, 0],
+                        total: 0
+                    };
+                }
+                var pIdx = item.platform_no - 1;
+                if (pIdx >= 0 && pIdx < 8) {
+                    groups[key].platforms[pIdx] = item.avg_count;
+                    groups[key].total += item.avg_count;
+                }
+            }
             var arr = [];
-            for (var i = 0; i < data.length; ++i)
-                arr.push(data[i]);
-            console.log("Flow Stats JSON: " + JSON.stringify(arr));
+            for (var k in groups) {
+                arr.push(groups[k]);
+            }
+            arr.sort(function(a, b) {
+                if (a.day !== b.day) return a.day - b.day;
+                return a.hour - b.hour;
+            });
             flowStatsData = arr;
         }
         onTempHumiStatsReceived: function (data) {
@@ -542,18 +570,54 @@ ColumnLayout {
                     header: RowLayout {
                         width: parent.width
                         spacing: 0
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 40
+                            height: 40
+                            color: Style.colorTableHeadFlow
+                            Text {
+                                anchors.centerIn: parent
+                                text: "요일"
+                                color: "white"
+                                font.bold: true
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 40
+                            height: 40
+                            color: Style.colorTableHeadFlow
+                            Text {
+                                anchors.centerIn: parent
+                                text: "시간"
+                                color: "white"
+                                font.bold: true
+                            }
+                        }
                         Repeater {
-                            model: ["요일", "시간", "평균 인원", "상태"]
+                            model: 8
                             Rectangle {
-                                Layout.fillWidth: true
+                                Layout.preferredWidth: 50
                                 height: 40
                                 color: Style.colorTableHeadFlow
                                 Text {
                                     anchors.centerIn: parent
-                                    text: modelData
+                                    text: (index + 1)
                                     color: "white"
                                     font.bold: true
                                 }
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 60
+                            height: 40
+                            color: Style.colorTableHeadFlow
+                            Text {
+                                anchors.centerIn: parent
+                                text: "전체 평균"
+                                color: "white"
+                                font.bold: true
                             }
                         }
                     }
@@ -563,6 +627,7 @@ ColumnLayout {
                         spacing: 0
                         Rectangle {
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 40
                             height: 40
                             color: Style.colorSurface
                             border.color: Style.colorTableBorder
@@ -574,6 +639,7 @@ ColumnLayout {
                         }
                         Rectangle {
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 40
                             height: 40
                             color: Style.colorSurface
                             border.color: Style.colorTableBorder
@@ -583,26 +649,39 @@ ColumnLayout {
                                 color: Style.colorSlate800
                             }
                         }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            height: 40
-                            color: Style.colorSurface
-                            border.color: Style.colorTableBorder
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.avg_count + "명"
-                                color: Style.colorSlate800
+                        Repeater {
+                            model: 8
+                            Rectangle {
+                                Layout.preferredWidth: 50
+                                height: 40
+                                color: Style.colorSurface
+                                border.color: Style.colorTableBorder
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: 1
+                                    radius: 2
+                                    color: getCongestionColor(modelData.platforms[index])
+                                    opacity: 0.9
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.platforms[index]
+                                        color: "white"
+                                        font.bold: true
+                                    }
+                                }
                             }
                         }
                         Rectangle {
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 60
                             height: 40
                             color: Style.colorSurface
                             border.color: Style.colorTableBorder
                             Text {
                                 anchors.centerIn: parent
-                                text: (modelData.status === "혼잡" ? "🔴 " : (modelData.status === "보통" ? "🟡 " : "🟢 ")) + modelData.status
+                                text: modelData.total
                                 color: Style.colorSlate800
+                                font.bold: true
                             }
                         }
                     }

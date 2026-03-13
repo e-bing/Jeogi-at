@@ -1246,8 +1246,8 @@ ColumnLayout {
                                         totalCount += sectionSums[i];
                                     }
                                 }
-                                // 가상의 열차 정원 (예: 한 구역당 100명, 총 800명) 대비 밀집도 계산
-                                var capacity = 800;
+                                // 열차 정원 (Protocol::TOTAL_CAPACITY) 대비 밀집도 계산
+                                var capacity = client.totalCapacity;
                                 var avg = (totalCount / capacity) * 100;
                                 return Math.min(100, Math.round(avg)) + "%";
                             }

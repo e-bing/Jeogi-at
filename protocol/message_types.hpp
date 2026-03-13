@@ -81,6 +81,7 @@ constexpr const char *FIELD_CO = "co";
 constexpr const char *FIELD_CO2 = "co2";
 constexpr const char *FIELD_GAS = "gas"; // Qt 하위호환용 (co2 별칭)
 constexpr const char *FIELD_AVG_COUNT = "avg_count";
+constexpr const char *FIELD_PLATFORM_NO = "platform_no";
 
 // ──────────────────────────────────────────
 //  zone_congestion  필드명
