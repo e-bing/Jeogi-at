@@ -3,9 +3,12 @@
 #include "config_loader.h"
 #include "../../protocol/message_types.hpp"
 #include <chrono>
+#include <climits>
 #include <iostream>
+#include <cstdio>
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
+#include <thread>
 #include <vector>
 
 using json = nlohmann::json;
@@ -14,6 +17,135 @@ using namespace std;
 static const string DISPLAY_CLIENT_ID = "motor_pi_display_sub";
 
 static mqtt::async_client *g_display_mqtt = nullptr;
+static bool g_subway_thread_started = false;
+static constexpr int TARGET_SUBWAY_ID = 1003; // 3호선
+
+static bool fetch_subway_json_via_curl(const string &url, string &out_json) {
+  out_json.clear();
+  string cmd = "curl -s --max-time 5 \"" + url + "\"";
+  FILE *fp = popen(cmd.c_str(), "r");
+  if (!fp) return false;
+
+  char buf[1024];
+  while (fgets(buf, sizeof(buf), fp) != nullptr) {
+    out_json += buf;
+  }
+
+  int rc = pclose(fp);
+  return rc == 0 && !out_json.empty();
+}
+
+static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, string &out_line, string &out_msg) {
+  out_barvl_dt = -1;
+  out_line.clear();
+  out_msg.clear();
+
+  try {
+    auto root = json::parse(json_text);
+    if (!root.contains("realtimeArrivalList") || !root["realtimeArrivalList"].is_array()) {
+      return false;
+    }
+
+    int best = INT32_MAX;
+    for (const auto &row : root["realtimeArrivalList"]) {
+      string updn = row.value("updnLine", "");
+      if (updn.find("상행") == string::npos) continue;
+      int subway_id = row.value("subwayId", -1);
+      if (subway_id != TARGET_SUBWAY_ID) continue;
+
+      int sec = -1;
+      if (row.contains("barvlDt")) {
+        const auto &barvl = row["barvlDt"];
+        if (barvl.is_string()) {
+          try {
+            sec = stoi(barvl.get<string>());
+          } catch (...) {
+            continue;
+          }
+        } else if (barvl.is_number_integer()) {
+          sec = barvl.get<int>();
+        } else {
+          continue;
+        }
+      } else {
+        continue;
+      }
+      if (sec < 0) continue;
+
+      if (sec < best) {
+        best = sec;
+        out_line = row.value("trainLineNm", "");
+        out_msg = row.value("arvlMsg2", "");
+      }
+    }
+
+    if (best == INT32_MAX) return false;
+    out_barvl_dt = best;
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
+static void run_subway_arrival_override_loop(int uart_fd) {
+  auto config = load_config();
+  string api_key = config.value("subway_api_key", "");
+  string station_encoded = config.value("subway_station_encoded", "%EC%96%91%EC%9E%AC");
+  int poll_ms = config.value("subway_poll_ms", 15000);
+  int hold_sec = config.value("subway_hold_sec", 5);
+  int event_screen = config.value("subway_event_screen", 4);
+  int base_screen = config.value("subway_base_screen", 0);
+
+  if (api_key.empty()) {
+    cerr << "[Subway] subway_api_key is empty; skipping subway API polling" << endl;
+    return;
+  }
+
+  const string url = "http://swopenAPI.seoul.go.kr/api/subway/" + api_key +
+                     "/json/realtimeStationArrival/0/5/" + station_encoded;
+
+  bool active = false;
+  auto active_until = chrono::steady_clock::now();
+  int zero_streak = 0;
+
+  cout << "[Subway] started: line=3(up) screen " << event_screen
+       << " for " << hold_sec << "s on arrival" << endl;
+
+  while (true) {
+    auto now = chrono::steady_clock::now();
+    if (active && now >= active_until) {
+      send_to_stm32_display_screen(uart_fd, base_screen);
+      cout << "[Subway] restore base screen=" << base_screen << endl;
+      active = false;
+    }
+
+    string body;
+    int barvl_dt = -1;
+    string line;
+    string msg;
+
+    if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg)) {
+      cout << "[Subway] up train: barvlDt=" << barvl_dt << " line=" << line << " msg=" << msg << endl;
+      if (barvl_dt <= 0) {
+        zero_streak++;
+      } else {
+        zero_streak = 0;
+      }
+
+      if (!active && zero_streak >= 2) {
+        send_to_stm32_display_screen(uart_fd, event_screen);
+        active = true;
+        active_until = chrono::steady_clock::now() + chrono::seconds(hold_sec);
+        zero_streak = 0;
+        cout << "[Subway] arrival detected (2x confirm) -> event screen=" << event_screen << endl;
+      }
+    } else {
+      zero_streak = 0;
+    }
+
+    this_thread::sleep_for(chrono::milliseconds(poll_ms));
+  }
+}
 
 /**
  * @brief MQTT 수신 콜백.
@@ -107,6 +239,11 @@ void init_display(int uart_fd) {
     g_display_mqtt->subscribe(Protocol::MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL, 1)->wait();
     cout << "[Display] MQTT 연결 완료, 구독: " << topic
          << ", " << Protocol::MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL << endl;
+
+    if (!g_subway_thread_started) {
+      g_subway_thread_started = true;
+      thread([uart_fd]() { run_subway_arrival_override_loop(uart_fd); }).detach();
+    }
   } catch (const mqtt::exception &e) {
     cerr << "[Display] MQTT 초기화 실패: " << e.what() << endl;
   }

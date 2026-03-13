@@ -346,3 +346,12 @@ void Screen_Show_TempHum(DB_Data_t *data)
     Screen_Show_DualMetricLayout("TEMP", "HUM", temp_deci, hum_deci, " C", " *",
                                  5, 5, 3, 2, 1U, 0U, WHITE, WHITE);
 }
+
+void Screen_Show_Train(void)
+{
+    // 64x32 기준 가운데 정렬(5x7 폰트, 문자 5개)
+    const uint16_t x = 17;
+    const uint16_t y = 13;
+    Paint_DrawRectangle(1, 1, 64, 32, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+    Paint_DrawString_EN(x, y, "TRAIN", &Font8, BLACK, RED);
+}

@@ -113,4 +113,10 @@ void send_to_stm32_bulk_congestion(int uart_fd, const std::vector<int>& levels);
  */
 void send_to_stm32_display_control(int uart_fd, const std::string& action);
 
+/**
+ * @brief 디스플레이 화면 번호를 문자열로 변환해 STM32에 전송합니다. (CMD 0x11)
+ * @param screen 0~9 화면 번호
+ */
+void send_to_stm32_display_screen(int uart_fd, int screen);
+
 #endif // COMMUNICATION_HPP

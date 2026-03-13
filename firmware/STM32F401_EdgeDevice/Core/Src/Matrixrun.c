@@ -5,9 +5,15 @@
 #include "Display_Screens.h"
 #include "RGBMatrix_device.h"
 
+#define SCREEN_DASHBOARD 0U
+#define SCREEN_CO2       1U
+#define SCREEN_TEMP_HUM  2U
+#define SCREEN_TRAIN     3U
+
 static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
 static uint8_t dashboard_dirty = 1U;
 static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
+static uint8_t auto_cycle_enabled = 1U;
 static uint8_t dashboard_guide_mode = 0U; // 0: side guidance, 1: per-platform up arrows
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
@@ -32,6 +38,7 @@ void MatrixRun_Init(void)
   MatrixRun_ShowDashboard();
   dashboard_dirty = 0U;
   current_screen = 0U;
+  auto_cycle_enabled = 1U;
   dashboard_guide_mode = 0U;
   last_refresh_tick = HAL_GetTick();
   last_switch_tick = HAL_GetTick();
@@ -45,12 +52,12 @@ void MatrixRun_Run(void)
   uint8_t screen_changed = 0U;
   uint32_t stay_ms;
 
-  if (current_screen == 0U)
+  if (current_screen == SCREEN_DASHBOARD)
   {
     stay_ms = DASHBOARD_SHOW_MS;
 
   }
-  else if (current_screen == 1U)
+  else if (current_screen == SCREEN_CO2)
   {
     stay_ms = GAS_SHOW_MS;
   }
@@ -59,14 +66,16 @@ void MatrixRun_Run(void)
     stay_ms = TEMP_HUM_SHOW_MS;
   }
 
-  if ((now - last_switch_tick) >= stay_ms)
+  if (auto_cycle_enabled &&
+      (current_screen <= SCREEN_TEMP_HUM) &&
+      ((now - last_switch_tick) >= stay_ms))
   {
     HUB75_Clear();
     current_screen = (uint8_t)((current_screen + 1U) % 3U);
     last_switch_tick = now;
     screen_changed = 1U;
 
-    if (current_screen == 0U)
+    if (current_screen == SCREEN_DASHBOARD)
     {
       dashboard_dirty = 1U;
       dashboard_guide_mode = 0U;
@@ -80,7 +89,7 @@ void MatrixRun_Run(void)
     }
   }
 
-  if ((current_screen == 0U) && ((now - last_dashboard_mode_tick) >= DASHBOARD_GUIDE_TOGGLE_MS))
+  if ((current_screen == SCREEN_DASHBOARD) && ((now - last_dashboard_mode_tick) >= DASHBOARD_GUIDE_TOGGLE_MS))
   {
     dashboard_guide_mode = (uint8_t)(dashboard_guide_mode ^ 1U);
     last_dashboard_mode_tick = now;
@@ -88,7 +97,7 @@ void MatrixRun_Run(void)
   }
 
   need_refresh = screen_changed;
-  if ((current_screen == 0U) && (dashboard_dirty != 0U))
+  if ((current_screen == SCREEN_DASHBOARD) && (dashboard_dirty != 0U))
   {
     need_refresh = 1U;
   }
@@ -102,22 +111,23 @@ void MatrixRun_Run(void)
     return;
   }
 
-  if (current_screen == 0U)
+  if (current_screen == SCREEN_DASHBOARD)
   {
     MatrixRun_ShowDashboard();
     dashboard_dirty = 0U;
     //
   }
+  else if (current_screen == SCREEN_CO2)
+  {
+    Screen_Show_CO2(&g_db_data);
+  }
+  else if (current_screen == SCREEN_TEMP_HUM)
+  {
+    Screen_Show_TempHum(&g_db_data);
+  }
   else
   {
-    if (current_screen == 1U)
-    {
-      Screen_Show_CO2(&g_db_data);
-    }
-    else
-    {
-      Screen_Show_TempHum(&g_db_data);
-    }
+    Screen_Show_Train();
   }
 
   last_refresh_tick = now;
@@ -144,9 +154,25 @@ void MatrixRun_SetCongestionBulk(const uint8_t data[8])
 
 void MatrixRun_SetScreen(uint8_t screen)
 {
-    if (screen > 2U) return;
+    if (screen > SCREEN_TRAIN) return;
     HUB75_Clear();
+    auto_cycle_enabled = 0U;
     current_screen = screen;
     last_switch_tick = HAL_GetTick();  // 타이머 리셋 (바로 안 넘어가게)
+    last_refresh_tick = 0U;
+}
+
+void MatrixRun_SetAutoCycle(uint8_t enable)
+{
+    auto_cycle_enabled = (enable != 0U) ? 1U : 0U;
+    if (auto_cycle_enabled)
+    {
+        current_screen = SCREEN_DASHBOARD;
+        dashboard_dirty = 1U;
+        dashboard_guide_mode = 0U;
+        last_dashboard_mode_tick = HAL_GetTick();
+    }
+    HUB75_Clear();
+    last_switch_tick = HAL_GetTick();
     last_refresh_tick = 0U;
 }

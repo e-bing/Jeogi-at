@@ -405,3 +405,8 @@ void send_to_stm32_display_control(int uart_fd, const string& action) {
     tcdrain(uart_fd);
     cout << "📤 [→STM32] DISPLAY_CTRL: " << action << endl;
 }
+
+void send_to_stm32_display_screen(int uart_fd, int screen) {
+    if (screen < 0 || screen > 9) return;
+    send_to_stm32_display_control(uart_fd, to_string(screen));
+}

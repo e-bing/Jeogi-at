@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "uart_handler.h"
 #include "uart_protocol.h"
 #include "Data_Manager.h"
@@ -271,7 +272,19 @@ void UART_Handler_Process(void)
 
         printf("[UART] DISPLAY_CTRL: %s\r\n", action);
 
-        int screen = atoi(action) - 1;  // "1"→0, "2"→1, "3"→2
+        if (strcmp(action, "0") == 0)
+        {
+            MatrixRun_SetAutoCycle(1U);
+            UART_SendACK(pkt.cmd);
+            break;
+        }
+
+        int screen = atoi(action) - 1;  // "1"→0, "2"→1, "3"→2, "4"→3
+        if (screen < 0 || screen > 3)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
         MatrixRun_SetScreen((uint8_t)screen);
 
         UART_SendACK(pkt.cmd);
