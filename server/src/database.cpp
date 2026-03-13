@@ -216,16 +216,15 @@ json get_air_quality_stats(MYSQL* conn) {
 json get_temp_humi_stats(MYSQL* conn) {
   string sql = R"(
         SELECT
-            DAYOFWEEK(C.recorded_at) AS d_idx,
-            HOUR(C.recorded_at) AS hour,
-            IFNULL(AVG(A.temperature), 0) AS avg_temp,
-            IFNULL(AVG(A.humidity), 0) AS avg_humi
-        FROM camera_stats C
-        LEFT JOIN air_stats A ON ABS(TIMESTAMPDIFF(SECOND, C.recorded_at, A.recorded_at)) <= 5 AND C.station_id = A.station_id
-        WHERE C.camera_id = ')" +
-               cam_id + R"('
-        GROUP BY d_idx, hour
-        ORDER BY d_idx, hour;
+            DAYOFWEEK(recorded_at) AS d_idx,
+            HOUR(recorded_at) AS hour,
+            AVG(temperature) AS avg_temp,
+            AVG(humidity) AS avg_humi
+        FROM air_stats
+        WHERE station_id = 1
+          AND temperature IS NOT NULL
+          AND humidity IS NOT NULL
+        GROUP BY d_idx, hour;
     )";
 
   json result = json::array();
