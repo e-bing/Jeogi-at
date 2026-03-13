@@ -17,141 +17,151 @@ namespace Protocol {
 // ──────────────────────────────────────────
 
 /// 실시간 공기질 (CO, CO2 최신 1건)
-constexpr const char *MSG_REALTIME_AIR = "realtime_air";
+constexpr const char* MSG_REALTIME_AIR = "realtime_air";
 
 /// 공기질 통계 (요일·시간대별 평균)
-constexpr const char *MSG_AIR_STATS = "air_stats";
+constexpr const char* MSG_AIR_STATS = "air_stats";
 
 /// 승객 흐름 통계 (요일·시간대별 평균 승객 수)
-constexpr const char *MSG_FLOW_STATS = "flow_stats";
+constexpr const char* MSG_FLOW_STATS = "flow_stats";
 
 /// 온습도 통계 (요일·시간대별 평균)
-constexpr const char *MSG_TEMP_HUMI_STATS = "temp_humi_stats";
+constexpr const char* MSG_TEMP_HUMI_STATS = "temp_humi_stats";
 
 /// 입구별 혼잡도
-constexpr const char *MSG_ZONE_CONGESTION = "zone_congestion";
+constexpr const char* MSG_ZONE_CONGESTION = "zone_congestion";
 
 /// 서버 시스템 모니터 (CPU/메모리 등)
-constexpr const char *MSG_SYSTEM_MONITOR = "system_monitor";
+constexpr const char* MSG_SYSTEM_MONITOR = "system_monitor";
 
 /// 온습도 데이터
-constexpr const char *MSG_TEMP_HUMI = "temp_humi";
+constexpr const char* MSG_TEMP_HUMI = "temp_humi";
 
 // ──────────────────────────────────────────
 //  Qt → Server  메시지 타입
 // ──────────────────────────────────────────
 
 /// 장치 제어 명령 (모터, 스피커, 조명 등)
-constexpr const char *MSG_DEVICE_COMMAND = "device_command";
+constexpr const char* MSG_DEVICE_COMMAND = "device_command";
+
+/// 카메라 ROI 구역 업데이트 명령
+constexpr const char* MSG_ROI_UPDATE = "roi_update";
 
 // ──────────────────────────────────────────
 //  공통 최상위 필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_TYPE = "type";
-constexpr const char *FIELD_DATA = "data";
-constexpr const char *FIELD_TITLE = "title";
-constexpr const char *FIELD_CAMERA = "camera";
+constexpr const char* FIELD_TYPE = "type";
+constexpr const char* FIELD_DATA = "data";
+constexpr const char* FIELD_TITLE = "title";
+constexpr const char* FIELD_CAMERA = "camera";
 
 // ──────────────────────────────────────────
 //  realtime  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_STATION = "station";
-constexpr const char *FIELD_PLATFORM = "platform";
-constexpr const char *FIELD_COUNT = "count";
-constexpr const char *FIELD_STATUS = "status";
+constexpr const char* FIELD_STATION = "station";
+constexpr const char* FIELD_PLATFORM = "platform";
+constexpr const char* FIELD_COUNT = "count";
+constexpr const char* FIELD_STATUS = "status";
 
 // ──────────────────────────────────────────
 //  realtime_air  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_CO_LEVEL = "co_level";
-constexpr const char *FIELD_CO2_PPM = "co2_ppm";
-constexpr const char *FIELD_TEMP = "temp";
-constexpr const char *FIELD_HUMI = "humi";
-constexpr const char *FIELD_FIRE_DETECTED = "fire_detected";
-constexpr const char *FIELD_RECORDED_AT = "recorded_at";
-constexpr const char *FIELD_CO_STATUS = "co_status";
-constexpr const char *FIELD_GAS_STATUS = "gas_status";
+constexpr const char* FIELD_CO_LEVEL = "co_level";
+constexpr const char* FIELD_CO2_PPM = "co2_ppm";
+constexpr const char* FIELD_TEMP = "temp";
+constexpr const char* FIELD_HUMI = "humi";
+constexpr const char* FIELD_FIRE_DETECTED = "fire_detected";
+constexpr const char* FIELD_RECORDED_AT = "recorded_at";
+constexpr const char* FIELD_CO_STATUS = "co_status";
+constexpr const char* FIELD_GAS_STATUS = "gas_status";
 
 // ──────────────────────────────────────────
 //  air_stats / flow_stats  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_DAY = "day";
-constexpr const char *FIELD_HOUR = "hour";
-constexpr const char *FIELD_CO = "co";
-constexpr const char *FIELD_CO2 = "co2";
-constexpr const char *FIELD_GAS = "gas"; // Qt 하위호환용 (co2 별칭)
-constexpr const char *FIELD_AVG_COUNT = "avg_count";
+constexpr const char* FIELD_DAY = "day";
+constexpr const char* FIELD_HOUR = "hour";
+constexpr const char* FIELD_CO = "co";
+constexpr const char* FIELD_CO2 = "co2";
+constexpr const char* FIELD_GAS = "gas";  // Qt 하위호환용 (co2 별칭)
+constexpr const char* FIELD_AVG_COUNT = "avg_count";
 
 // ──────────────────────────────────────────
 //  zone_congestion  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_ZONES = "zones";
-constexpr const char *FIELD_TOTAL_COUNT = "total_count";
+constexpr const char* FIELD_ZONES = "zones";
+constexpr const char* FIELD_TOTAL_COUNT = "total_count";
 
 // ──────────────────────────────────────────
 //  temp_humi  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_TEMPERATURE = "temperature";
-constexpr const char *FIELD_HUMIDITY = "humidity";
+constexpr const char* FIELD_TEMPERATURE = "temperature";
+constexpr const char* FIELD_HUMIDITY = "humidity";
 
 // ──────────────────────────────────────────
 //  system_monitor  필드명
 // ──────────────────────────────────────────
-constexpr const char *FIELD_CPU_USAGE = "cpu_usage";
-constexpr const char *FIELD_CPU_TEMP = "cpu_temp";
-constexpr const char *FIELD_DISK_USAGE = "disk_usage";
-constexpr const char *FIELD_SERVER = "server";
-constexpr const char *FIELD_FIRMWARE = "firmware";
-constexpr const char *FIELD_CONNECTED = "connected";
+constexpr const char* FIELD_CPU_USAGE = "cpu_usage";
+constexpr const char* FIELD_CPU_TEMP = "cpu_temp";
+constexpr const char* FIELD_DISK_USAGE = "disk_usage";
+constexpr const char* FIELD_SERVER = "server";
+constexpr const char* FIELD_FIRMWARE = "firmware";
+constexpr const char* FIELD_CONNECTED = "connected";
 
 // ──────────────────────────────────────────
 //  device_command  필드명 및 장치·액션 값
 // ──────────────────────────────────────────
-constexpr const char *FIELD_DEVICE = "device";
-constexpr const char *FIELD_ACTION = "action";
-constexpr const char *FIELD_SPEED = "speed";
-constexpr const char *FIELD_FILENAME = "filename";
+constexpr const char* FIELD_DEVICE = "device";
+constexpr const char* FIELD_ACTION = "action";
+constexpr const char* FIELD_SPEED = "speed";
+constexpr const char* FIELD_FILENAME = "filename";
 
 // 장치 이름
-constexpr const char *DEVICE_MOTOR = "motor";
-constexpr const char *DEVICE_SPEAKER = "speaker";
-constexpr const char *DEVICE_LIGHTING = "lighting";
-constexpr const char *DEVICE_DIGITAL_DISPLAY = "digital_display";
-constexpr const char *DEVICE_MODE_CONTROL = "mode_control";
+constexpr const char* DEVICE_MOTOR = "motor";
+constexpr const char* DEVICE_SPEAKER = "speaker";
+constexpr const char* DEVICE_LIGHTING = "lighting";
+constexpr const char* DEVICE_DIGITAL_DISPLAY = "digital_display";
+constexpr const char* DEVICE_MODE_CONTROL = "mode_control";
 
 // 액션 값
-constexpr const char *ACTION_START = "start";
-constexpr const char *ACTION_STOP = "stop";
-constexpr const char *ACTION_ON = "on";
-constexpr const char *ACTION_OFF = "off";
-constexpr const char *ACTION_AUTO = "auto";
-constexpr const char *ACTION_MANUAL = "manual";
-constexpr const char *ACTION_1 = "1";
-constexpr const char *ACTION_2 = "2";
-constexpr const char *ACTION_3 = "3";
-constexpr const char *ACTION_4 = "4";
+constexpr const char* ACTION_START = "start";
+constexpr const char* ACTION_STOP = "stop";
+constexpr const char* ACTION_ON = "on";
+constexpr const char* ACTION_OFF = "off";
+constexpr const char* ACTION_AUTO = "auto";
+constexpr const char* ACTION_MANUAL = "manual";
+constexpr const char* ACTION_1 = "1";
+constexpr const char* ACTION_2 = "2";
+constexpr const char* ACTION_3 = "3";
+constexpr const char* ACTION_4 = "4";
+
+// ──────────────────────────────────────────
+//  roi_update 관련 필드명
+// ──────────────────────────────────────────
+constexpr const char* FIELD_CAMERA_ID = "camera_id";
+constexpr const char* FIELD_ZONE_ID = "zone_id";
+constexpr const char* FIELD_ROI = "roi";  // [x_min, y_min, x_max, y_max] 배열
 
 // ──────────────────────────────────────────
 //  MQTT 토픽 (서버 ↔ 펌웨어 간 통신용)
 // ──────────────────────────────────────────
-constexpr const char *MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
-constexpr const char *MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";
-constexpr const char *MQTT_TOPIC_MOTOR_CONTROL = "motor/control";
-constexpr const char *MQTT_TOPIC_AUDIO_CONTROL = "audio/control";
-constexpr const char *MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL = "display/control";
-constexpr const char *MQTT_TOPIC_SYSTEM_FIRMWARE = "system/firmware";
-constexpr const char *MQTT_TOPIC_CONGESTION_STATUS =
+constexpr const char* MQTT_TOPIC_AIR_QUALITY = "sensor/air_quality";
+constexpr const char* MQTT_TOPIC_TEMP_HUMI = "sensor/temp_humi";
+constexpr const char* MQTT_TOPIC_MOTOR_CONTROL = "motor/control";
+constexpr const char* MQTT_TOPIC_AUDIO_CONTROL = "audio/control";
+constexpr const char* MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL = "display/control";
+constexpr const char* MQTT_TOPIC_SYSTEM_FIRMWARE = "system/firmware";
+constexpr const char* MQTT_TOPIC_CONGESTION_STATUS =
     "iot/server/status/congestion";
 
 // ──────────────────────────────────────────
 //  내부 전송용 명령 타입 (Server → Firmware)
 // ──────────────────────────────────────────
-constexpr const char *MSG_MOTOR_CONTROL = "motor_control";
-constexpr const char *MSG_AUDIO_CONTROL = "audio_control";
-constexpr const char *MSG_SPEAKER_CONTROL = "speaker_control"; // legacy
-constexpr const char *MSG_DISPLAY_CONTROL = "display_control";
-constexpr const char *MSG_MODE_CONTROL = "mode_control";
+constexpr const char* MSG_MOTOR_CONTROL = "motor_control";
+constexpr const char* MSG_AUDIO_CONTROL = "audio_control";
+constexpr const char* MSG_SPEAKER_CONTROL = "speaker_control";  // legacy
+constexpr const char* MSG_DISPLAY_CONTROL = "display_control";
+constexpr const char* MSG_MODE_CONTROL = "mode_control";
 
-} // namespace Protocol
+}  // namespace Protocol
 
-#endif // MESSAGE_TYPES_HPP
+#endif  // MESSAGE_TYPES_HPP
