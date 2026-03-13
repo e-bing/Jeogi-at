@@ -8,6 +8,7 @@
 
 #include "audio.hpp"
 #include "config_manager.hpp"
+#include "congestion_analyzer.hpp"
 #include "display.hpp"
 #include "motor.hpp"
 

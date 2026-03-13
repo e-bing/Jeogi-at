@@ -97,7 +97,7 @@ void handle_qt_command(const string& cmd_str) {
       cout << "[SUCCESS] config.json ROI 업데이트 완료 (Camera: " << camera_id
            << ", Zone: " << zone_id << ")" << endl;
 
-      // 런타임 메모리 갱신 구현 예정
+      g_analyzer.loadConfig();
     }
   } catch (json::exception& e) {
     cerr << "❌ Qt 명령 파싱 에러: " << e.what() << endl;
