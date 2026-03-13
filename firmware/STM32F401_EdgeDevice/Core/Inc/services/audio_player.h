@@ -23,6 +23,8 @@ void Audio_Process(void);
 void Audio_Stop(void);
 uint8_t Audio_IsPlaying(void);
 
+void Audio_Guide(const uint8_t *congestion);
+
 extern volatile uint32_t audio_i2s_err_cnt;
 extern volatile uint32_t audio_miss_fill_cnt;
 

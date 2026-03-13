@@ -291,6 +291,7 @@ void UART_Handler_Process(void)
         filename[pkt.len] = '\0';
 
         Audio_StartWav(filename);
+
         UART_SendNACK(CMD_ACK, 0);
         break;
 
