@@ -311,7 +311,7 @@ void handle_client(int client_socket) {
                   .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
-      } catch (const exception& e) {
+      } catch (const exception &e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }
     }

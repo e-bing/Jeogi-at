@@ -14,13 +14,6 @@ ColumnLayout {
         return days[day] ? days[day] : day;
     }
 
-    function getCongestionColor(count) {
-        if (count >= client.congestionNormalMax) return "#EF4444"; // Busy
-        if (count >= client.congestionEasyMax) return "#EAB308";   // Normal
-        return "#22C55E";                                         // Easy
-    }
-
-    property var realtimeData: []
     property var airStatsData: []
     property var flowStatsData: []
     property var tempHumiStatsData: []
@@ -43,29 +36,7 @@ ColumnLayout {
         onStatusMessageChanged: {
             console.log("Statistics - Status: " + client.statusMessage);
         }
-        onZoneCongestionReceived: function (zones, totalCount) {
-            console.log("Statistics - Zone Congestion Received: " + JSON.stringify(zones));
-            var arr = [];
-            for (var i = 0; i < zones.length; i++) {
-                var count = zones[i];
-                var status = "여유";
-                var color = "#22C55E";
-                if (count >= client.congestionNormalMax) {
-                    status = "혼잡";
-                    color = "#EF4444";
-                } else if (count >= client.congestionEasyMax) {
-                    status = "보통";
-                    color = "#EAB308";
-                }
-                arr.push({
-                    index: i + 1,
-                    count: count,
-                    status: status,
-                    color: color
-                });
-            }
-            realtimeData = arr;
-        }
+
 
         onAirStatsReceived: function (data) {
             console.log("Statistics - Air Stats Received: " + data.length);
@@ -89,7 +60,7 @@ ColumnLayout {
                         total: 0
                     };
                 }
-                var pIdx = item.platform_no - 1;
+                var pIdx = item.platform - 1;
                 if (pIdx >= 0 && pIdx < 8) {
                     groups[key].platforms[pIdx] = item.avg_count;
                     groups[key].total += item.avg_count;
@@ -99,10 +70,6 @@ ColumnLayout {
             for (var k in groups) {
                 arr.push(groups[k]);
             }
-            arr.sort(function(a, b) {
-                if (a.day !== b.day) return a.day - b.day;
-                return a.hour - b.hour;
-            });
             flowStatsData = arr;
         }
         onTempHumiStatsReceived: function (data) {
@@ -190,24 +157,7 @@ ColumnLayout {
             border.width: 1
         }
 
-        TabButton {
-            id: tab1
-            text: "📊 실시간 혼잡도"
-            Layout.fillWidth: true
-            background: Rectangle {
-                color: tab1.checked ? Style.colorSurface : Style.colorSlate200
-                border.color: Style.colorTableBorder
-                border.width: 1
-            }
-            contentItem: Text {
-                text: tab1.text
-                font: Style.fontRegular
-                color: tab1.checked ? Style.colorSlate800 : Style.colorSlate600
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideNone
-            }
-        }
+
         TabButton {
             id: tab2
             text: "🌫️ 공기질 통계"
@@ -272,109 +222,7 @@ ColumnLayout {
         Layout.rightMargin: 20
         Layout.bottomMargin: 20
 
-        // Tab 1: Realtime Congestion
-        Item {
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 30
 
-                Text {
-                    text: "👥 실시간 혼잡도 현황 (8구간)"
-                    font: Style.fontBold
-                    color: Style.colorSlate800
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 15
-                    height: 160
-
-                    Repeater {
-                        model: 8
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 8
-                            color: realtimeData[index] ? realtimeData[index].color : "#22C55E"
-                            border.color: "white"
-                            border.width: 1
-
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 10
-                                Text {
-                                    text: (index + 1)
-                                    font.pixelSize: 24
-                                    font.bold: true
-                                    color: "white"
-                                    Layout.alignment: Qt.AlignCenter
-                                }
-                                Text {
-                                    text: (realtimeData[index] ? realtimeData[index].count : 0) + "명"
-                                    font.pixelSize: 16
-                                    font.bold: true
-                                    color: "white"
-                                    Layout.alignment: Qt.AlignCenter
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Legend
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 20
-                    RowLayout {
-                        spacing: 8
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: "#22C55E"
-                        }
-                        Text {
-                            text: "여유"
-                            color: Style.colorSlate600
-                            font: Style.fontSmall
-                        }
-                    }
-                    RowLayout {
-                        spacing: 8
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: "#EAB308"
-                        }
-                        Text {
-                            text: "보통"
-                            color: Style.colorSlate600
-                            font: Style.fontSmall
-                        }
-                    }
-                    RowLayout {
-                        spacing: 8
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: "#EF4444"
-                        }
-                        Text {
-                            text: "혼잡"
-                            color: Style.colorSlate600
-                            font: Style.fontSmall
-                        }
-                    }
-                }
-
-                Item {
-                    Layout.fillHeight: true
-                }
-            }
-        }
 
         // Tab 2: Air Quality Stats
         ScrollView {
@@ -664,7 +512,7 @@ ColumnLayout {
                                     opacity: 0.9
                                     Text {
                                         anchors.centerIn: parent
-                                        text: modelData.platforms[index]
+                                        text: Math.round(modelData.platforms[index])
                                         color: "white"
                                         font.bold: true
                                     }
@@ -679,7 +527,7 @@ ColumnLayout {
                             border.color: Style.colorTableBorder
                             Text {
                                 anchors.centerIn: parent
-                                text: modelData.total
+                                text: Math.round(modelData.total / 8) + "명"
                                 color: Style.colorSlate800
                                 font.bold: true
                             }

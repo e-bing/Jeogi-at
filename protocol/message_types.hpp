@@ -88,6 +88,7 @@ constexpr const char *FIELD_PLATFORM_NO = "platform_no";
 // ──────────────────────────────────────────
 constexpr const char *FIELD_ZONES = "zones";
 constexpr const char *FIELD_TOTAL_COUNT = "total_count";
+constexpr const char *FIELD_ZONE_COUNTS = "zone_counts"; // 구역별 실제 인원수
 
 // ──────────────────────────────────────────
 //  temp_humi  필드명

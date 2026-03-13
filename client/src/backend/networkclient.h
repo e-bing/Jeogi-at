@@ -116,7 +116,7 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void zoneCongestionReceived(QVariantList zones, int totalCount);
+  void zoneCongestionReceived(QVariantList zones, int totalCount, QVariantList zoneCounts);
   void cameraFrameReceived(int cameraId, const QString &timestamp,
                            const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
