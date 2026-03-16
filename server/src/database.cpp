@@ -8,6 +8,7 @@
 
 #include "../../protocol/message_types.hpp"
 #include "config_manager.hpp"
+#include "shared_data.hpp"
 
 static std::string get_sim_timestamp() {
   static auto real_start = std::chrono::system_clock::now();
@@ -77,11 +78,28 @@ bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts,
                        const std::vector<int>& levels,
                        const std::vector<std::string>& cam_ids) {
   for (int i = 0; i < 8; ++i) {
+    const std::string& cam_id = cam_ids[i];
+
+    // 해당 카메라 연결 여부 확인
+    bool connected = false;
+    if (cam_id == "hanwha") {
+      std::lock_guard<std::mutex> lock(g_hw_frame_mutex);
+      connected = !g_hw_frame_buffer.empty();
+    } else {
+      std::lock_guard<std::mutex> lock(g_node_map_mutex);
+      auto it = g_pi_node_map.find(cam_id);
+      if (it != g_pi_node_map.end()) {
+        std::lock_guard<std::mutex> cam_lock(it->second->data_mutex);
+        connected = !it->second->frame_buffer.empty();
+      }
+    }
+    if (!connected) continue;
+
     string sql =
         "INSERT INTO camera_stats (station_id, camera_id, platform_no, "
         "passenger_count, congestion_stat, recorded_at) "
         "VALUES (1, '" +
-        cam_ids[i] + "', '" + to_string(i + 1) + "', " + to_string(counts[i]) +
+        cam_id + "', '" + to_string(i + 1) + "', " + to_string(counts[i]) +
         ", " + to_string(levels[i]) + ", '" + get_sim_timestamp() + "')";
 
     if (mysql_query(conn, sql.c_str())) {
