@@ -98,17 +98,26 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
     socket->abort();
   }
 
-  // 3. SSL 에러를 무시하도록 미리 설정 (영상 패킷 수신 시 끊김 방지)
-  // 이 코드가 있어야 대용량 데이터 전송 시 SSL 경고로 인해 끊기는 것을
-  // 막습니다.
-  socket->ignoreSslErrors();
+  // 3. server.crt를 CA로 등록하여 서버 인증서 검증
+  QFile certFile(":/assets/server.crt");
+  if (!certFile.open(QIODevice::ReadOnly)) {
+    qDebug() << "❌ server.crt 로드 실패";
+    setStatus("Error: server.crt not found");
+    return;
+  }
+  QSslCertificate caCert(&certFile, QSsl::Pem);
+  certFile.close();
+
+  QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+  sslConfig.setCaCertificates({caCert});
+  sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
+  socket->setSslConfiguration(sslConfig);
 
   qDebug() << "🌐 Attempting to connect to" << host << ":" << port
            << "with TLS...";
-  setStatus("Connecting to sensitive server...");
+  setStatus("Connecting to server...");
 
   socket->connectToHostEncrypted(host, port);
-  socket->ignoreSslErrors();
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
@@ -160,16 +169,13 @@ void NetworkClient::onDisconnected() {
 }
 
 void NetworkClient::onSslErrors(const QList<QSslError> &errors) {
-  QString errMsg = "SSL Errors: ";
+  QString errMsg;
   for (const QSslError &err : errors) {
     errMsg += err.errorString() + "; ";
   }
-  qDebug() << errMsg;
-
-  // For development/demo purposes ONLY: Ignore self-signed cert errors
-  // In production, you should handle this properly!
-  socket->ignoreSslErrors(errors);
-  setStatus("⚠️ TLS Error ignored (Self-signed?)");
+  qDebug() << "❌ SSL Error:" << errMsg;
+  setStatus("SSL Error: " + errMsg);
+  socket->abort();
 }
 
 void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
