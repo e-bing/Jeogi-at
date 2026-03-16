@@ -29,24 +29,31 @@ class CongestionAnalyzer {
 
   // 분석된 8개 구역의 혼잡도(0,1,2)를 반환
   std::vector<int> getCongestionLevels();
+  // 분석된 8개 구역의 실제 인원수를 반환
+  std::vector<int> getCongestionCounts();
+  // 8개 구역의 camera_id를 반환 (zone_id 순서)
+  std::vector<std::string> getCameraIds();
 
  private:
   void run();
 
-    /**
-     * @brief 인원 수 → 혼잡도 레벨 변환
-     *        Protocol::CONGESTION_EASY_MAX, CONGESTION_NORMAL_MAX 기준 사용
-     */
-    int calculateLevel(int count);
+  /**
+   * @brief 인원 수 → 혼잡도 레벨 변환
+   *        Protocol::CONGESTION_EASY_MAX, CONGESTION_NORMAL_MAX 기준 사용
+   */
+  int calculateLevel(int count);
 
   bool isInside(const DetectedObject& obj, const ZoneConfig& zone);
 
-    std::vector<ZoneConfig> m_zones;
-    std::vector<int>        m_current_levels;  // 혼잡도 레벨
-    std::mutex              m_level_mutex;
+  std::vector<ZoneConfig> m_zones;
+  std::vector<int> m_current_levels;  // 혼잡도 레벨
+  std::vector<int> m_current_counts;  // 구역별 인원수
+  std::mutex m_level_mutex;
 
-    std::thread          m_thread;
-    std::atomic<bool>    m_running;
+  std::thread m_thread;
+  std::atomic<bool> m_running;
 };
+
+extern CongestionAnalyzer g_analyzer;
 
 #endif  // CONGESTION_ANALYZER_HPP

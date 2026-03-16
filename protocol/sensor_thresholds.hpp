@@ -30,6 +30,11 @@ constexpr int CONGESTION_EASY_MAX = 1;    // < 0  → 여유
 constexpr int CONGESTION_NORMAL_MAX = 2; // < 1 → 보통, >= 2 → 혼잡
 
 // ──────────────────────────────────────────
+//  열차 정원 상수
+// ──────────────────────────────────────────
+constexpr int TOTAL_CAPACITY = 10; 
+
+// ──────────────────────────────────────────
 //  상태 레이블 (Qt UI 표기)
 // ──────────────────────────────────────────
 constexpr const char *STATUS_GOOD = "🟢 양호";

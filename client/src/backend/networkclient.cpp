@@ -143,7 +143,7 @@ void NetworkClient::onEncrypted() {
                          .subjectInfo(QSslCertificate::CommonName)
                          .join(", ");
   qDebug() << "🔒 Peer Certificate:" << certInfo;
-  setStatus("🔒 Encrypted Connection Established: " + certInfo);
+  setStatus("Connection Established: " + certInfo);
   setIsConnected(true);
 }
 
@@ -316,7 +316,8 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   } else if (type == Protocol::MSG_ZONE_CONGESTION) {
     QJsonArray zonesArr = jsonObj[Protocol::FIELD_ZONES].toArray();
     int totalCount = jsonObj[Protocol::FIELD_TOTAL_COUNT].toInt();
-    emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount);
+    QJsonArray zoneCountsArr = jsonObj[Protocol::FIELD_ZONE_COUNTS].toArray();
+    emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount, zoneCountsArr.toVariantList());
   }
 }
 
@@ -328,25 +329,11 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   if (data.isEmpty())
     return;
 
-  // 가장 최신 recorded_at을 가진 레코드 선택
-  QJsonObject latestObj;
-  QString latestTime;
-
-  for (const QJsonValue &val : data) {
-    QJsonObject obj = val.toObject();
-    // 서버가 recorded_at 또는 timestamp 필드를 사용하는 경우 모두 지원
-    QString ts = obj.contains(Protocol::FIELD_RECORDED_AT)
-                     ? obj[Protocol::FIELD_RECORDED_AT].toString()
-                     : obj["timestamp"].toString();
-
-    if (latestTime.isEmpty() || (!ts.isEmpty() && ts > latestTime)) {
-      latestTime = ts;
-      latestObj = obj;
-    }
-  }
-
-  if (latestObj.isEmpty())
-    latestObj = data.at(0).toObject();
+  // 가장 최신 recorded_at을 가진 레코드 선택 (비교 로직 제거, 첫 번째 항목 사용)
+  QJsonObject latestObj = data.at(0).toObject();
+  QString latestTime = latestObj.contains(Protocol::FIELD_RECORDED_AT)
+                           ? latestObj[Protocol::FIELD_RECORDED_AT].toString()
+                           : latestObj["timestamp"].toString();
 
   // CO2: co2_ppm → toxic_gas_level → co2 순서로 폴백
   double co2 = 0.0;

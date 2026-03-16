@@ -5,11 +5,13 @@
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
 
+std::atomic<bool> g_roi_updated{false};
+
 using std::string;
 using std::vector;
 
-static SendPacket make_packet(uint32_t cam_id, const string &json_str,
-                              const vector<unsigned char> &img_data) {
+static SendPacket make_packet(uint32_t cam_id, const string& json_str,
+                              const vector<unsigned char>& img_data) {
   CamProtocol::PacketHeader header;
   header.magic = htonl(CamProtocol::MAGIC_COOKIE);
   header.camera_id = htonl(cam_id);
@@ -27,31 +29,29 @@ static SendPacket make_packet(uint32_t cam_id, const string &json_str,
   return pkt;
 }
 
-void enqueue_camera_packet(std::queue<SendPacket> &q, std::mutex &mtx,
-                           std::condition_variable &cv, uint32_t cam_id,
-                           const string &json_str,
-                           const vector<unsigned char> &img_data) {
+void enqueue_camera_packet(std::queue<SendPacket>& q, std::mutex& mtx,
+                           std::condition_variable& cv, uint32_t cam_id,
+                           const string& json_str,
+                           const vector<unsigned char>& img_data) {
   SendPacket pkt = make_packet(cam_id, json_str, img_data);
   {
     lock_guard<mutex> lock(mtx);
-    if (q.size() < 6)
-      q.push(std::move(pkt));
+    if (q.size() < 6) q.push(std::move(pkt));
   }
-  cv.notify_one(); // writer_thread 깨우기
+  cv.notify_one();  // writer_thread 깨우기
 }
 
-void enqueue_json_packet(std::queue<SendPacket> &q, std::mutex &mtx,
-                         std::condition_variable &cv, const string &json_str) {
+void enqueue_json_packet(std::queue<SendPacket>& q, std::mutex& mtx,
+                         std::condition_variable& cv, const string& json_str) {
   SendPacket pkt = make_packet(0, json_str, {});
   {
     lock_guard<mutex> lock(mtx);
-    if (q.size() < 10)
-      q.push(std::move(pkt));
+    if (q.size() < 10) q.push(std::move(pkt));
   }
   cv.notify_one();
 }
 
-void reader_thread_func(SSL *ssl, std::atomic<bool> *connected) {
+void reader_thread_func(SSL* ssl, std::atomic<bool>* connected) {
   string cmd_buffer;
   while (*connected) {
     char rx_buffer[256];
@@ -63,8 +63,7 @@ void reader_thread_func(SSL *ssl, std::atomic<bool> *connected) {
       while ((pos = cmd_buffer.find('\n')) != string::npos) {
         string line = cmd_buffer.substr(0, pos);
         cmd_buffer.erase(0, pos + 1);
-        if (!line.empty() && line != "\r")
-          handle_qt_command(line);
+        if (!line.empty() && line != "\r") handle_qt_command(line);
       }
     } else {
       int err = SSL_get_error(ssl, n);
@@ -79,9 +78,9 @@ void reader_thread_func(SSL *ssl, std::atomic<bool> *connected) {
   }
 }
 
-void writer_thread_func(SSL *ssl, std::atomic<bool> *connected,
-                        std::queue<SendPacket> &q, std::mutex &mtx,
-                        std::condition_variable &cv) {
+void writer_thread_func(SSL* ssl, std::atomic<bool>* connected,
+                        std::queue<SendPacket>& q, std::mutex& mtx,
+                        std::condition_variable& cv) {
   while (*connected) {
     std::unique_lock<mutex> lock(mtx);
     cv.wait_for(lock, chrono::milliseconds(50),
@@ -110,13 +109,13 @@ void writer_thread_func(SSL *ssl, std::atomic<bool> *connected,
   }
 }
 
-void hanwha_worker(std::atomic<bool> *client_connected,
-                   std::queue<SendPacket> &q, std::mutex &mtx,
-                   std::condition_variable &cv) {
+void hanwha_worker(std::atomic<bool>* client_connected,
+                   std::queue<SendPacket>& q, std::mutex& mtx,
+                   std::condition_variable& cv) {
   auto last_send = chrono::steady_clock::now();
   while (*client_connected) {
     auto now = chrono::steady_clock::now();
-    if (now - last_send >= chrono::milliseconds(10)) { // 100fps 목표
+    if (now - last_send >= chrono::milliseconds(10)) {  // 100fps 목표
       string json_payload;
       vector<unsigned char> jpg_buffer;
       {
@@ -142,7 +141,7 @@ void hanwha_worker(std::atomic<bool> *client_connected,
           // [Step D] JSON 생성
           json j;
           j[Protocol::FIELD_COUNT] = g_hw_objects.size();
-          for (auto &o : g_hw_objects) {
+          for (auto& o : g_hw_objects) {
             j["objs"].push_back(
                 {{"x", o.x}, {"y", o.y}, {"w", o.w}, {"h", o.h}});
           }
@@ -159,15 +158,15 @@ void hanwha_worker(std::atomic<bool> *client_connected,
   }
 }
 
-void pi_worker(std::atomic<bool> *client_connected, std::queue<SendPacket> &q,
-               std::mutex &mtx, std::condition_variable &cv) {
+void pi_worker(std::atomic<bool>* client_connected, std::queue<SendPacket>& q,
+               std::mutex& mtx, std::condition_variable& cv) {
   auto last_send = chrono::steady_clock::now();
   while (*client_connected) {
     auto now = chrono::steady_clock::now();
-    if (now - last_send >= chrono::milliseconds(30)) { // 33fps
+    if (now - last_send >= chrono::milliseconds(30)) {  // 33fps
       lock_guard<mutex> lock(g_node_map_mutex);
       uint32_t id_idx = 2;
-      for (auto const &[id, camData] : g_pi_node_map) {
+      for (auto const& [id, camData] : g_pi_node_map) {
         string json_payload;
         vector<unsigned char> jpg_buffer;
 
@@ -188,7 +187,7 @@ void pi_worker(std::atomic<bool> *client_connected, std::queue<SendPacket> &q,
             // 2. JSON 생성
             json j_pi;
             j_pi[Protocol::FIELD_COUNT] = camData->objects.size();
-            for (const auto &obj : camData->objects) {
+            for (const auto& obj : camData->objects) {
               j_pi["objs"].push_back(
                   {{"x", obj.x}, {"y", obj.y}, {"w", obj.w}, {"h", obj.h}});
             }
@@ -208,7 +207,7 @@ void pi_worker(std::atomic<bool> *client_connected, std::queue<SendPacket> &q,
 }
 
 void handle_client(int client_socket) {
-  SSL *ssl = SSL_new(g_ssl_ctx);
+  SSL* ssl = SSL_new(g_ssl_ctx);
   if (!ssl) {
     cerr << "SSL_new 실패" << endl;
     close(client_socket);
@@ -228,7 +227,7 @@ void handle_client(int client_socket) {
   cout << "🔒 TLS 연결 성공 (Cipher: " << SSL_get_cipher(ssl) << ")" << endl;
 
   // DB 호출
-  MYSQL *conn = connect_db();
+  MYSQL* conn = connect_db();
 
   if (!conn) {
     SSL_shutdown(ssl);
@@ -236,7 +235,7 @@ void handle_client(int client_socket) {
     close(client_socket);
     return;
   }
-  int snd_size = 1024 * 1024; // 1MB로 확장
+  int snd_size = 1024 * 1024;  // 1MB로 확장
   setsockopt(client_socket, SOL_SOCKET, SO_SNDBUF, &snd_size, sizeof(snd_size));
   int one = 1;
   setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
@@ -245,6 +244,17 @@ void handle_client(int client_socket) {
   std::mutex queue_mutex;
   std::condition_variable queue_cv;
   std::atomic<bool> client_connected{true};
+
+  // 접속 직후 초기 ROI 리스트 1회 전송
+  try {
+    json config = ConfigManager::load();
+    if (config.contains(Protocol::FIELD_ZONES)) {
+      json roi_msg = {{Protocol::FIELD_TYPE, Protocol::MSG_ROI_LIST},
+                      {Protocol::FIELD_DATA, config[Protocol::FIELD_ZONES]}};
+      enqueue_json_packet(send_queue, queue_mutex, queue_cv, roi_msg.dump());
+    }
+  } catch (...) {
+  }
 
   // Writer 스레드
   thread w_thread(writer_thread_func, ssl, &client_connected,
@@ -261,8 +271,9 @@ void handle_client(int client_socket) {
   thread v_pi_thread(pi_worker, &client_connected, std::ref(send_queue),
                      std::ref(queue_mutex), std::ref(queue_cv));
 
-  int db_tick = 0;
-  int sys_tick = 0;
+  // 한 번은 즉시 전송하기 위해 tick 초기값을 500으로 설정
+  int db_tick = 500;
+  int sys_tick = 500;
 
   while (client_connected) {
     // zone_congestion (100ms 주기)
@@ -271,47 +282,46 @@ void handle_client(int client_socket) {
           send_queue, queue_mutex, queue_cv,
           json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
                {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {"zone_counts", g_analyzer.getCongestionCounts()},
                {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
               .dump());
     }
 
-    // DB 데이터 (5초 주기)
-    if (++db_tick >= 500) {
+    // DB 데이터 (1초 주기)
+    if (++db_tick >= 100) {
       db_tick = 0;
       try {
+        save_camera_stats(conn, g_analyzer.getCongestionCounts(), g_analyzer.getCongestionLevels(), g_analyzer.getCameraIds());
         {
-          auto payload = json{{"type", "realtime_air"},
-                              {"title", "🌫️ 실시간 공기질"},
-                              {"data", get_realtime_air_quality(conn)}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                              {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                              {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{"type", "air_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "📊 공기질 통계"},
-                              {"data", get_air_quality_stats(conn, "CAM-01")}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                              {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                              {Protocol::FIELD_DATA, get_air_quality_stats(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{"type", "temp_humi_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "🌡️ 온습도 통계"},
-                              {"data", get_temp_humi_stats(conn, "CAM-01")}}
+          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
+                              {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
+                              {Protocol::FIELD_DATA, get_temp_humi_stats(conn)}}
                              .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
           auto payload =
-              json{{"type", "flow_stats"},
-                   {"camera", "CAM-01"},
-                   {"title", "👥 승객 흐름 통계"},
-                   {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                   {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                   {Protocol::FIELD_DATA, get_passenger_flow_stats(conn)}}
                   .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
-      } catch (const exception& e) {
+      } catch (const exception &e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }
     }
@@ -327,15 +337,11 @@ void handle_client(int client_socket) {
 
   client_connected = false;
 
-  queue_cv.notify_all(); // 대기 중인 스레드 깨우기
-  if (r_thread.joinable())
-    r_thread.join();
-  if (w_thread.joinable())
-    w_thread.join();
-  if (v_hw_thread.joinable())
-    v_hw_thread.join();
-  if (v_pi_thread.joinable())
-    v_pi_thread.join();
+  queue_cv.notify_all();  // 대기 중인 스레드 깨우기
+  if (r_thread.joinable()) r_thread.join();
+  if (w_thread.joinable()) w_thread.join();
+  if (v_hw_thread.joinable()) v_hw_thread.join();
+  if (v_pi_thread.joinable()) v_pi_thread.join();
 
   SSL_shutdown(ssl);
   SSL_free(ssl);
