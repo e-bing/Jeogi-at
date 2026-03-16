@@ -276,6 +276,21 @@ void handle_client(int client_socket) {
   int sys_tick = 500;
 
   while (client_connected) {
+    // ROI가 업데이트되었을 때 재전송
+    if (g_roi_updated.exchange(false)) {
+      try {
+        json config = ConfigManager::load();
+        if (config.contains(Protocol::FIELD_ZONES)) {
+          json roi_msg = {
+              {Protocol::FIELD_TYPE, Protocol::MSG_ROI_LIST},
+              {Protocol::FIELD_DATA, config[Protocol::FIELD_ZONES]}};
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv,
+                              roi_msg.dump());
+        }
+      } catch (...) {
+      }
+    }
+
     // zone_congestion (100ms 주기)
     if (db_tick % 10 == 0) {
       enqueue_json_packet(
@@ -291,26 +306,31 @@ void handle_client(int client_socket) {
     if (++db_tick >= 100) {
       db_tick = 0;
       try {
-        save_camera_stats(conn, g_analyzer.getCongestionCounts(), g_analyzer.getCongestionLevels(), g_analyzer.getCameraIds());
+        save_camera_stats(conn, g_analyzer.getCongestionCounts(),
+                          g_analyzer.getCongestionLevels(),
+                          g_analyzer.getCameraIds());
         {
-          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
-                              {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
-                              {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
-                             .dump();
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                   {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                   {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
+                  .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
-                              {Protocol::FIELD_TITLE, "📊 공기질 통계"},
-                              {Protocol::FIELD_DATA, get_air_quality_stats(conn)}}
-                             .dump();
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                   {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                   {Protocol::FIELD_DATA, get_air_quality_stats(conn)}}
+                  .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
-          auto payload = json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
-                              {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
-                              {Protocol::FIELD_DATA, get_temp_humi_stats(conn)}}
-                             .dump();
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
+                   {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
+                   {Protocol::FIELD_DATA, get_temp_humi_stats(conn)}}
+                  .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
@@ -321,7 +341,7 @@ void handle_client(int client_socket) {
                   .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
-      } catch (const exception &e) {
+      } catch (const exception& e) {
         cerr << "DB 데이터 에러: " << e.what() << endl;
       }
     }
