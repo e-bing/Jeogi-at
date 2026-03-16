@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include "spi.h"
 #include "fatfs.h"
 #include "uart_protocol.h"
@@ -43,7 +44,11 @@ FRESULT sd_read_files(const char *path, uint8_t *data, uint8_t *len)
         if (fno.fattrib & AM_DIR) continue; // 디렉토리 제외(원하면 제거)
 
         const char *ext = strrchr(fno.fname, '.');
-        if (ext && strcmp(ext, ".wav") != 0) continue; // .wav 이외 파일 제외
+        if (!ext) continue;
+        char ext_lower[8] = {0};
+        for (int i = 0; i < 7 && ext[i]; i++)
+            ext_lower[i] = (char)tolower((unsigned char)ext[i]);
+        if (strcmp(ext_lower, ".wav") != 0) continue; // .wav/.WAV 이외 파일 제외
 
         const char *name = fno.fname;      // LFN 설정에 따라 8.3일 수 있음
         uint16_t nlen = (uint16_t)strlen(name);

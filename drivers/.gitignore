@@ -39,6 +39,8 @@
 *.i*86
 *.x86_64
 *.hex
+subway_api/subway_api_parse
+subway_api/subway_api_test
 
 # Debug files
 *.dSYM/
