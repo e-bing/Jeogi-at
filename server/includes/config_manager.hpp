@@ -5,6 +5,8 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+#include "../../protocol/message_types.hpp"
+
 using json = nlohmann::json;
 
 class ConfigManager {
