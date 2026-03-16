@@ -15,13 +15,19 @@ static uint8_t dashboard_dirty = 1U;
 static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
 static uint8_t auto_cycle_enabled = 1U;
 static uint8_t train_dest_code = 0U; // 1: DAEWHA, 2: GUPABAL, 0: UNKNOWN
+static uint8_t train_event_active = 0U;
 static uint8_t dashboard_guide_mode = 0U; // 0: side guidance, 1: per-platform up arrows
+static int8_t train_text_offset_x = 0;
+static int8_t train_text_offset_dir = 1;
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
 static uint32_t last_dashboard_mode_tick = 0U;
+static uint32_t train_event_start_tick = 0U;
 
 #define DASHBOARD_REFRESH_MS 5000U
+#define TRAIN_ANIM_REFRESH_MS 120U
 #define DASHBOARD_GUIDE_TOGGLE_MS 2000U
+#define TRAIN_EVENT_SHOW_MS 5000U
 
 #define DASHBOARD_SHOW_MS 10000U
 #define GAS_SHOW_MS 5000U
@@ -38,7 +44,7 @@ void MatrixRun_Init(void)
 {
   MatrixRun_ShowDashboard();
   dashboard_dirty = 0U;
-  current_screen = 0U;
+  current_screen = SCREEN_DASHBOARD;
   auto_cycle_enabled = 1U;
   dashboard_guide_mode = 0U;
   last_refresh_tick = HAL_GetTick();
@@ -52,6 +58,33 @@ void MatrixRun_Run(void)
   uint8_t need_refresh;
   uint8_t screen_changed = 0U;
   uint32_t stay_ms;
+
+  if (train_event_active != 0U)
+  {
+    if (current_screen != SCREEN_TRAIN)
+    {
+      HUB75_Clear();
+      current_screen = SCREEN_TRAIN;
+      screen_changed = 1U;
+      last_switch_tick = now;
+      last_refresh_tick = 0U;
+    }
+
+    if ((now - train_event_start_tick) >= TRAIN_EVENT_SHOW_MS)
+    {
+      train_event_active = 0U;
+      if (auto_cycle_enabled != 0U)
+      {
+        HUB75_Clear();
+        current_screen = SCREEN_DASHBOARD;
+        dashboard_dirty = 1U;
+        dashboard_guide_mode = 0U;
+        last_dashboard_mode_tick = now;
+        last_switch_tick = now;
+        screen_changed = 1U;
+      }
+    }
+  }
 
   if (current_screen == SCREEN_DASHBOARD)
   {
@@ -102,7 +135,8 @@ void MatrixRun_Run(void)
   {
     need_refresh = 1U;
   }
-  if ((now - last_refresh_tick) >= DASHBOARD_REFRESH_MS)
+  if (((current_screen == SCREEN_TRAIN) && ((now - last_refresh_tick) >= TRAIN_ANIM_REFRESH_MS)) ||
+      ((current_screen != SCREEN_TRAIN) && ((now - last_refresh_tick) >= DASHBOARD_REFRESH_MS)))
   {
     need_refresh = 1U;
   }
@@ -128,7 +162,18 @@ void MatrixRun_Run(void)
   }
   else
   {
-    Screen_Show_Train(train_dest_code);
+    Screen_Show_Train(train_dest_code, train_text_offset_x);
+    train_text_offset_x = (int8_t)(train_text_offset_x + train_text_offset_dir);
+    if (train_text_offset_x >= 6)
+    {
+      train_text_offset_x = 6;
+      train_text_offset_dir = -1;
+    }
+    else if (train_text_offset_x <= -6)
+    {
+      train_text_offset_x = -6;
+      train_text_offset_dir = 1;
+    }
   }
 
   last_refresh_tick = now;
@@ -185,6 +230,19 @@ void MatrixRun_SetTrainDest(uint8_t dest_code)
         dest_code = 0U;
     }
     train_dest_code = dest_code;
+
+    if (dest_code != 0U)
+    {
+        train_event_active = 1U;
+        train_event_start_tick = HAL_GetTick();
+        train_text_offset_x = 0;
+        train_text_offset_dir = 1;
+    }
+    else
+    {
+        train_event_active = 0U;
+    }
+
     if (current_screen == SCREEN_TRAIN)
     {
         last_refresh_tick = 0U;
