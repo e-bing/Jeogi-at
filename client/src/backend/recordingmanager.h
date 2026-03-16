@@ -33,10 +33,13 @@ private:
     QString camDir(int cameraId) const;
     QString findFfmpeg() const;
     void    launchFfmpeg(int cameraId, double fps);
+    void    rollSegment(int cameraId);
 
     // 첫 N 프레임으로 카메라 fps 자동 측정 후 ffmpeg 시작
     static constexpr int CALIBRATION_SKIP   = 5;   // 초반 버스트 제외
     static constexpr int CALIBRATION_FRAMES = 60;  // 측정할 프레임 수
+
+    static constexpr int MAX_SEGMENT_SECS   = 300; // 세그먼트 최대 길이 (5분)
 
     QString m_rootPath;
     QMap<int, bool>             m_recording;
@@ -49,6 +52,7 @@ private:
     QMap<int, int>              m_frameCounts;
     QMap<int, QDateTime>        m_startTimes;
     QMap<int, QProcess*>        m_ffmpegProcesses;
+    QMap<int, bool>             m_segmentRolling;
     mutable QMutex m_mutex;
 };
 

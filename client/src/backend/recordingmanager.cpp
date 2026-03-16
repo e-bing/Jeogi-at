@@ -33,6 +33,7 @@ RecordingManager::RecordingManager(QObject *parent)
         m_calibrating[i]      = false;
         m_frameCounts[i]      = 0;
         m_ffmpegProcesses[i]  = nullptr;
+        m_segmentRolling[i]   = false;
     }
 }
 
@@ -129,6 +130,7 @@ void RecordingManager::startRecording(int cameraId) {
     m_calibrating[cameraId]     = true;   // 첫 N 프레임으로 fps 측정 후 ffmpeg 시작
     m_calibBuf[cameraId].clear();
     m_calibFirstTime[cameraId]  = QDateTime();
+    m_segmentRolling[cameraId]  = false;
     m_recording[cameraId]       = true;
 
     lock.unlock();
@@ -248,6 +250,15 @@ void RecordingManager::onFrameReceived(int cameraId, const QByteArray &jpegData)
             frameNum = ++m_frameCounts[cameraId];
             if (frameNum == 1)
                 thumbPath = m_sessionPaths[cameraId] + "/thumb.jpg";
+
+            // 5분 초과 → 세그먼트 롤
+            if (!m_segmentRolling.value(cameraId, false) &&
+                m_startTimes[cameraId].secsTo(QDateTime::currentDateTime()) >= MAX_SEGMENT_SECS) {
+                m_segmentRolling[cameraId] = true;
+                QMetaObject::invokeMethod(this, [this, cameraId]() {
+                    rollSegment(cameraId);
+                }, Qt::QueuedConnection);
+            }
         }
     }
 
@@ -324,6 +335,47 @@ QVariantList RecordingManager::getRecordings(int cameraId) const {
         result.append(session);
     }
     return result;
+}
+
+// 5분 세그먼트 종료 후 자동 재시작 (m_manualStop 건드리지 않음)
+void RecordingManager::rollSegment(int cameraId) {
+    QMutexLocker lock(&m_mutex);
+    if (!m_recording.value(cameraId, false)) return;
+
+    QString   sessionPath = m_sessionPaths[cameraId];
+    int       frameCount  = m_frameCounts[cameraId];
+    QDateTime startTime   = m_startTimes[cameraId];
+    QProcess *proc        = m_ffmpegProcesses.value(cameraId, nullptr);
+
+    m_recording[cameraId]       = false;
+    m_ffmpegProcesses[cameraId] = nullptr;
+
+    lock.unlock();
+    emit recordingStateChanged(cameraId, false);
+
+    if (proc) {
+        proc->closeWriteChannel();
+        qDebug() << "[RecordingManager] 세그먼트 롤 cam" << cameraId;
+
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, cameraId, sessionPath, frameCount, startTime](int, QProcess::ExitStatus) {
+            QDateTime endTime = QDateTime::currentDateTime();
+
+            QJsonObject meta;
+            meta["camera_id"]   = cameraId;
+            meta["start_time"]  = startTime.toString(Qt::ISODate);
+            meta["end_time"]    = endTime.toString(Qt::ISODate);
+            meta["frame_count"] = frameCount;
+
+            QFile metaFile(sessionPath + "/meta.json");
+            if (metaFile.open(QFile::WriteOnly))
+                metaFile.write(QJsonDocument(meta).toJson());
+
+            proc->deleteLater();
+            emit recordingsChanged(cameraId);
+        });
+    }
+    // m_manualStop = false 이므로 다음 프레임 도착 시 자동으로 새 세그먼트 시작
 }
 
 void RecordingManager::shutdownAll() {
