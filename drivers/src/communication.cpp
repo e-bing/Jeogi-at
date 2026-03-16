@@ -29,6 +29,7 @@ static constexpr uint8_t PKT_ETX          = 0x55;
 static constexpr uint8_t CMD_GET_CO       = 0x01; // CO 센서 값 요청
 static constexpr uint8_t CMD_GET_CO2      = 0x02; // CO2 센서 값 요청
 static constexpr uint8_t CMD_GET_TEMP_HUM = 0x03; // 온습도 전송 (Pi → STM32)
+static constexpr uint8_t CMD_TRAIN_DEST   = 0x09; // 열차 목적지 전송
 static constexpr uint8_t CMD_SET_LED      = 0x10; // LED(혼잡도) 일괄 전송
 static constexpr uint8_t CMD_DISPLAY_CTRL = 0x11; // 디스플레이 제어 명령
 static constexpr uint8_t CMD_PLAY_WAV     = 0x20; // WAV 파일 재생 명령
@@ -409,4 +410,23 @@ void send_to_stm32_display_control(int uart_fd, const string& action) {
 void send_to_stm32_display_screen(int uart_fd, int screen) {
     if (screen < 0 || screen > 9) return;
     send_to_stm32_display_control(uart_fd, to_string(screen));
+}
+
+void send_to_stm32_train_dest(int uart_fd, uint8_t dest_code) {
+    if (uart_fd < 0) return;
+    lock_guard<mutex> lock(g_uart_mutex);
+
+    uint8_t payload[1] = {dest_code};
+    uint8_t pkt[6] = {
+        PKT_STX,
+        CMD_TRAIN_DEST,
+        0x01,
+        payload[0],
+        calc_crc(CMD_TRAIN_DEST, 0x01, payload),
+        PKT_ETX
+    };
+
+    write(uart_fd, pkt, sizeof(pkt));
+    tcdrain(uart_fd);
+    cout << "📤 [→STM32] TRAIN_DEST: " << static_cast<int>(dest_code) << endl;
 }

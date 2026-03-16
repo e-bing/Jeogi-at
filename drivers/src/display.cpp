@@ -20,6 +20,16 @@ static mqtt::async_client *g_display_mqtt = nullptr;
 static bool g_subway_thread_started = false;
 static constexpr int TARGET_SUBWAY_ID = 1003; // 3호선
 
+static uint8_t train_dest_code_from_line(const string &line) {
+  if (line.find("대화행") != string::npos || line.find("DAEWHA") != string::npos) {
+    return 1U;
+  }
+  if (line.find("구파발행") != string::npos || line.find("GUPABAL") != string::npos) {
+    return 2U;
+  }
+  return 0U;
+}
+
 static int parse_int_value(const json &v, int fallback = -1) {
   try {
     if (v.is_number_integer()) return v.get<int>();
@@ -144,11 +154,14 @@ static void run_subway_arrival_override_loop(int uart_fd) {
     if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg, reason)) {
       cout << "[Subway] up train: barvlDt=" << barvl_dt << " line=" << line << " msg=" << msg << endl;
       if (!active && event_armed && barvl_dt <= 0) {
+        uint8_t dest_code = train_dest_code_from_line(line);
+        send_to_stm32_train_dest(uart_fd, dest_code);
         send_to_stm32_display_screen(uart_fd, event_screen);
         active = true;
         event_armed = false;
         active_until = chrono::steady_clock::now() + chrono::seconds(hold_sec);
-        cout << "[Subway] arrival detected -> event screen=" << event_screen << endl;
+        cout << "[Subway] arrival detected -> event screen=" << event_screen
+             << " dest_code=" << static_cast<int>(dest_code) << endl;
       } else if (!active) {
         if (barvl_dt > 0) {
           event_armed = true;
