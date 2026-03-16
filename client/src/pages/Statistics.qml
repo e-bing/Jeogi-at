@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import com.metro.network 1.0
 import ".."
 
 ColumnLayout {
@@ -16,8 +15,8 @@ ColumnLayout {
 
     function getCongestionColor(count) {
         if (count === undefined || count === null) return "#f1f5f9";
-        if (count < client.congestionEasyMax) return "#22C55E";
-        if (count < client.congestionNormalMax) return "#EAB308";
+        if (count < networkClient.congestionEasyMax) return "#22C55E";
+        if (count < networkClient.congestionNormalMax) return "#EAB308";
         return "#EF4444";
     }
 
@@ -31,28 +30,15 @@ ColumnLayout {
     property var expandedFlowDays: ({})
     property var expandedTempHumiDays: ({})
 
-    Timer {
-        id: connectionTimer
-        interval: 500
-        repeat: false
-        onTriggered: {
-            if (mainWindow.serverIp && !client.isConnected) {
-                console.log("Statistics - Auto-connecting to " + mainWindow.serverIp);
-                client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-            }
+    Connections {
+        target: networkClient
+        function onIsConnectedChanged() {
+            console.log("Statistics - Connected: " + networkClient.isConnected);
         }
-    }
-
-    NetworkClient {
-        id: client
-        onIsConnectedChanged: {
-            console.log("Statistics - Connected: " + client.isConnected);
+        function onStatusMessageChanged() {
+            console.log("Statistics - Status: " + networkClient.statusMessage);
         }
-        onStatusMessageChanged: {
-            console.log("Statistics - Status: " + client.statusMessage);
-        }
-
-        onAirStatsReceived: function(data) {
+        function onAirStatsReceived(data) {
             console.log("Statistics - Air Stats Received! Count: " + data.length);
             var dayGroups = {};
             for (var i = 0; i < data.length; i++) {
@@ -79,8 +65,7 @@ ColumnLayout {
             }
             airStatsByDay = arr;
         }
-
-        onFlowStatsReceived: function(data) {
+        function onFlowStatsReceived(data) {
             console.log("Statistics - Flow Stats Received! Count: " + data.length);
             if (data.length > 0) console.log("Flow Data[0]: " + JSON.stringify(data[0]));
             var dayGroups = {};
@@ -121,8 +106,7 @@ ColumnLayout {
             }
             flowStatsByDay = arr;
         }
-
-        onTempHumiStatsReceived: function(data) {
+        function onTempHumiStatsReceived(data) {
             console.log("Statistics - Temp/Humi Stats Received! Count: " + data.length);
             var dayGroups = {};
             for (var i = 0; i < data.length; i++) {
@@ -149,15 +133,6 @@ ColumnLayout {
             }
             tempHumiStatsByDay = arr;
         }
-
-        Component.onCompleted: {
-            console.log("Statistics - Page ready, scheduling connection...");
-            connectionTimer.start();
-        }
-        Component.onDestruction: {
-            console.log("Statistics - Disconnecting on destruction...");
-            disconnectFromServer();
-        }
     }
 
     // Header: Title + Status
@@ -172,11 +147,11 @@ ColumnLayout {
             color: Style.colorSlate800
         }
         Item { Layout.fillWidth: true }
-        Rectangle { width: 12; height: 12; radius: 6; color: client.isConnected ? "#22C55E" : "#EF4444" }
-        Text { text: client.statusMessage; color: Style.colorSlate500; font: Style.fontSmall }
+        Rectangle { width: 12; height: 12; radius: 6; color: networkClient.isConnected ? "#22C55E" : "#EF4444" }
+        Text { text: networkClient.statusMessage; color: Style.colorSlate500; font: Style.fontSmall }
         Button {
             id: connectBtn
-            text: client.isConnected ? "서버 연결 해제" : "서버 연결"
+            text: networkClient.isConnected ? "서버 연결 해제" : "서버 연결"
             font.bold: true
             background: Rectangle {
                 implicitWidth: 100; implicitHeight: 32
@@ -189,8 +164,8 @@ ColumnLayout {
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             }
             onClicked: {
-                if (client.isConnected) client.disconnectFromServer();
-                else client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+                if (networkClient.isConnected) networkClient.disconnectFromServer();
+                else networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }
@@ -324,7 +299,7 @@ ColumnLayout {
 
                     Text {
                         Layout.fillWidth: true; Layout.topMargin: 50
-                        text: client.isConnected ? "공기질 데이터가 없습니다." : "서버에 연결되지 않았습니다."
+                        text: networkClient.isConnected ? "공기질 데이터가 없습니다." : "서버에 연결되지 않았습니다."
                         color: Style.colorSlate500; font: Style.fontNormal
                         horizontalAlignment: Text.AlignHCenter
                         visible: airStatsByDay.length === 0
@@ -423,7 +398,7 @@ ColumnLayout {
 
                     Text {
                         Layout.fillWidth: true; Layout.topMargin: 50
-                        text: client.isConnected ? "온습도 데이터가 없습니다." : "서버에 연결되지 않았습니다."
+                        text: networkClient.isConnected ? "온습도 데이터가 없습니다." : "서버에 연결되지 않았습니다."
                         color: Style.colorSlate500; font: Style.fontNormal
                         horizontalAlignment: Text.AlignHCenter
                         visible: tempHumiStatsByDay.length === 0
@@ -566,7 +541,7 @@ ColumnLayout {
 
                     Text {
                         Layout.fillWidth: true; Layout.topMargin: 50
-                        text: client.isConnected ? "분석된 승객 흐름 데이터가 없습니다.\n(데이터 수집 중이거나 서버에 정보가 부족할 수 있습니다)" : "서버에 연결되지 않았습니다."
+                        text: networkClient.isConnected ? "분석된 승객 흐름 데이터가 없습니다.\n(데이터 수집 중이거나 서버에 정보가 부족할 수 있습니다)" : "서버에 연결되지 않았습니다."
                         color: Style.colorSlate500; font: Style.fontNormal
                         horizontalAlignment: Text.AlignHCenter
                         visible: flowStatsByDay.length === 0
@@ -577,7 +552,7 @@ ColumnLayout {
 
         BusyIndicator {
             anchors.centerIn: parent
-            running: client.isConnected && (airStatsByDay.length === 0 && flowStatsByDay.length === 0 && tempHumiStatsByDay.length === 0)
+            running: networkClient.isConnected && (airStatsByDay.length === 0 && flowStatsByDay.length === 0 && tempHumiStatsByDay.length === 0)
             z: 10
         }
     }

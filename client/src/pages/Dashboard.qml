@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Shapes 1.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import com.metro.network 1.0
 import ".."
 
 ColumnLayout {
@@ -56,16 +55,6 @@ ColumnLayout {
     property int _cam2RenderCount: 0
     property int _cam3RenderCount: 0
     property int _cam4RenderCount: 0
-
-    Timer {
-        id: connectionTimer
-        interval: 1000
-        repeat: false
-        onTriggered: {
-            console.log("Dashboard - Auto-connecting...");
-            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-        }
-    }
 
     Timer {
         interval: 1000
@@ -128,9 +117,9 @@ ColumnLayout {
     }
 
     function getCongestionColor(sumCount) {
-        if (sumCount < client.congestionEasyMax)
+        if (sumCount < networkClient.congestionEasyMax)
             return "#22C55E";
-        else if (sumCount < client.congestionNormalMax)
+        else if (sumCount < networkClient.congestionNormalMax)
             return "#EAB308";
         else
             return "#EF4444";
@@ -148,39 +137,38 @@ ColumnLayout {
         return 0;
     }
 
-    NetworkClient {
-        id: client
-        onIsConnectedChanged: {
-            console.log("Dashboard - Connected: " + client.isConnected);
+    Connections {
+        target: networkClient
+        function onIsConnectedChanged() {
+            console.log("Dashboard - Connected: " + networkClient.isConnected);
         }
-        onStatusMessageChanged: {
-            console.log("Dashboard - Status: " + client.statusMessage);
+        function onStatusMessageChanged() {
+            console.log("Dashboard - Status: " + networkClient.statusMessage);
         }
-        onAirStatsReceived: function (data) {
+        function onAirStatsReceived(data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
         }
-        onRealtimeAirReceived: function (data) {
+        function onRealtimeAirReceived(data) {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
-            
-            // 개별 프로퍼티 업데이트
+
             if (data.co2_ppm !== undefined) dashboardRoot.co2Value = data.co2_ppm;
             if (data.co_level !== undefined) dashboardRoot.coValue = data.co_level;
             if (data.temp !== undefined) dashboardRoot.tempValue = data.temp;
             if (data.humi !== undefined) dashboardRoot.humiValue = data.humi;
-            
+
             let now = new Date();
-            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" + 
-                                         now.getMinutes().toString().padStart(2, '0') + ":" + 
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
+                                         now.getMinutes().toString().padStart(2, '0') + ":" +
                                          now.getSeconds().toString().padStart(2, '0');
         }
-        onZoneCongestionReceived: function (zones, totalCount, counts) {
+        function onZoneCongestionReceived(zones, totalCount, counts) {
             console.log("[Zone] zones:", JSON.stringify(zones), "total:", totalCount, "counts:", JSON.stringify(counts));
             dashboardRoot.sectionSums = zones;
             dashboardRoot.grandTotalOccupants = totalCount;
             dashboardRoot.zoneCounts = counts;
         }
-        onCameraFrameReceived: function (cameraId, timestamp, metadata) {
+        function onCameraFrameReceived(cameraId, timestamp, metadata) {
             let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
@@ -201,24 +189,17 @@ ColumnLayout {
                 dashboardRoot.cam4Count = objectCount;
             }
         }
-        onTempHumiReceived: function (data) {
+        function onTempHumiReceived(data) {
             console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
             dashboardRoot.tempHumiData = data;
-            
-            // 개별 프로퍼티 업데이트 (상시 업데이트 보장)
+
             if (data.temperature !== undefined) dashboardRoot.tempValue = data.temperature;
             if (data.humidity !== undefined) dashboardRoot.humiValue = data.humidity;
-            
+
             let now = new Date();
-            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" + 
-                                         now.getMinutes().toString().padStart(2, '0') + ":" + 
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
+                                         now.getMinutes().toString().padStart(2, '0') + ":" +
                                          now.getSeconds().toString().padStart(2, '0');
-        }
-        Component.onCompleted: {
-            connectionTimer.start();
-        }
-        Component.onDestruction: {
-            disconnectFromServer();
         }
     }
 
@@ -242,21 +223,21 @@ ColumnLayout {
             width: 12
             height: 12
             radius: 6
-            color: client.isConnected ? "#22C55E" : "#EF4444"
+            color: networkClient.isConnected ? "#22C55E" : "#EF4444"
         }
         Text {
-            text: client.statusMessage
+            text: networkClient.statusMessage
             color: Style.colorSlate500
             font: Style.fontSmall
         }
 
         Button {
-            text: client.isConnected ? "Disconnect" : "Connect"
+            text: networkClient.isConnected ? "Disconnect" : "Connect"
             onClicked: {
-                if (client.isConnected)
-                    client.disconnectFromServer();
+                if (networkClient.isConnected)
+                    networkClient.disconnectFromServer();
                 else
-                    client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+                    networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }
@@ -977,8 +958,8 @@ ColumnLayout {
                                         onClicked: {
                                             dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
                                             console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
-                                            if (client && client.sendDeviceCommand) {
-                                                client.sendDeviceCommand(client.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? client.ACTION_MANUAL : client.ACTION_AUTO);
+                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
                                             }
                                         }
                                     }
@@ -996,21 +977,21 @@ ColumnLayout {
                                 model: [
                                     {
                                         name: "환기 팬",
-                                        device: client.DEVICE_MOTOR,
+                                        device: networkClient.DEVICE_MOTOR,
                                         icon: "🍃",
                                         type: "toggle",
                                         options: []
                                     },
                                     {
                                         name: "안내 방송",
-                                        device: client.DEVICE_SPEAKER,
+                                        device: networkClient.DEVICE_SPEAKER,
                                         icon: "🔊",
                                         type: "buttons",
                                         options: ["1", "2", "3", "4"]
                                     },
                                     {
                                         name: "디스플레이",
-                                        device: client.DEVICE_DIGITAL_DISPLAY,
+                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
                                         type: "buttons",
                                         options: ["1", "2", "3"]
@@ -1073,8 +1054,8 @@ ColumnLayout {
                                                 onClicked: {
                                                     deviceItem.isActive = !deviceItem.isActive;
                                                     console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
-                                                    if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? client.ACTION_ON : client.ACTION_OFF);
+                                                    if (networkClient && networkClient.sendDeviceCommand) {
+                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
                                                     }
                                                 }
                                             }
@@ -1120,16 +1101,16 @@ ColumnLayout {
                                                             deviceItem.activeOption = val;
                                                             resetTimer.restart(); // Restart countdown for this row
                                                             console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
-                                                            if (client && client.sendDeviceCommand) {
-                                                                var targetAction = client.ACTION_1; // default fallback
+                                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                                var targetAction = networkClient.ACTION_1; // default fallback
                                                                 if (val === "2")
-                                                                    targetAction = client.ACTION_2;
+                                                                    targetAction = networkClient.ACTION_2;
                                                                 else if (val === "3")
-                                                                    targetAction = client.ACTION_3;
+                                                                    targetAction = networkClient.ACTION_3;
                                                                 else if (val === "4")
-                                                                    targetAction = client.ACTION_4;
+                                                                    targetAction = networkClient.ACTION_4;
 
-                                                                client.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
+                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
                                                             }
                                                         }
                                                     }
@@ -1270,7 +1251,7 @@ ColumnLayout {
 
                             property string currentDensity: {
                                 // 열차 정원 (Protocol::TOTAL_CAPACITY) 대비 전체 인원 밀집도 계산
-                                var capacity = client.totalCapacity;
+                                var capacity = networkClient.totalCapacity;
                                 if (capacity <= 0)
                                     return "0%";
                                 var avg = (grandTotalOccupants / capacity) * 100;

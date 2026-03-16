@@ -1,4 +1,5 @@
 #include "networkclient.h"
+#include "recordingmanager.h"
 #include "sensor_thresholds.hpp"
 
 #include <QDebug>
@@ -246,6 +247,9 @@ void NetworkClient::readData() {
       QByteArray img_data = m_buffer.mid(headerSize + json_size, image_size);
       if (g_cameraImageProvider) {
         g_cameraImageProvider->updateImage(cam_id, img_data);
+      }
+      if (g_recordingManager) {
+        g_recordingManager->onFrameReceived(cam_id, img_data);
       }
 
       QVariantMap metadata;

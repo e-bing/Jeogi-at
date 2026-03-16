@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import com.metro.network 1.0
 import ".."
 import "../components"
 
@@ -25,37 +24,27 @@ Item {
         })
 
     // ── NetworkClient ──────────────────────────────────────────────────────────
-    Timer {
-        id: connectionTimer
-        interval: 800
-        repeat: false
-        onTriggered: client.connectToServer(mainWindow.serverIp, mainWindow.serverPort)
-    }
-
-    NetworkClient {
-        id: client
-        onSystemMonitorReceived: function (data) {
+    Connections {
+        target: networkClient
+        function onSystemMonitorReceived(data) {
             root.systemData = data;
         }
-        onIsConnectedChanged: {
-            if (!client.isConnected) {
-                // 서버 연결 끊기면 펌웨어 포함 모든 데이터 초기화
+        function onIsConnectedChanged() {
+            if (!networkClient.isConnected) {
                 var data = {};
-                data[client.FIELD_SERVER] = {};
-                data[client.FIELD_SERVER][client.FIELD_CPU_USAGE] = 0;
-                data[client.FIELD_SERVER][client.FIELD_CPU_TEMP] = 0;
-                data[client.FIELD_SERVER][client.FIELD_DISK_USAGE] = 0;
+                data[networkClient.FIELD_SERVER] = {};
+                data[networkClient.FIELD_SERVER][networkClient.FIELD_CPU_USAGE] = 0;
+                data[networkClient.FIELD_SERVER][networkClient.FIELD_CPU_TEMP] = 0;
+                data[networkClient.FIELD_SERVER][networkClient.FIELD_DISK_USAGE] = 0;
 
-                data[client.FIELD_FIRMWARE] = {};
-                data[client.FIELD_FIRMWARE][client.FIELD_CPU_USAGE] = 0;
-                data[client.FIELD_FIRMWARE][client.FIELD_CPU_TEMP] = 0;
-                data[client.FIELD_FIRMWARE][client.FIELD_DISK_USAGE] = 0;
-                data[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] = false;
+                data[networkClient.FIELD_FIRMWARE] = {};
+                data[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CPU_USAGE] = 0;
+                data[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CPU_TEMP] = 0;
+                data[networkClient.FIELD_FIRMWARE][networkClient.FIELD_DISK_USAGE] = 0;
+                data[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CONNECTED] = false;
                 root.systemData = data;
             }
         }
-        Component.onCompleted: connectionTimer.start()
-        Component.onDestruction: disconnectFromServer()
     }
 
     // ── Layout ─────────────────────────────────────────────────────────────────
@@ -95,10 +84,10 @@ Item {
                 width: 10
                 height: 10
                 radius: 5
-                color: client.isConnected ? "#22C55E" : "#EF4444"
+                color: networkClient.isConnected ? "#22C55E" : "#EF4444"
             }
             Text {
-                text: client.statusMessage
+                text: networkClient.statusMessage
                 font.family: "Pretendard"
                 font.pixelSize: 12
                 color: Style.colorSlate500
@@ -115,7 +104,7 @@ Item {
                 border.width: 1
                 Text {
                     anchors.centerIn: parent
-                    text: client.isConnected ? "연결 해제" : "서버 연결"
+                    text: networkClient.isConnected ? "연결 해제" : "서버 연결"
                     font.family: "Pretendard"
                     font.pixelSize: 12
                     color: Style.colorSlate700 !== undefined ? Style.colorSlate700 : Style.colorSlate600
@@ -125,7 +114,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: client.isConnected ? client.disconnectFromServer() : client.connectToServer(mainWindow.serverIp, mainWindow.serverPort)
+                    onClicked: networkClient.isConnected ? networkClient.disconnectFromServer() : networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort)
                 }
             }
         }
@@ -149,25 +138,25 @@ Item {
                 Layout.fillHeight: true
 
                 iconEmoji: "☁️"
-                iconBg: client.isConnected ? "#E0F2FE" : "#F1F5F9"
+                iconBg: networkClient.isConnected ? "#E0F2FE" : "#F1F5F9"
                 cardTitle: "중앙 관리 서버 (Server)"
                 cardSub: "CentOS 7 · Intel Xeon" + (mainWindow.serverIp.length > 0 ? " · " + mainWindow.serverIp : "")
-                isOnline: client.isConnected
-                opacity: client.isConnected ? 1.0 : 0.55
+                isOnline: networkClient.isConnected
+                opacity: networkClient.isConnected ? 1.0 : 0.55
                 disconnectMsg: "서버 연결 없음"
 
                 stat1Title: "CPU 점유율"
-                stat1Value: root.systemData[client.FIELD_SERVER][client.FIELD_CPU_USAGE]
+                stat1Value: root.systemData[networkClient.FIELD_SERVER][networkClient.FIELD_CPU_USAGE]
                 stat1Unit: "%"
                 stat1Color: "#0EA5E9"
 
                 stat2Title: "CPU 온도"
-                stat2Value: root.systemData[client.FIELD_SERVER][client.FIELD_CPU_TEMP]
+                stat2Value: root.systemData[networkClient.FIELD_SERVER][networkClient.FIELD_CPU_TEMP]
                 stat2Unit: "°C"
                 stat2Color: "#F43F5E"
 
                 stat3Title: "디스크 사용량"
-                stat3Value: root.systemData[client.FIELD_SERVER][client.FIELD_DISK_USAGE]
+                stat3Value: root.systemData[networkClient.FIELD_SERVER][networkClient.FIELD_DISK_USAGE]
                 stat3Unit: "%"
                 stat3Color: "#8B5CF6"
             }
@@ -178,24 +167,24 @@ Item {
                 Layout.fillHeight: true
 
                 iconEmoji: "📟"
-                iconBg: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? "#DCFCE7" : "#FEE2E2"
+                iconBg: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CONNECTED] ? "#DCFCE7" : "#FEE2E2"
                 cardTitle: "에지 디바이스 (Firmware)"
-                cardSub: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? "연결됨 · Raspberry Pi 4" : "연결 끊김"
-                isOnline: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED]
-                opacity: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CONNECTED] ? 1.0 : 0.55
+                cardSub: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CONNECTED] ? "연결됨 · Raspberry Pi 4" : "연결 끊김"
+                isOnline: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CONNECTED]
+                opacity: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CONNECTED] ? 1.0 : 0.55
 
                 stat1Title: "CPU 점유율"
-                stat1Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CPU_USAGE]
+                stat1Value: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CPU_USAGE]
                 stat1Unit: "%"
                 stat1Color: "#22C55E"
 
                 stat2Title: "CPU 온도"
-                stat2Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_CPU_TEMP]
+                stat2Value: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_CPU_TEMP]
                 stat2Unit: "°C"
                 stat2Color: "#F97316"
 
                 stat3Title: "디스크 사용량"
-                stat3Value: root.systemData[client.FIELD_FIRMWARE][client.FIELD_DISK_USAGE]
+                stat3Value: root.systemData[networkClient.FIELD_FIRMWARE][networkClient.FIELD_DISK_USAGE]
                 stat3Unit: "%"
                 stat3Color: "#6366F1"
 
