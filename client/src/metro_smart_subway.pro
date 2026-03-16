@@ -21,10 +21,10 @@ win32 {
 SOURCES += \
     backend/util/micstreamer/micstreamer.cpp \
     main.cpp \
-    backend/networkclient.cpp
+    backend/networkclient.cpp \
+    backend/recordingmanager.cpp
 
 HEADERS += \
-    backend/networkclient.h
     backend/networkclient.h \
     backend/recordingmanager.h \
     backend/util/micstreamer/micstreamer.h

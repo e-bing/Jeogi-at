@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include "uart_handler.h"
 #include "uart_protocol.h"
 #include "Data_Manager.h"
@@ -6,6 +8,8 @@
 #include "services/sd_storage.h"
 #include "mq7.h"
 #include "mq135.h"
+// #include "sht20.h"
+#include "Matrixrun.h"
 
 /* ─────────────────────────────────────────
    내부 변수
@@ -255,6 +259,51 @@ void UART_Handler_Process(void)
         UART_SendACK(pkt.cmd);
         break;
 
+    case CMD_TRAIN_DEST:
+    {
+        if (pkt.len != 1U)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        MatrixRun_SetTrainDest(pkt.data[0]);
+        printf("[UART] TRAIN_DEST: %u\r\n", pkt.data[0]);
+        UART_SendACK(pkt.cmd);
+        break;
+    }
+
+    case CMD_DISPLAY_CTRL:
+    {
+        if (pkt.len == 0 || pkt.len >= PKT_MAX_DATA_LEN)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        char action[PKT_MAX_DATA_LEN];
+        memcpy(action, pkt.data, pkt.len);
+        action[pkt.len] = '\0';
+
+        printf("[UART] DISPLAY_CTRL: %s\r\n", action);
+
+        if (strcmp(action, "0") == 0)
+        {
+            MatrixRun_SetAutoCycle(1U);
+            UART_SendACK(pkt.cmd);
+            break;
+        }
+
+        int screen = atoi(action) - 1;  // "1"→0, "2"→1, "3"→2, "4"→3
+        if (screen < 0 || screen > 3)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        MatrixRun_SetScreen((uint8_t)screen);
+
+        UART_SendACK(pkt.cmd);
+        break;
+    }
+
     case CMD_PLAY_WAV:
         printf("[RECV] PLAY_WAV\r\n");
         if (pkt.len == 0 || pkt.len > 255)
@@ -268,6 +317,7 @@ void UART_Handler_Process(void)
         filename[pkt.len] = '\0';
 
         Audio_StartWav(filename);
+
         UART_SendNACK(CMD_ACK, 0);
         break;
 

@@ -5,6 +5,8 @@
 extern CongestionAnalyzer g_analyzer;
 extern int get_total_people_count();
 
+std::atomic<bool> g_roi_updated{false};
+
 using std::string;
 using std::vector;
 
@@ -243,6 +245,17 @@ void handle_client(int client_socket) {
   std::condition_variable queue_cv;
   std::atomic<bool> client_connected{true};
 
+  // 접속 직후 초기 ROI 리스트 1회 전송
+  try {
+    json config = ConfigManager::load();
+    if (config.contains(Protocol::FIELD_ZONES)) {
+      json roi_msg = {{Protocol::FIELD_TYPE, Protocol::MSG_ROI_LIST},
+                      {Protocol::FIELD_DATA, config[Protocol::FIELD_ZONES]}};
+      enqueue_json_packet(send_queue, queue_mutex, queue_cv, roi_msg.dump());
+    }
+  } catch (...) {
+  }
+
   // Writer 스레드
   thread w_thread(writer_thread_func, ssl, &client_connected,
                   std::ref(send_queue), std::ref(queue_mutex),
@@ -258,45 +271,73 @@ void handle_client(int client_socket) {
   thread v_pi_thread(pi_worker, &client_connected, std::ref(send_queue),
                      std::ref(queue_mutex), std::ref(queue_cv));
 
-  int db_tick = 0;
-  int sys_tick = 0;
+  // 한 번은 즉시 전송하기 위해 tick 초기값을 500으로 설정
+  int db_tick = 500;
+  int sys_tick = 500;
 
   while (client_connected) {
+    // ROI가 업데이트되었을 때 재전송
+    if (g_roi_updated.exchange(false)) {
+      try {
+        json config = ConfigManager::load();
+        if (config.contains(Protocol::FIELD_ZONES)) {
+          json roi_msg = {
+              {Protocol::FIELD_TYPE, Protocol::MSG_ROI_LIST},
+              {Protocol::FIELD_DATA, config[Protocol::FIELD_ZONES]}};
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv,
+                              roi_msg.dump());
+        }
+      } catch (...) {
+      }
+    }
+
     // zone_congestion (100ms 주기)
     if (db_tick % 10 == 0) {
       enqueue_json_packet(
           send_queue, queue_mutex, queue_cv,
           json{{Protocol::FIELD_TYPE, Protocol::MSG_ZONE_CONGESTION},
                {Protocol::FIELD_ZONES, g_analyzer.getCongestionLevels()},
+               {"zone_counts", g_analyzer.getCongestionCounts()},
                {Protocol::FIELD_TOTAL_COUNT, get_total_people_count()}}
               .dump());
     }
 
-    // DB 데이터 (5초 주기)
-    if (++db_tick >= 500) {
+    // DB 데이터 (1초 주기)
+    if (++db_tick >= 100) {
       db_tick = 0;
       try {
+        save_camera_stats(conn, g_analyzer.getCongestionCounts(),
+                          g_analyzer.getCongestionLevels(),
+                          g_analyzer.getCameraIds());
         {
-          auto payload = json{{"type", "realtime_air"},
-                              {"title", "🌫️ 실시간 공기질"},
-                              {"data", get_realtime_air_quality(conn)}}
-                             .dump();
-          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
-        }
-        {
-          auto payload = json{{"type", "air_stats"},
-                              {"camera", "CAM-01"},
-                              {"title", "📊 공기질 통계"},
-                              {"data", get_air_quality_stats(conn, "CAM-01")}}
-                             .dump();
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_REALTIME_AIR},
+                   {Protocol::FIELD_TITLE, "🌫️ 실시간 공기질"},
+                   {Protocol::FIELD_DATA, get_realtime_air_quality(conn)}}
+                  .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }
         {
           auto payload =
-              json{{"type", "flow_stats"},
-                   {"camera", "CAM-01"},
-                   {"title", "👥 승객 흐름 통계"},
-                   {"data", get_passenger_flow_stats(conn, "CAM-01")}}
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_AIR_STATS},
+                   {Protocol::FIELD_TITLE, "📊 공기질 통계"},
+                   {Protocol::FIELD_DATA, get_air_quality_stats(conn)}}
+                  .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_TEMP_HUMI_STATS},
+                   {Protocol::FIELD_TITLE, "🌡️ 온습도 통계"},
+                   {Protocol::FIELD_DATA, get_temp_humi_stats(conn)}}
+                  .dump();
+          enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
+        }
+        {
+          auto payload =
+              json{{Protocol::FIELD_TYPE, Protocol::MSG_FLOW_STATS},
+                   {Protocol::FIELD_TITLE, "👥 승객 흐름 통계"},
+                   {Protocol::FIELD_DATA, get_passenger_flow_stats(conn)}}
                   .dump();
           enqueue_json_packet(send_queue, queue_mutex, queue_cv, payload);
         }

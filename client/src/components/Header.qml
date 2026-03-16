@@ -139,12 +139,14 @@ Rectangle {
                     id: headerIpField
                     placeholderText: "Server IP"
                     text: mainWindow.serverIp
+                    Keys.onReturnPressed: serverDialog.accept()
                 }
                 TextField {
                     id: headerPortField
                     placeholderText: "Server Port"
                     text: mainWindow.serverPort.toString()
                     inputMethodHints: Qt.ImhDigitsOnly
+                    Keys.onReturnPressed: serverDialog.accept()
                 }
             }
             onAccepted: {

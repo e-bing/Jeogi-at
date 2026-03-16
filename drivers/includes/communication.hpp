@@ -113,4 +113,16 @@ void send_to_stm32_bulk_congestion(int uart_fd, const std::vector<int>& levels);
  */
 void send_to_stm32_display_control(int uart_fd, const std::string& action);
 
+/**
+ * @brief 디스플레이 화면 번호를 문자열로 변환해 STM32에 전송합니다. (CMD 0x11)
+ * @param screen 0~9 화면 번호
+ */
+void send_to_stm32_display_screen(int uart_fd, int screen);
+
+/**
+ * @brief 열차 목적지 코드를 STM32로 전송합니다. (CMD 0x09)
+ * @param dest_code 1: DAEWHA, 2: GUPABAL, 0: UNKNOWN
+ */
+void send_to_stm32_train_dest(int uart_fd, uint8_t dest_code);
+
 #endif // COMMUNICATION_HPP

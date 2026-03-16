@@ -96,7 +96,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-//  HAL_NVIC_SetPriority(SysTick_IRQn, 3, 0);
+  //  HAL_NVIC_SetPriority(SysTick_IRQn, 3, 0);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -125,8 +125,8 @@ int main(void)
   // test: sensor & motor
   // Start Timer with Interrupt
   //    HAL_TIM_Base_Start_IT(&htim3);
-  //    MQ135_Init();
-  //    MQ7_Init();
+  MQ135_Init();
+  MQ7_Init();
 
   // test: LED panel
   AppTask_Init();
@@ -148,7 +148,6 @@ int main(void)
     UART_Handler_Process();
 
     // start: LED panel
-    /* ?���????????????? ?��?�� 버퍼 갱신 */
     AppTask_Run();
     /* LED panel refresh */
     //    HUB75_RefreshStep();
@@ -227,7 +226,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM4)
   {
     // Set flag to process data in the main loop
-	  // need compare TIM4_IRQHandler()
+    // need compare TIM4_IRQHandler()
     HUB75_RefreshStep_ISR();
   }
 }

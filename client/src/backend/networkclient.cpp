@@ -1,4 +1,5 @@
 #include "networkclient.h"
+#include "recordingmanager.h"
 #include "sensor_thresholds.hpp"
 
 #include <QDebug>
@@ -97,17 +98,26 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
     socket->abort();
   }
 
-  // 3. SSL 에러를 무시하도록 미리 설정 (영상 패킷 수신 시 끊김 방지)
-  // 이 코드가 있어야 대용량 데이터 전송 시 SSL 경고로 인해 끊기는 것을
-  // 막습니다.
-  socket->ignoreSslErrors();
+  // 3. server.crt를 CA로 등록하여 서버 인증서 검증
+  QFile certFile(":/assets/server.crt");
+  if (!certFile.open(QIODevice::ReadOnly)) {
+    qDebug() << "❌ server.crt 로드 실패";
+    setStatus("Error: server.crt not found");
+    return;
+  }
+  QSslCertificate caCert(&certFile, QSsl::Pem);
+  certFile.close();
+
+  QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+  sslConfig.setCaCertificates({caCert});
+  sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
+  socket->setSslConfiguration(sslConfig);
 
   qDebug() << "🌐 Attempting to connect to" << host << ":" << port
            << "with TLS...";
-  setStatus("Connecting to sensitive server...");
+  setStatus("Connecting to server...");
 
   socket->connectToHostEncrypted(host, port);
-  socket->ignoreSslErrors();
 }
 
 void NetworkClient::disconnectFromServer() { socket->disconnectFromHost(); }
@@ -143,7 +153,7 @@ void NetworkClient::onEncrypted() {
                          .subjectInfo(QSslCertificate::CommonName)
                          .join(", ");
   qDebug() << "🔒 Peer Certificate:" << certInfo;
-  setStatus("🔒 Encrypted Connection Established: " + certInfo);
+  setStatus("Connection Established: " + certInfo);
   setIsConnected(true);
 }
 
@@ -159,16 +169,13 @@ void NetworkClient::onDisconnected() {
 }
 
 void NetworkClient::onSslErrors(const QList<QSslError> &errors) {
-  QString errMsg = "SSL Errors: ";
+  QString errMsg;
   for (const QSslError &err : errors) {
     errMsg += err.errorString() + "; ";
   }
-  qDebug() << errMsg;
-
-  // For development/demo purposes ONLY: Ignore self-signed cert errors
-  // In production, you should handle this properly!
-  socket->ignoreSslErrors(errors);
-  setStatus("⚠️ TLS Error ignored (Self-signed?)");
+  qDebug() << "❌ SSL Error:" << errMsg;
+  setStatus("SSL Error: " + errMsg);
+  socket->abort();
 }
 
 void NetworkClient::onErrorOccurred(QAbstractSocket::SocketError socketError) {
@@ -247,6 +254,9 @@ void NetworkClient::readData() {
       if (g_cameraImageProvider) {
         g_cameraImageProvider->updateImage(cam_id, img_data);
       }
+      if (g_recordingManager) {
+        g_recordingManager->onFrameReceived(cam_id, img_data);
+      }
 
       QVariantMap metadata;
       if (!json_data.isEmpty())
@@ -304,6 +314,9 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   } else if (type == Protocol::MSG_FLOW_STATS) {
     processFlowStatsData(dataVal.toArray());
 
+  } else if (type == "temp_humi_stats") {
+    processTempHumiStatsData(dataVal.toArray());
+
   } else if (type == Protocol::MSG_SYSTEM_MONITOR) {
     processSystemMonitorData(jsonObj);
 
@@ -313,7 +326,8 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
   } else if (type == Protocol::MSG_ZONE_CONGESTION) {
     QJsonArray zonesArr = jsonObj[Protocol::FIELD_ZONES].toArray();
     int totalCount = jsonObj[Protocol::FIELD_TOTAL_COUNT].toInt();
-    emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount);
+    QJsonArray zoneCountsArr = jsonObj[Protocol::FIELD_ZONE_COUNTS].toArray();
+    emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount, zoneCountsArr.toVariantList());
   }
 }
 
@@ -325,25 +339,11 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   if (data.isEmpty())
     return;
 
-  // 가장 최신 recorded_at을 가진 레코드 선택
-  QJsonObject latestObj;
-  QString latestTime;
-
-  for (const QJsonValue &val : data) {
-    QJsonObject obj = val.toObject();
-    // 서버가 recorded_at 또는 timestamp 필드를 사용하는 경우 모두 지원
-    QString ts = obj.contains(Protocol::FIELD_RECORDED_AT)
-                     ? obj[Protocol::FIELD_RECORDED_AT].toString()
-                     : obj["timestamp"].toString();
-
-    if (latestTime.isEmpty() || (!ts.isEmpty() && ts > latestTime)) {
-      latestTime = ts;
-      latestObj = obj;
-    }
-  }
-
-  if (latestObj.isEmpty())
-    latestObj = data.at(0).toObject();
+  // 가장 최신 recorded_at을 가진 레코드 선택 (비교 로직 제거, 첫 번째 항목 사용)
+  QJsonObject latestObj = data.at(0).toObject();
+  QString latestTime = latestObj.contains(Protocol::FIELD_RECORDED_AT)
+                           ? latestObj[Protocol::FIELD_RECORDED_AT].toString()
+                           : latestObj["timestamp"].toString();
 
   // CO2: co2_ppm → toxic_gas_level → co2 순서로 폴백
   double co2 = 0.0;
@@ -356,7 +356,18 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
 
   double co = latestObj[Protocol::FIELD_CO_LEVEL].toDouble();
 
-  // UI 일관성을 위해 두 필드 모두 확실히 설정
+  // 온습도 필드 매핑 및 신호 발생 (Dashboard.qml 호환성)
+  if (latestObj.contains(Protocol::FIELD_TEMP) ||
+      latestObj.contains(Protocol::FIELD_HUMI)) {
+    QVariantMap thMap;
+    double temp = latestObj[Protocol::FIELD_TEMP].toDouble();
+    double humi = latestObj[Protocol::FIELD_HUMI].toDouble();
+    thMap["temperature"] = temp;
+    thMap["humidity"] = humi;
+    emit tempHumiReceived(thMap);
+  }
+
+  // UI 일관성을 위해 필드 설정
   latestObj[Protocol::FIELD_CO2_PPM] = co2;
   latestObj[Protocol::FIELD_CO_LEVEL] = co;
 
@@ -366,6 +377,8 @@ void NetworkClient::processRealtimeAirData(const QJsonArray &data) {
   qDebug() << "🕙 Recorded At:" << latestTime;
   qDebug() << "🌫️ CO2:" << co2 << "(raw_ppm)";
   qDebug() << "🌫️ CO:" << co << "(raw_level)";
+  qDebug() << "🌡️ Temp:" << latestObj[Protocol::FIELD_TEMP].toDouble() << "°C";
+  qDebug() << "💧 Humi:" << latestObj[Protocol::FIELD_HUMI].toDouble() << "%";
   qDebug() << "-----------------------------------------";
 
   latestObj[Protocol::FIELD_CO_STATUS] = coStatusString(co);
@@ -401,6 +414,14 @@ void NetworkClient::processFlowStatsData(const QJsonArray &data) {
     result.append(obj);
   }
   emit flowStatsReceived(result.toVariantList());
+}
+
+void NetworkClient::processTempHumiStatsData(const QJsonArray &data) {
+  QJsonArray result;
+  for (const QJsonValue &val : data) {
+    result.append(val.toObject());
+  }
+  emit tempHumiStatsReceived(result.toVariantList());
 }
 
 void NetworkClient::processSystemMonitorData(const QJsonObject &obj) {

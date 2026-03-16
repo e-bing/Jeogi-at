@@ -10,7 +10,9 @@
 #define CMD_GET_CO          0x01
 #define CMD_GET_CO2         0x02
 #define CMD_GET_TEMP_HUM    0x03
+#define CMD_TRAIN_DEST      0x09
 #define CMD_SET_LED         0x10
+#define CMD_DISPLAY_CTRL    0x11
 #define CMD_PLAY_WAV        0x20
 #define CMD_GET_WAVS        0x21
 #define CMD_RESP_WAVS       0x22

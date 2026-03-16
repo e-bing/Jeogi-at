@@ -40,6 +40,7 @@ class NetworkClient : public QObject {
       QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
   Q_PROPERTY(int congestionEasyMax READ congestionEasyMax CONSTANT)
   Q_PROPERTY(int congestionNormalMax READ congestionNormalMax CONSTANT)
+  Q_PROPERTY(int totalCapacity READ totalCapacity CONSTANT)
 
   // Device IDs
   Q_PROPERTY(QString DEVICE_MOTOR READ deviceMotor CONSTANT)
@@ -65,6 +66,7 @@ class NetworkClient : public QObject {
   Q_PROPERTY(QString FIELD_SERVER READ fieldServer CONSTANT)
   Q_PROPERTY(QString FIELD_FIRMWARE READ fieldFirmware CONSTANT)
   Q_PROPERTY(QString FIELD_CONNECTED READ fieldConnected CONSTANT)
+  Q_PROPERTY(QString FIELD_PLATFORM_NO READ fieldPlatformNo CONSTANT)
 
 public:
   explicit NetworkClient(QObject *parent = nullptr);
@@ -74,6 +76,7 @@ public:
   QString statusMessage() const;
   int congestionEasyMax() const;
   int congestionNormalMax() const;
+  int totalCapacity() const { return Protocol::TOTAL_CAPACITY; }
 
   // Getters for protocol constants
   QString deviceMotor() const { return Protocol::DEVICE_MOTOR; }
@@ -100,6 +103,7 @@ public:
   QString fieldServer() const { return Protocol::FIELD_SERVER; }
   QString fieldFirmware() const { return Protocol::FIELD_FIRMWARE; }
   QString fieldConnected() const { return Protocol::FIELD_CONNECTED; }
+  QString fieldPlatformNo() const { return Protocol::FIELD_PLATFORM_NO; }
 
   Q_INVOKABLE void connectToServer(const QString &host, quint16 port);
   Q_INVOKABLE void disconnectFromServer();
@@ -112,11 +116,12 @@ signals:
   void airStatsReceived(QVariantList data);
   void realtimeAirReceived(QVariantMap data);
   void flowStatsReceived(QVariantList data);
-  void zoneCongestionReceived(QVariantList zones, int totalCount);
+  void zoneCongestionReceived(QVariantList zones, int totalCount, QVariantList zoneCounts);
   void cameraFrameReceived(int cameraId, const QString &timestamp,
                            const QVariantMap &metadata);
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
+  void tempHumiStatsReceived(QVariantList data);
 
 private slots:
   void onEncrypted();
@@ -138,6 +143,7 @@ private:
   void processRealtimeAirData(const QJsonArray &data);
   void processAirStatsData(const QJsonArray &data);
   void processFlowStatsData(const QJsonArray &data);
+  void processTempHumiStatsData(const QJsonArray &data);
   void processSystemMonitorData(const QJsonObject &obj);
   void processJsonResponse(const QByteArray &line);
 

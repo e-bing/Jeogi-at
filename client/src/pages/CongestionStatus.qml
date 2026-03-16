@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import com.metro.network 1.0
 import ".."
 
 ScrollView {
@@ -12,16 +11,6 @@ ScrollView {
     property var sectionAverages: []
     property var sectionSums: []
     property int grandTotalOccupants: 0
-
-    Timer {
-        id: connectionTimer
-        interval: 1000
-        repeat: false
-        onTriggered: {
-            console.log("Congestion Status - Auto-connecting...");
-            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-        }
-    }
 
     // Function to calculate section sums and averages from realtime data
     function calculateSectionData(realtimeData) {
@@ -86,12 +75,12 @@ ScrollView {
         }
     }
 
-    NetworkClient {
-        id: client
-        onIsConnectedChanged: {
-            console.log("Congestion Status - Connected: " + client.isConnected);
+    Connections {
+        target: networkClient
+        function onIsConnectedChanged() {
+            console.log("Congestion Status - Connected: " + networkClient.isConnected);
         }
-        onRealtimeDataReceived: function (data) {
+        function onRealtimeDataReceived(data) {
             console.log("Congestion Status - Realtime Data Received: " + data.length);
             congestionData = data;
             var results = calculateSectionData(data);
@@ -99,15 +88,6 @@ ScrollView {
             sectionSums = results.sums;
             grandTotalOccupants = results.total;
             congestionRepeater.model = sectionAverages.length;
-        }
-
-        Component.onCompleted: {
-            console.log("Congestion Status - Page ready, scheduling connection...");
-            connectionTimer.start();
-        }
-        Component.onDestruction: {
-            console.log("Congestion Status - Disconnecting on destruction...");
-            disconnectFromServer();
         }
     }
 
@@ -148,10 +128,10 @@ ScrollView {
                     width: 12
                     height: 12
                     radius: 6
-                    color: client.isConnected ? "#22C55E" : "#EF4444"
+                    color: networkClient.isConnected ? "#22C55E" : "#EF4444"
                 }
                 Text {
-                    text: client.statusMessage
+                    text: networkClient.statusMessage
                     color: Style.colorSlate500
                     font: Style.fontSmall
                 }

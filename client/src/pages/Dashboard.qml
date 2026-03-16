@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Shapes 1.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
-import com.metro.network 1.0
 import ".."
 
 ColumnLayout {
@@ -13,8 +12,17 @@ ColumnLayout {
 
     property var airStatsData: ({})
     property var tempHumiData: ({})
+    
+    // 개별 반응형 프로퍼티 (데이터 수신 확인용)
+    property double tempValue: 0.0
+    property double humiValue: 0.0
+    property double co2Value: 0.0
+    property double coValue: 0.0
+    property string lastEnvUpdate: "수신 대기 중..."
+
     property var sectionAverages: []
     property var sectionSums: []
+    property var zoneCounts: []
     property int grandTotalOccupants: 0
     property bool isManualMode: false
 
@@ -49,40 +57,26 @@ ColumnLayout {
     property int _cam4RenderCount: 0
 
     Timer {
-        id: connectionTimer
-        interval: 1000
-        repeat: false
-        onTriggered: {
-            console.log("Dashboard - Auto-connecting...");
-            client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-        }
-    }
-
-    Timer {
         interval: 1000
         repeat: true
         running: true
         onTriggered: {
-            dashboardRoot.cam1Fps = dashboardRoot._cam1Count
-            dashboardRoot.cam2Fps = dashboardRoot._cam2Count
-            dashboardRoot.cam3Fps = dashboardRoot._cam3Count
-            dashboardRoot.cam4Fps = dashboardRoot._cam4Count
+            dashboardRoot.cam1Fps = dashboardRoot._cam1Count;
+            dashboardRoot.cam2Fps = dashboardRoot._cam2Count;
+            dashboardRoot.cam3Fps = dashboardRoot._cam3Count;
+            dashboardRoot.cam4Fps = dashboardRoot._cam4Count;
 
-            console.log("[FPS] 수신 CAM1:", dashboardRoot._cam1Count,
-                        "CAM2:", dashboardRoot._cam2Count,
-                        "CAM3:", dashboardRoot._cam3Count)
-            console.log("[FPS] 렌더 CAM1:", dashboardRoot._cam1RenderCount,
-                        "CAM2:", dashboardRoot._cam2RenderCount,
-                        "CAM3:", dashboardRoot._cam3RenderCount)
+            console.log("[FPS] 수신 CAM1:", dashboardRoot._cam1Count, "CAM2:", dashboardRoot._cam2Count, "CAM3:", dashboardRoot._cam3Count);
+            console.log("[FPS] 렌더 CAM1:", dashboardRoot._cam1RenderCount, "CAM2:", dashboardRoot._cam2RenderCount, "CAM3:", dashboardRoot._cam3RenderCount);
 
-            dashboardRoot._cam1Count = 0
-            dashboardRoot._cam2Count = 0
-            dashboardRoot._cam3Count = 0
-            dashboardRoot._cam4Count = 0
-            dashboardRoot._cam1RenderCount = 0
-            dashboardRoot._cam2RenderCount = 0
-            dashboardRoot._cam3RenderCount = 0
-            dashboardRoot._cam4RenderCount = 0
+            dashboardRoot._cam1Count = 0;
+            dashboardRoot._cam2Count = 0;
+            dashboardRoot._cam3Count = 0;
+            dashboardRoot._cam4Count = 0;
+            dashboardRoot._cam1RenderCount = 0;
+            dashboardRoot._cam2RenderCount = 0;
+            dashboardRoot._cam3RenderCount = 0;
+            dashboardRoot._cam4RenderCount = 0;
         }
     }
 
@@ -123,9 +117,9 @@ ColumnLayout {
     }
 
     function getCongestionColor(sumCount) {
-        if (sumCount < client.congestionEasyMax)
+        if (sumCount < networkClient.congestionEasyMax)
             return "#22C55E";
-        else if (sumCount < client.congestionNormalMax)
+        else if (sumCount < networkClient.congestionNormalMax)
             return "#EAB308";
         else
             return "#EF4444";
@@ -143,28 +137,38 @@ ColumnLayout {
         return 0;
     }
 
-    NetworkClient {
-        id: client
-        onIsConnectedChanged: {
-            console.log("Dashboard - Connected: " + client.isConnected);
+    Connections {
+        target: networkClient
+        function onIsConnectedChanged() {
+            console.log("Dashboard - Connected: " + networkClient.isConnected);
         }
-        onStatusMessageChanged: {
-            console.log("Dashboard - Status: " + client.statusMessage);
+        function onStatusMessageChanged() {
+            console.log("Dashboard - Status: " + networkClient.statusMessage);
         }
-        onAirStatsReceived: function (data) {
+        function onAirStatsReceived(data) {
             console.log("Dashboard - Historical Air Stats Received: " + data.length);
         }
-        onRealtimeAirReceived: function (data) {
+        function onRealtimeAirReceived(data) {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
+
+            if (data.co2_ppm !== undefined) dashboardRoot.co2Value = data.co2_ppm;
+            if (data.co_level !== undefined) dashboardRoot.coValue = data.co_level;
+            if (data.temp !== undefined) dashboardRoot.tempValue = data.temp;
+            if (data.humi !== undefined) dashboardRoot.humiValue = data.humi;
+
+            let now = new Date();
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
+                                         now.getMinutes().toString().padStart(2, '0') + ":" +
+                                         now.getSeconds().toString().padStart(2, '0');
         }
-        onZoneCongestionReceived: function (zones, totalCount) {
-            // AI 실시간 데이터 (100ms 주기)로 화면 즉시 갱신
-            // 서버에서 오는 zones[0..7]은 각 구역의 실시간 인원수입니다.
+        function onZoneCongestionReceived(zones, totalCount, counts) {
+            console.log("[Zone] zones:", JSON.stringify(zones), "total:", totalCount, "counts:", JSON.stringify(counts));
             dashboardRoot.sectionSums = zones;
             dashboardRoot.grandTotalOccupants = totalCount;
+            dashboardRoot.zoneCounts = counts;
         }
-        onCameraFrameReceived: function (cameraId, timestamp, metadata) {
+        function onCameraFrameReceived(cameraId, timestamp, metadata) {
             let url = "image://camera/" + cameraId + "?t=" + timestamp;
             let objectCount = metadata.count || 0;
             if (cameraId === 1) {
@@ -185,15 +189,17 @@ ColumnLayout {
                 dashboardRoot.cam4Count = objectCount;
             }
         }
-        onTempHumiReceived: function (data) {
+        function onTempHumiReceived(data) {
             console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
             dashboardRoot.tempHumiData = data;
-        }
-        Component.onCompleted: {
-            connectionTimer.start();
-        }
-        Component.onDestruction: {
-            disconnectFromServer();
+
+            if (data.temperature !== undefined) dashboardRoot.tempValue = data.temperature;
+            if (data.humidity !== undefined) dashboardRoot.humiValue = data.humidity;
+
+            let now = new Date();
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
+                                         now.getMinutes().toString().padStart(2, '0') + ":" +
+                                         now.getSeconds().toString().padStart(2, '0');
         }
     }
 
@@ -217,21 +223,21 @@ ColumnLayout {
             width: 12
             height: 12
             radius: 6
-            color: client.isConnected ? "#22C55E" : "#EF4444"
+            color: networkClient.isConnected ? "#22C55E" : "#EF4444"
         }
         Text {
-            text: client.statusMessage
+            text: networkClient.statusMessage
             color: Style.colorSlate500
             font: Style.fontSmall
         }
 
         Button {
-            text: client.isConnected ? "Disconnect" : "Connect"
+            text: networkClient.isConnected ? "Disconnect" : "Connect"
             onClicked: {
-                if (client.isConnected)
-                    client.disconnectFromServer();
+                if (networkClient.isConnected)
+                    networkClient.disconnectFromServer();
                 else
-                    client.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+                    networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
             }
         }
     }
@@ -312,13 +318,13 @@ ColumnLayout {
                                     border.width: 1
 
                                     Image {
-                                            id: cameraImageBack
-                                            anchors.fill: parent
-                                            fillMode: Image.PreserveAspectCrop
-                                            smooth: false
-                                            cache: false
-                                            visible: true
-                                        }
+                                        id: cameraImageBack
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        smooth: false
+                                        cache: false
+                                        visible: true
+                                    }
 
                                     Image {
                                         id: cameraImageFront
@@ -343,15 +349,18 @@ ColumnLayout {
                                         onStatusChanged: {
                                             if (status === Image.Ready) {
                                                 cameraImageBack.source = source;
-                                                if (index === 0) dashboardRoot._cam1RenderCount++;
-                                                else if (index === 1) dashboardRoot._cam2RenderCount++;
-                                                else if (index === 2) dashboardRoot._cam3RenderCount++;
-                                                else if (index === 3) dashboardRoot._cam4RenderCount++;
+                                                if (index === 0)
+                                                    dashboardRoot._cam1RenderCount++;
+                                                else if (index === 1)
+                                                    dashboardRoot._cam2RenderCount++;
+                                                else if (index === 2)
+                                                    dashboardRoot._cam3RenderCount++;
+                                                else if (index === 3)
+                                                    dashboardRoot._cam4RenderCount++;
                                             }
                                             if (status === Image.Error) {
                                                 source = source;  // 재시도 방지
                                             }
-
                                         }
                                     }
 
@@ -520,10 +529,9 @@ ColumnLayout {
                                         anchors.margins: 12
                                         // text: "CAM-0" + (index + 1)
                                         text: {
-                                                let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
-                                                           dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
-                                                return "CAM-0" + (index + 1) + "  " + fps[index] + "fps"
-                                            }
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return "CAM-0" + (index + 1) + "  " + fps[index] + "fps";
+                                        }
                                         color: "white"
                                         font.pixelSize: 12
                                         font.bold: true
@@ -555,7 +563,6 @@ ColumnLayout {
                             }
                         }
                     }
-
                 }
 
                 // Environment Card
@@ -573,10 +580,19 @@ ColumnLayout {
                         anchors.margins: 20
                         spacing: 20
 
-                        Text {
-                            text: "🍂 역사 내 환경 모니터링"
-                            font: Style.fontBold
-                            color: Style.colorSlate800
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "🍂 역사 내 환경 모니터링"
+                                font: Style.fontBold
+                                color: Style.colorSlate800
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: "수신: " + dashboardRoot.lastEnvUpdate
+                                font.pixelSize: 10
+                                color: Style.colorSlate500
+                            }
                         }
 
                         // 온습도
@@ -592,7 +608,7 @@ ColumnLayout {
                                     font: Style.fontSmall
                                 }
                                 Text {
-                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.temperature !== undefined ? dashboardRoot.tempHumiData.temperature.toFixed(1) + " °C" : "-- °C"
+                                    text: dashboardRoot.tempValue > 0 ? dashboardRoot.tempValue.toFixed(1) + " °C" : "-- °C"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -612,7 +628,7 @@ ColumnLayout {
                                     font: Style.fontSmall
                                 }
                                 Text {
-                                    text: dashboardRoot.tempHumiData && dashboardRoot.tempHumiData.humidity !== undefined ? dashboardRoot.tempHumiData.humidity.toFixed(1) + " %" : "-- %"
+                                    text: dashboardRoot.humiValue > 0 ? dashboardRoot.humiValue.toFixed(1) + " %" : "-- %"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -643,7 +659,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co2_ppm ? dashboardRoot.airStatsData.co2_ppm.toFixed(1) : "0"
+                                    text: dashboardRoot.co2Value > 0 ? dashboardRoot.co2Value.toFixed(1) : "0"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -664,7 +680,7 @@ ColumnLayout {
                                 Rectangle {
                                     height: parent.height
                                     radius: 4
-                                    width: Math.min(parent.width, (dashboardRoot.airStatsData && dashboardRoot.airStatsData.co2_ppm ? (dashboardRoot.airStatsData.co2_ppm / 1200) * parent.width : 0))
+                                    width: Math.min(parent.width, (dashboardRoot.co2Value > 0 ? (dashboardRoot.co2Value / 1200) * parent.width : 0))
                                     color: {
                                         if (!dashboardRoot.airStatsData || !dashboardRoot.airStatsData.gas_status)
                                             return Style.colorSlate200;
@@ -707,7 +723,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? dashboardRoot.airStatsData.co_level.toFixed(2) : "0"
+                                    text: dashboardRoot.coValue > 0 ? dashboardRoot.coValue.toFixed(2) : "0"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -728,7 +744,7 @@ ColumnLayout {
                                 Rectangle {
                                     height: parent.height
                                     radius: 4
-                                    width: Math.min(parent.width, (dashboardRoot.airStatsData && dashboardRoot.airStatsData.co_level ? (dashboardRoot.airStatsData.co_level / 50) * parent.width : 0))
+                                    width: Math.min(parent.width, (dashboardRoot.coValue > 0 ? (dashboardRoot.coValue / 50) * parent.width : 0))
                                     color: {
                                         if (!dashboardRoot.airStatsData || !dashboardRoot.airStatsData.co_status)
                                             return Style.colorSlate200;
@@ -942,8 +958,8 @@ ColumnLayout {
                                         onClicked: {
                                             dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
                                             console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
-                                            if (client && client.sendDeviceCommand) {
-                                                client.sendDeviceCommand(client.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? client.ACTION_MANUAL : client.ACTION_AUTO);
+                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
                                             }
                                         }
                                     }
@@ -961,21 +977,21 @@ ColumnLayout {
                                 model: [
                                     {
                                         name: "환기 팬",
-                                        device: client.DEVICE_MOTOR,
+                                        device: networkClient.DEVICE_MOTOR,
                                         icon: "🍃",
                                         type: "toggle",
                                         options: []
                                     },
                                     {
                                         name: "안내 방송",
-                                        device: client.DEVICE_SPEAKER,
+                                        device: networkClient.DEVICE_SPEAKER,
                                         icon: "🔊",
                                         type: "buttons",
                                         options: ["1", "2", "3", "4"]
                                     },
                                     {
                                         name: "디스플레이",
-                                        device: client.DEVICE_DIGITAL_DISPLAY,
+                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
                                         icon: "🖥️",
                                         type: "buttons",
                                         options: ["1", "2", "3"]
@@ -1038,8 +1054,8 @@ ColumnLayout {
                                                 onClicked: {
                                                     deviceItem.isActive = !deviceItem.isActive;
                                                     console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
-                                                    if (client && client.sendDeviceCommand) {
-                                                        client.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? client.ACTION_ON : client.ACTION_OFF);
+                                                    if (networkClient && networkClient.sendDeviceCommand) {
+                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
                                                     }
                                                 }
                                             }
@@ -1085,16 +1101,16 @@ ColumnLayout {
                                                             deviceItem.activeOption = val;
                                                             resetTimer.restart(); // Restart countdown for this row
                                                             console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
-                                                            if (client && client.sendDeviceCommand) {
-                                                                var targetAction = client.ACTION_1; // default fallback
+                                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                                var targetAction = networkClient.ACTION_1; // default fallback
                                                                 if (val === "2")
-                                                                    targetAction = client.ACTION_2;
+                                                                    targetAction = networkClient.ACTION_2;
                                                                 else if (val === "3")
-                                                                    targetAction = client.ACTION_3;
+                                                                    targetAction = networkClient.ACTION_3;
                                                                 else if (val === "4")
-                                                                    targetAction = client.ACTION_4;
+                                                                    targetAction = networkClient.ACTION_4;
 
-                                                                client.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
+                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
                                                             }
                                                         }
                                                     }
@@ -1143,12 +1159,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     radius: 6
-                                    color: {
-                                        if (dashboardRoot.sectionSums && dashboardRoot.sectionSums.length > index) {
-                                            return dashboardRoot.getCongestionColor(dashboardRoot.sectionSums[index]);
-                                        }
-                                        return Style.colorSlate200;
-                                    }
+                                    color: (dashboardRoot.zoneCounts && dashboardRoot.zoneCounts.length > index) ? dashboardRoot.getCongestionColor(dashboardRoot.zoneCounts[index]) : ((dashboardRoot.sectionSums && dashboardRoot.sectionSums.length > index) ? dashboardRoot.getCongestionColor(dashboardRoot.sectionSums[index]) : Style.colorSlate200)
 
                                     ColumnLayout {
                                         anchors.centerIn: parent
@@ -1164,10 +1175,9 @@ ColumnLayout {
 
                                         Text {
                                             text: {
-                                                if (dashboardRoot.sectionSums && dashboardRoot.sectionSums.length > index) {
-                                                    return Math.round(dashboardRoot.sectionSums[index]) + "명";
-                                                }
-                                                return "-";
+                                                if (dashboardRoot.zoneCounts && dashboardRoot.zoneCounts.length > index)
+                                                    return dashboardRoot.zoneCounts[index] + "명";
+                                                return "0명";
                                             }
                                             font.pixelSize: 10
                                             color: "white"
@@ -1240,15 +1250,11 @@ ColumnLayout {
                             spacing: 10
 
                             property string currentDensity: {
-                                var totalCount = 0;
-                                for (var i = 0; i < 8; i++) {
-                                    if (sectionSums && sectionSums.length > i) {
-                                        totalCount += sectionSums[i];
-                                    }
-                                }
-                                // 가상의 열차 정원 (예: 한 구역당 100명, 총 800명) 대비 밀집도 계산
-                                var capacity = 800;
-                                var avg = (totalCount / capacity) * 100;
+                                // 열차 정원 (Protocol::TOTAL_CAPACITY) 대비 전체 인원 밀집도 계산
+                                var capacity = networkClient.totalCapacity;
+                                if (capacity <= 0)
+                                    return "0%";
+                                var avg = (grandTotalOccupants / capacity) * 100;
                                 return Math.min(100, Math.round(avg)) + "%";
                             }
 
@@ -1389,8 +1395,16 @@ ColumnLayout {
                 border.width: 1
 
                 // 부드러운 색상 전환 애니메이션
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 150
+                    }
+                }
+                Behavior on border.color {
+                    ColorAnimation {
+                        duration: 150
+                    }
+                }
 
                 Text {
                     anchors.centerIn: parent

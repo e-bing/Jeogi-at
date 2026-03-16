@@ -74,9 +74,17 @@ Rectangle {
                         icon: "../logo/device_logo.png",
                         reverseIcon: "../logo/reverse_device_logo.png",
                         iconSize: 50,
-                        darkIconSize: 60 // Set to 60px as requested
-                        ,
+                        darkIconSize: 60,
                         pageSource: "pages/CameraManagement.qml"
+                    },
+                    {
+                        name: "4. 녹화 관리",
+                        title: "녹화 관리",
+                        icon: "../logo/manual_logo.png",
+                        reverseIcon: "",
+                        iconSize: 50,
+                        darkIconSize: 60,
+                        pageSource: "pages/RecordingPage.qml"
                     }
                 ]
 

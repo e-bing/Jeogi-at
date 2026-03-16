@@ -119,16 +119,6 @@ void PiNode::process_loop() {
     if (pkt->stream_index == video_idx) {
       if (avcodec_send_packet(codecCtx, pkt) == 0) {
         while (avcodec_receive_frame(codecCtx, frame) == 0) {
-          static int dbg_cnt = 0;
-          if (dbg_cnt++ < 5) {
-            std::cout << "[" << node_id << "] frame format: " << frame->format
-                      << " width: " << frame->width
-                      << " height: " << frame->height
-                      << " linesize: " << frame->linesize[0] << ","
-                      << frame->linesize[1] << "," << frame->linesize[2]
-                      << std::endl;
-          }
-
           int w = frame->width;
           int h = frame->height;
           size_t y_size = w * h;
