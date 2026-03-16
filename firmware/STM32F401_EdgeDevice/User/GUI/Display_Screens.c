@@ -1,5 +1,6 @@
 #include "Display_Screens.h"
 #include <stdio.h>
+#include <string.h>
 
 static uint16_t status_to_color(uint8_t status)
 {
@@ -347,11 +348,33 @@ void Screen_Show_TempHum(DB_Data_t *data)
                                  5, 5, 3, 2, 1U, 0U, WHITE, WHITE);
 }
 
-void Screen_Show_Train(void)
+void Screen_Show_Train(uint8_t train_dest_code)
 {
-    // 64x32 기준 가운데 정렬(5x7 폰트, 문자 5개)
-    const uint16_t x = 17;
-    const uint16_t y = 13;
+    const char *top_text;
+    const char *bottom_text = "SUBWAY IN";
+    uint16_t top_x;
+    uint16_t bottom_x;
+    uint16_t top_y = 8;
+    uint16_t bottom_y = 20;
+    uint16_t est_char_w = 6;
+
+    if (train_dest_code == 1U)
+    {
+        top_text = "TO DAEWHA";
+    }
+    else if (train_dest_code == 2U)
+    {
+        top_text = "TO GUPABAL";
+    }
+    else
+    {
+        top_text = "TO LINE3";
+    }
+
+    top_x = (uint16_t)clamp_int((int)(64 - (strlen(top_text) * est_char_w)) / 2, 1, 63);
+    bottom_x = (uint16_t)clamp_int((int)(64 - (strlen(bottom_text) * est_char_w)) / 2, 1, 63);
+
     Paint_DrawRectangle(1, 1, 64, 32, BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-    Paint_DrawString_EN(x, y, "TRAIN", &Font8, BLACK, RED);
+    Paint_DrawString_EN(top_x, top_y, top_text, &Font8, BLACK, RED);
+    Paint_DrawString_EN(bottom_x, bottom_y, bottom_text, &Font8, BLACK, YELLOW);
 }

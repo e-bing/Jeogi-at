@@ -259,6 +259,19 @@ void UART_Handler_Process(void)
         UART_SendACK(pkt.cmd);
         break;
 
+    case CMD_TRAIN_DEST:
+    {
+        if (pkt.len != 1U)
+        {
+            UART_SendNACK(pkt.cmd, ERR_INVALID_DATA);
+            break;
+        }
+        MatrixRun_SetTrainDest(pkt.data[0]);
+        printf("[UART] TRAIN_DEST: %u\r\n", pkt.data[0]);
+        UART_SendACK(pkt.cmd);
+        break;
+    }
+
     case CMD_DISPLAY_CTRL:
     {
         if (pkt.len == 0 || pkt.len >= PKT_MAX_DATA_LEN)

@@ -14,6 +14,7 @@ static uint8_t congestion_status[8] = {2, 0, 1, 1, 0, 2, 1, 0};
 static uint8_t dashboard_dirty = 1U;
 static uint8_t current_screen = 0U; // 0: Dashboard, 1: CO/CO2, 2: TEMP/HUM
 static uint8_t auto_cycle_enabled = 1U;
+static uint8_t train_dest_code = 0U; // 1: DAEWHA, 2: GUPABAL, 0: UNKNOWN
 static uint8_t dashboard_guide_mode = 0U; // 0: side guidance, 1: per-platform up arrows
 static uint32_t last_refresh_tick = 0U;
 static uint32_t last_switch_tick = 0U;
@@ -127,7 +128,7 @@ void MatrixRun_Run(void)
   }
   else
   {
-    Screen_Show_Train();
+    Screen_Show_Train(train_dest_code);
   }
 
   last_refresh_tick = now;
@@ -175,4 +176,22 @@ void MatrixRun_SetAutoCycle(uint8_t enable)
     HUB75_Clear();
     last_switch_tick = HAL_GetTick();
     last_refresh_tick = 0U;
+}
+
+void MatrixRun_SetTrainDest(uint8_t dest_code)
+{
+    if (dest_code > 2U)
+    {
+        dest_code = 0U;
+    }
+    train_dest_code = dest_code;
+    if (current_screen == SCREEN_TRAIN)
+    {
+        last_refresh_tick = 0U;
+    }
+}
+
+uint8_t MatrixRun_GetTrainDest(void)
+{
+    return train_dest_code;
 }
