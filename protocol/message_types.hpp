@@ -87,12 +87,14 @@ constexpr const char* FIELD_CO = "co";
 constexpr const char* FIELD_CO2 = "co2";
 constexpr const char* FIELD_GAS = "gas";  // Qt 하위호환용 (co2 별칭)
 constexpr const char* FIELD_AVG_COUNT = "avg_count";
+constexpr const char* FIELD_PLATFORM_NO = "platform_no";
 
 // ──────────────────────────────────────────
 //  zone_congestion  필드명
 // ──────────────────────────────────────────
 constexpr const char* FIELD_ZONES = "zones";
 constexpr const char* FIELD_TOTAL_COUNT = "total_count";
+constexpr const char* FIELD_ZONE_COUNTS = "zone_counts";  // 구역별 실제 인원수
 
 // ──────────────────────────────────────────
 //  temp_humi  필드명

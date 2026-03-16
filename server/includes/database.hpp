@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 using json = nlohmann::json;
 using namespace std;
@@ -21,14 +22,15 @@ void close_db(MYSQL *conn);
 // 센서 데이터 저장
 bool save_sensor_data(MYSQL *conn, float co_value, float co2_value, float temp,
                       float humidity);
+bool save_camera_stats(MYSQL* conn, const std::vector<int>& counts, const std::vector<int>& levels, const std::vector<std::string>& cam_ids);
 
 // 실시간 데이터 조회
 json get_realtime_congestion(MYSQL *conn);
 json get_realtime_air_quality(MYSQL *conn);
 
 // 통계 데이터 조회
-json get_air_quality_stats(MYSQL* conn, string cam_id);
-json get_temp_humi_stats(MYSQL* conn, string cam_id);
-json get_passenger_flow_stats(MYSQL* conn, string cam_id);
+json get_air_quality_stats(MYSQL* conn);
+json get_temp_humi_stats(MYSQL* conn);
+json get_passenger_flow_stats(MYSQL* conn);
 
 #endif // DATABASE_HPP

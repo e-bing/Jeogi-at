@@ -2,6 +2,7 @@
 
 CongestionAnalyzer::CongestionAnalyzer() : m_running(false) {
   m_current_levels.assign(8, 0);
+  m_current_counts.assign(8, 0);
 }
 
 CongestionAnalyzer::~CongestionAnalyzer() { stop(); }
@@ -101,6 +102,7 @@ void CongestionAnalyzer::run() {
     {
       std::lock_guard<std::mutex> lock(m_level_mutex);
       for (int i = 0; i < 8; ++i) {
+        m_current_counts[i] = temp_counts[i];
         m_current_levels[i] = calculateLevel(temp_counts[i]);
       }
     }
@@ -112,4 +114,18 @@ void CongestionAnalyzer::run() {
 std::vector<int> CongestionAnalyzer::getCongestionLevels() {
   std::lock_guard<std::mutex> lock(m_level_mutex);
   return m_current_levels;
+}
+
+std::vector<int> CongestionAnalyzer::getCongestionCounts() {
+  std::lock_guard<std::mutex> lock(m_level_mutex);
+  return m_current_counts;
+}
+
+std::vector<std::string> CongestionAnalyzer::getCameraIds() {
+  std::lock_guard<std::mutex> lock(m_level_mutex);
+  std::vector<std::string> ids(8, "");
+  for (const auto& z : m_zones) {
+    if (z.zone_id >= 1 && z.zone_id <= 8) ids[z.zone_id - 1] = z.camera_id;
+  }
+  return ids;
 }
