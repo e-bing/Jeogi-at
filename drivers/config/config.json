@@ -1,5 +1,5 @@
 {
-    "mqtt_broker": "tcp://192.168.0.47:1883",
+    "mqtt_broker": "tcp://192.168.0.48:1883",
     "sensor_topic": "sensor/air_quality",
     "sht20_topic": "sensor/temp_humi"
 }

@@ -20,6 +20,16 @@ static mqtt::async_client *g_display_mqtt = nullptr;
 static bool g_subway_thread_started = false;
 static constexpr int TARGET_SUBWAY_ID = 1003; // 3호선
 
+static int parse_int_value(const json &v, int fallback = -1) {
+  try {
+    if (v.is_number_integer()) return v.get<int>();
+    if (v.is_string()) return stoi(v.get<string>());
+  } catch (...) {
+    return fallback;
+  }
+  return fallback;
+}
+
 static bool fetch_subway_json_via_curl(const string &url, string &out_json) {
   out_json.clear();
   string cmd = "curl -s --max-time 5 \"" + url + "\"";
@@ -35,42 +45,41 @@ static bool fetch_subway_json_via_curl(const string &url, string &out_json) {
   return rc == 0 && !out_json.empty();
 }
 
-static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, string &out_line, string &out_msg) {
+static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, string &out_line, string &out_msg,
+                                string &out_reason) {
   out_barvl_dt = -1;
   out_line.clear();
   out_msg.clear();
+  out_reason.clear();
 
   try {
     auto root = json::parse(json_text);
     if (!root.contains("realtimeArrivalList") || !root["realtimeArrivalList"].is_array()) {
+      if (root.contains("errorMessage")) {
+        out_reason = string("api_error=") + root["errorMessage"].dump();
+      } else {
+        out_reason = "missing_realtimeArrivalList";
+      }
       return false;
     }
 
     int best = INT32_MAX;
+    int seen_rows = 0;
+    int pass_updn = 0;
+    int pass_line = 0;
+    int pass_barvl = 0;
     for (const auto &row : root["realtimeArrivalList"]) {
+      seen_rows++;
       string updn = row.value("updnLine", "");
       if (updn.find("상행") == string::npos) continue;
-      int subway_id = row.value("subwayId", -1);
+      pass_updn++;
+      int subway_id = row.contains("subwayId") ? parse_int_value(row["subwayId"], -1) : -1;
       if (subway_id != TARGET_SUBWAY_ID) continue;
+      pass_line++;
 
-      int sec = -1;
-      if (row.contains("barvlDt")) {
-        const auto &barvl = row["barvlDt"];
-        if (barvl.is_string()) {
-          try {
-            sec = stoi(barvl.get<string>());
-          } catch (...) {
-            continue;
-          }
-        } else if (barvl.is_number_integer()) {
-          sec = barvl.get<int>();
-        } else {
-          continue;
-        }
-      } else {
-        continue;
-      }
+      int sec = row.contains("barvlDt") ? parse_int_value(row["barvlDt"], -1) : -1;
       if (sec < 0) continue;
+      pass_barvl++;
 
       if (sec < best) {
         best = sec;
@@ -79,10 +88,17 @@ static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, stri
       }
     }
 
-    if (best == INT32_MAX) return false;
+    if (best == INT32_MAX) {
+      out_reason = "[filter_miss] rows=" + to_string(seen_rows) +
+                   " updn=" + to_string(pass_updn) +
+                   " line3=" + to_string(pass_line) +
+                   " barvl_valid=" + to_string(pass_barvl);
+      return false;
+    }
     out_barvl_dt = best;
     return true;
-  } catch (...) {
+  } catch (const exception &e) {
+    out_reason = string("json_exception=") + e.what();
     return false;
   }
 }
@@ -105,8 +121,8 @@ static void run_subway_arrival_override_loop(int uart_fd) {
                      "/json/realtimeStationArrival/0/5/" + station_encoded;
 
   bool active = false;
+  bool event_armed = true;
   auto active_until = chrono::steady_clock::now();
-  int zero_streak = 0;
 
   cout << "[Subway] started: line=3(up) screen " << event_screen
        << " for " << hold_sec << "s on arrival" << endl;
@@ -123,24 +139,28 @@ static void run_subway_arrival_override_loop(int uart_fd) {
     int barvl_dt = -1;
     string line;
     string msg;
+    string reason;
 
-    if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg)) {
+    if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg, reason)) {
       cout << "[Subway] up train: barvlDt=" << barvl_dt << " line=" << line << " msg=" << msg << endl;
-      if (barvl_dt <= 0) {
-        zero_streak++;
-      } else {
-        zero_streak = 0;
-      }
-
-      if (!active && zero_streak >= 2) {
+      if (!active && event_armed && barvl_dt <= 0) {
         send_to_stm32_display_screen(uart_fd, event_screen);
         active = true;
+        event_armed = false;
         active_until = chrono::steady_clock::now() + chrono::seconds(hold_sec);
-        zero_streak = 0;
-        cout << "[Subway] arrival detected (2x confirm) -> event screen=" << event_screen << endl;
+        cout << "[Subway] arrival detected -> event screen=" << event_screen << endl;
+      } else if (!active) {
+        if (barvl_dt > 0) {
+          event_armed = true;
+        }
+        cout << "[Subway] waiting arrival (barvlDt=" << barvl_dt << ")" << endl;
       }
     } else {
-      zero_streak = 0;
+      if (body.empty()) {
+        cerr << "[Subway] API fetch failed (empty body)" << endl;
+      } else {
+        cerr << "[Subway] no valid 3-ho up train: " << reason << endl;
+      }
     }
 
     this_thread::sleep_for(chrono::milliseconds(poll_ms));
