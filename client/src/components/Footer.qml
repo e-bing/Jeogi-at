@@ -48,27 +48,65 @@ Rectangle {
             }
 
             // Broadcast Button
-            MouseArea {
-                implicitWidth: rowBroadcast.width
-                implicitHeight: rowBroadcast.height
-                cursorShape: Qt.PointingHandCursor
+            // MouseArea {
+            //     implicitWidth: rowBroadcast.width
+            //     implicitHeight: rowBroadcast.height
+            //     cursorShape: Qt.PointingHandCursor
 
-                RowLayout {
-                    id: rowBroadcast
-                    spacing: 5
-                    Rectangle {
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: Style.colorPrimary
-                    }
-                    Text {
-                        text: "안내 방송"
-                        font: Style.fontBold
-                        color: Style.colorSlate500
+            //     RowLayout {
+            //         id: rowBroadcast
+            //         spacing: 5
+            //         Rectangle {
+            //             width: 8
+            //             height: 8
+            //             radius: 4
+            //             color: Style.colorPrimary
+            //         }
+            //         Text {
+            //             text: "안내 방송"
+            //             font: Style.fontBold
+            //             color: Style.colorSlate500
+            //         }
+            //     }
+            // }
+            // test: mic streamer
+            RowLayout {
+                spacing: 5
+
+                Rectangle {
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: broadcastText.broadcasting ? "#ff4444" : Style.colorPrimary
+                }
+
+                Text {
+                    id: broadcastText
+
+                    property bool broadcasting: false
+
+                    text: broadcasting ? "방송 중..." : "안내 방송"
+                    font: Style.fontBold
+                    color: broadcasting ? "#ff4444" : Style.colorSlate500
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+
+                        onClicked: {
+                            if (broadcastText.broadcasting) {
+                                micStreamer.stopStreaming()
+                                broadcastText.broadcasting = false
+                            } else {
+                                const ok = micStreamer.startStreaming()
+                                if (ok)
+                                    broadcastText.broadcasting = true
+                            }
+                        }
                     }
                 }
             }
+            //
         }
 
         Item {
