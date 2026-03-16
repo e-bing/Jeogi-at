@@ -54,4 +54,6 @@ class CongestionAnalyzer {
   std::atomic<bool> m_running;
 };
 
+extern CongestionAnalyzer g_analyzer;
+
 #endif  // CONGESTION_ANALYZER_HPP

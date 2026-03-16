@@ -16,11 +16,11 @@
 #include "../includes/shared_data.hpp"
 
 // 센서, 모터 및 DB 관련 헤더
+#include "../includes/audio.hpp"
 #include "../includes/client_handler.hpp"
 #include "../includes/database.hpp"
 #include "../includes/display.hpp"
 #include "../includes/motor.hpp"
-#include "../includes/audio.hpp"
 #include "../includes/sensor.hpp"
 
 // 모니터링 헤더
@@ -59,6 +59,7 @@ int main() {
     g_mqtt_broker = config["mqtt"]["broker"];
     cout << "✅ MQTT 브로커 설정: " << g_mqtt_broker << endl;
   }
+  ConfigManager::init_default_rois();
 
   // 브로커 주소 설정 후 MQTT 초기화
   init_mqtt_motor();
@@ -163,7 +164,6 @@ int main() {
         total_pi += camData->objects.size();
       }
     }
-
   }
 
   running = false;  // 루프 종료 신호

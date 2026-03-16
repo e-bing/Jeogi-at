@@ -13,7 +13,7 @@ void CongestionAnalyzer::loadConfig() {
   m_zones.clear();
 
   if (config.contains("zones") && config["zones"].is_array()) {
-    for (const auto &item : config["zones"]) {
+    for (const auto& item : config["zones"]) {
       ZoneConfig z;
       z.zone_id = item.value("zone_id", 0);
       z.camera_id = item.value("camera_id", "");
@@ -28,8 +28,8 @@ void CongestionAnalyzer::loadConfig() {
   }
 }
 
-bool CongestionAnalyzer::isInside(const DetectedObject &obj,
-                                  const ZoneConfig &zone) {
+bool CongestionAnalyzer::isInside(const DetectedObject& obj,
+                                  const ZoneConfig& zone) {
   // 중심점(Center Point) 기준 판별
   float centerX = obj.x + (obj.w / 2.0f);
   float centerY = obj.y + (obj.h / 2.0f);
@@ -39,16 +39,13 @@ bool CongestionAnalyzer::isInside(const DetectedObject &obj,
 }
 
 int CongestionAnalyzer::calculateLevel(int count) {
-  if (count < Protocol::CONGESTION_EASY_MAX)
-    return 0;
-  if (count < Protocol::CONGESTION_NORMAL_MAX)
-    return 1;
+  if (count < Protocol::CONGESTION_EASY_MAX) return 0;
+  if (count < Protocol::CONGESTION_NORMAL_MAX) return 1;
   return 2;
 }
 
 void CongestionAnalyzer::start() {
-  if (m_running)
-    return;
+  if (m_running) return;
   loadConfig();
   m_running = true;
   m_thread = std::thread(&CongestionAnalyzer::run, this);
@@ -65,11 +62,18 @@ void CongestionAnalyzer::run() {
   while (m_running) {
     std::vector<int> temp_counts(8, 0);
 
+    // 런타임 갱신 시 충돌을 막기 위해 현재 설정된 ROI를 로컬 스레드로 복사
+    std::vector<ZoneConfig> current_zones;
+    {
+      std::lock_guard<std::mutex> lock(m_level_mutex);
+      current_zones = m_zones;
+    }
+
     // 1. 한화 카메라 객체들 체크
     {
       std::lock_guard<std::mutex> lock(g_hw_data_mutex);
-      for (const auto &obj : g_hw_objects) {
-        for (const auto &zone : m_zones) {
+      for (const auto& obj : g_hw_objects) {
+        for (const auto& zone : current_zones) {
           if (zone.camera_id == "hanwha" && isInside(obj, zone)) {
             if (zone.zone_id >= 1 && zone.zone_id <= 8)
               temp_counts[zone.zone_id - 1]++;
@@ -81,10 +85,10 @@ void CongestionAnalyzer::run() {
     // 2. 라즈베리 파이 노드들 체크
     {
       std::lock_guard<std::mutex> lock(g_node_map_mutex);
-      for (const auto &[id, cameraData] : g_pi_node_map) {
+      for (const auto& [id, cameraData] : g_pi_node_map) {
         std::lock_guard<std::mutex> dataLock(cameraData->data_mutex);
-        for (const auto &obj : cameraData->objects) {
-          for (const auto &zone : m_zones) {
+        for (const auto& obj : cameraData->objects) {
+          for (const auto& zone : current_zones) {
             if (zone.camera_id == id && isInside(obj, zone)) {
               if (zone.zone_id >= 1 && zone.zone_id <= 8)
                 temp_counts[zone.zone_id - 1]++;
@@ -121,8 +125,7 @@ std::vector<std::string> CongestionAnalyzer::getCameraIds() {
   std::lock_guard<std::mutex> lock(m_level_mutex);
   std::vector<std::string> ids(8, "");
   for (const auto& z : m_zones) {
-    if (z.zone_id >= 1 && z.zone_id <= 8)
-      ids[z.zone_id - 1] = z.camera_id;
+    if (z.zone_id >= 1 && z.zone_id <= 8) ids[z.zone_id - 1] = z.camera_id;
   }
   return ids;
 }
