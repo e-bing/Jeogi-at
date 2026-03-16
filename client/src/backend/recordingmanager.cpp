@@ -240,30 +240,31 @@ void RecordingManager::onFrameReceived(int cameraId, const QByteArray &jpegData)
             }
         }
 
-        proc     = m_ffmpegProcesses.value(cameraId, nullptr);
-        frameNum = ++m_frameCounts[cameraId];
-        if (frameNum == 1)
-            thumbPath = m_sessionPaths[cameraId] + "/thumb.jpg";
+        if (!shouldLaunch) {
+            proc     = m_ffmpegProcesses.value(cameraId, nullptr);
+            frameNum = ++m_frameCounts[cameraId];
+            if (frameNum == 1)
+                thumbPath = m_sessionPaths[cameraId] + "/thumb.jpg";
+        }
     }
 
     // ── 캘리브레이션 완료 → ffmpeg 시작 + 버퍼 플러시 ────────────────
     if (shouldLaunch) {
         launchFfmpeg(cameraId, detectedFps);
 
-        QString firstThumbPath;
+        QString sessionPath;
         {
             QMutexLocker lock(&m_mutex);
+            sessionPath = m_sessionPaths.value(cameraId);
             proc = m_ffmpegProcesses.value(cameraId, nullptr);
             for (const QByteArray &frame : flushFrames) {
                 if (proc && proc->state() == QProcess::Running)
                     proc->write(frame);
                 ++m_frameCounts[cameraId];
-                if (m_frameCounts[cameraId] == 1)
-                    firstThumbPath = m_sessionPaths[cameraId] + "/thumb.jpg";
             }
         }
-        if (!firstThumbPath.isEmpty() && !flushFrames.isEmpty()) {
-            QFile thumb(firstThumbPath);
+        if (!flushFrames.isEmpty()) {
+            QFile thumb(sessionPath + "/thumb.jpg");
             if (thumb.open(QFile::WriteOnly))
                 thumb.write(flushFrames.first());
             qDebug() << "[RecordingManager] 썸네일 저장 cam" << cameraId;
