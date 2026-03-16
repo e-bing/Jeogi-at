@@ -18,4 +18,6 @@
 // 지원 타입 - roi_update (camera_id / zone_id / roi)
 void handle_qt_command(const std::string& cmd_str);
 
+extern std::atomic<bool> g_roi_updated;
+
 #endif  // COMMAND_HANDLER_HPP

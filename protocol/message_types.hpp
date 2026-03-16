@@ -37,6 +37,9 @@ constexpr const char* MSG_SYSTEM_MONITOR = "system_monitor";
 /// 온습도 데이터
 constexpr const char* MSG_TEMP_HUMI = "temp_humi";
 
+/// ROI 목록
+constexpr const char* MSG_ROI_LIST = "roi_list";
+
 // ──────────────────────────────────────────
 //  Qt → Server  메시지 타입
 // ──────────────────────────────────────────

@@ -62,9 +62,9 @@ void handle_qt_command(const string& cmd_str) {
     else if (type == Protocol::MSG_ROI_UPDATE) {
       json payload = data.value(Protocol::FIELD_DATA, json::object());
 
-      string camera_id = payload.value("camera_id", "");
-      int zone_id = payload.value("zone_id", -1);
-      vector<float> roi = payload.value("roi", vector<float>());
+      string camera_id = payload.value(Protocol::FIELD_CAMERA_ID, "");
+      int zone_id = payload.value(Protocol::FIELD_ZONE_ID, -1);
+      vector<float> roi = payload.value(Protocol::FIELD_ROI, vector<float>());
 
       if (camera_id.empty() || zone_id == -1 || roi.size() != 4) {
         cerr << "[ERROR] 유효하지 않은 ROI 데이터 수신" << endl;
@@ -72,25 +72,27 @@ void handle_qt_command(const string& cmd_str) {
       }
       json config = ConfigManager::load();
 
-      if (!config.contains("zones") || !config["zones"].is_array()) {
-        config["zones"] = json::array();
+      if (!config.contains(Protocol::FIELD_ZONES) ||
+          !config[Protocol::FIELD_ZONES].is_array()) {
+        config[Protocol::FIELD_ZONES] = json::array();
       }
-      json& zones = config["zones"];
+      json& zones = config[Protocol::FIELD_ZONES];
 
       bool zone_updated = false;
 
       for (auto& zone : zones) {
-        if (zone.value("zone_id", -1) == zone_id &&
-            zone.value("camera_id", "") == camera_id) {
-          zone["roi"] = roi;
+        if (zone.value(Protocol::FIELD_ZONE_ID, -1) == zone_id &&
+            zone.value(Protocol::FIELD_CAMERA_ID, "") == camera_id) {
+          zone[Protocol::FIELD_ROI] = roi;
           zone_updated = true;
           break;
         }
       }
 
       if (!zone_updated) {
-        zones.push_back(
-            {{"zone_id", zone_id}, {"camera_id", camera_id}, {"roi", roi}});
+        zones.push_back({{Protocol::FIELD_ZONE_ID, zone_id},
+                         {Protocol::FIELD_CAMERA_ID, camera_id},
+                         {Protocol::FIELD_ROI, roi}});
       }
 
       ConfigManager::save(config);
@@ -98,6 +100,7 @@ void handle_qt_command(const string& cmd_str) {
            << ", Zone: " << zone_id << ")" << endl;
 
       g_analyzer.loadConfig();
+      g_roi_updated = true;
     }
   } catch (json::exception& e) {
     cerr << "❌ Qt 명령 파싱 에러: " << e.what() << endl;
