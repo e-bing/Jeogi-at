@@ -279,21 +279,39 @@ uint8_t Audio_StartWav(const char *filename)
 /* usage: Audio_Guide((uint8_t[8]){0, 1, 0, 1, 1, 0, 0, 0}); */
 void Audio_Guide(const uint8_t *congestion)
 {
-    AudioPlayer_ClearQueue();
 
-    AudioPlayer_Enqueue("guide_start.wav");
+	char has_zero = 0;
+	char all_two = 1;
 
-    for (int i = 0; i < 8; i++)
-    {
-        if (congestion[i])
-        {
-            char filename[AUDIO_PLAYER_NAME_MAX];
-            sprintf(filename, "guide_%d.wav", i + 1);
-            AudioPlayer_Enqueue(filename);
-        }
-    }
+	for (int i = 0; i < 8; i++)
+	{
+	    if (congestion[i] == 0)
+	    {
+	        if (!has_zero)
+	        {
+	            AudioPlayer_Enqueue("guide_start.wav");
+	            has_zero = 1;
+	        }
 
-    AudioPlayer_Enqueue("guide_end.wav");
+	        char filename[AUDIO_PLAYER_NAME_MAX];
+	        snprintf(filename, sizeof(filename), "guide_%d.wav", i + 1);
+	        AudioPlayer_Enqueue(filename);
+	    }
+
+	    if (congestion[i] != 2)
+	    {
+	        all_two = 0;
+	    }
+	}
+
+	if (has_zero)
+	{
+	    AudioPlayer_Enqueue("guide_end.wav");
+	}
+	else if (all_two)
+	{
+	    AudioPlayer_Enqueue("warning.wav");
+	}
 
     AudioPlayer_PlayNextFromQueue();
 }

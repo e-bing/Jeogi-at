@@ -58,8 +58,6 @@ void AppTask_Init(void)
   s_sensor_tick = HAL_GetTick();
 
   MatrixRun_Init();
-
-  UART_CMD_Init(&huart6);
 }
 
 void AppTask_Run(void)

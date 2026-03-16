@@ -48,6 +48,7 @@ void MatrixRun_Run(void)
   if (current_screen == 0U)
   {
     stay_ms = DASHBOARD_SHOW_MS;
+
   }
   else if (current_screen == 1U)
   {
@@ -70,6 +71,12 @@ void MatrixRun_Run(void)
       dashboard_dirty = 1U;
       dashboard_guide_mode = 0U;
       last_dashboard_mode_tick = now;
+
+
+      // test: play guide wav
+      printf("play guide wav run\r\n");
+//      Audio_Guide((uint8_t[8]){0, 1, 1, 1, 1, 1, 1, 1});
+      Audio_Guide(congestion_status);
     }
   }
 
@@ -99,6 +106,7 @@ void MatrixRun_Run(void)
   {
     MatrixRun_ShowDashboard();
     dashboard_dirty = 0U;
+    //
   }
   else
   {
