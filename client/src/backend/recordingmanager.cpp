@@ -21,6 +21,9 @@ RecordingManager::RecordingManager(QObject *parent)
 
     qDebug() << "[RecordingManager] 저장 경로:" << m_rootPath;
 
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+            this, &RecordingManager::shutdownAll);
+
     for (int i = 1; i <= 4; ++i) {
         bool ok = QDir().mkpath(camDir(i));
         qDebug() << "[RecordingManager] mkpath" << camDir(i) << "→" << (ok ? "성공" : "실패");
@@ -321,6 +324,57 @@ QVariantList RecordingManager::getRecordings(int cameraId) const {
         result.append(session);
     }
     return result;
+}
+
+void RecordingManager::shutdownAll() {
+    for (int i = 1; i <= 4; ++i) {
+        QProcess  *proc = nullptr;
+        QString    sessionPath;
+        int        frameCount = 0;
+        QDateTime  startTime;
+
+        {
+            QMutexLocker lock(&m_mutex);
+            if (!m_recording.value(i, false)) continue;
+
+            // 캘리브레이션 중이면 폴더 정리
+            if (m_calibrating.value(i, false)) {
+                m_calibrating[i] = false;
+                m_calibBuf[i].clear();
+                m_recording[i]   = false;
+                sessionPath = m_sessionPaths[i];
+                lock.unlock();
+                QDir(sessionPath).removeRecursively();
+                continue;
+            }
+
+            proc       = m_ffmpegProcesses.value(i, nullptr);
+            sessionPath = m_sessionPaths[i];
+            frameCount = m_frameCounts[i];
+            startTime  = m_startTimes[i];
+            m_recording[i]        = false;
+            m_ffmpegProcesses[i]  = nullptr;
+        }
+
+        if (proc) {
+            proc->closeWriteChannel();
+            qDebug() << "[RecordingManager] 종료 대기 cam" << i;
+            proc->waitForFinished(15000);
+
+            QDateTime endTime = QDateTime::currentDateTime();
+            QJsonObject meta;
+            meta["camera_id"]   = i;
+            meta["start_time"]  = startTime.toString(Qt::ISODate);
+            meta["end_time"]    = endTime.toString(Qt::ISODate);
+            meta["frame_count"] = frameCount;
+
+            QFile metaFile(sessionPath + "/meta.json");
+            if (metaFile.open(QFile::WriteOnly))
+                metaFile.write(QJsonDocument(meta).toJson());
+
+            delete proc;
+        }
+    }
 }
 
 void RecordingManager::deleteRecording(const QString &sessionPath) {

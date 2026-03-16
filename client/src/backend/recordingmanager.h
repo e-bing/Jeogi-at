@@ -22,6 +22,7 @@ public:
 
 public slots:
     void onFrameReceived(int cameraId, const QByteArray &jpegData);
+    void shutdownAll();
 
 signals:
     void recordingStateChanged(int cameraId, bool recording);
