@@ -84,3 +84,6 @@ CMakeLists.txt.user*
 
 # Individual certificate files
 *.crt
+
+# Recording output
+/record/

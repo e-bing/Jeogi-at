@@ -1,8 +1,10 @@
 #include "backend/networkclient.h"
+#include "backend/recordingmanager.h"
 #include <QDebug>
 #include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QQmlContext>
 #include <QObject>
 #include <QQmlApplicationEngine>
 #include <QtGlobal>
@@ -29,13 +31,22 @@ int main(int argc, char *argv[]) {
 
   app.setFont(QFont("Pretendard"));
 
-  // Register Network Client
-  qmlRegisterType<NetworkClient>("com.metro.network", 1, 0, "NetworkClient");
+  // NetworkClient를 전역 싱글톤으로 생성 (페이지 전환 시 소켓 유지)
+  NetworkClient *networkClient = new NetworkClient(&app);
+
+  // RecordingManager 생성
+  g_recordingManager = new RecordingManager(&app);
 
   QQmlApplicationEngine engine;
 
   g_cameraImageProvider = new CameraImageProvider();
   engine.addImageProvider("camera", g_cameraImageProvider);
+
+  engine.rootContext()->setContextProperty("networkClient", networkClient);
+  engine.rootContext()->setContextProperty("recordingManager", g_recordingManager);
+
+  // QML 타입 등록은 유지 (혹시 모를 호환성)
+  qmlRegisterType<NetworkClient>("com.metro.network", 1, 0, "NetworkClient");
 
   const QUrl url(QStringLiteral("qrc:/Main.qml"));
   QObject::connect(

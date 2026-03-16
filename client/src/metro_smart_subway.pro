@@ -19,10 +19,12 @@ win32 {
 
 SOURCES += \
     main.cpp \
-    backend/networkclient.cpp
+    backend/networkclient.cpp \
+    backend/recordingmanager.cpp
 
 HEADERS += \
-    backend/networkclient.h
+    backend/networkclient.h \
+    backend/recordingmanager.h
 
 RESOURCES += qml.qrc
 

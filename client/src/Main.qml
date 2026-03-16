@@ -2,7 +2,6 @@ import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import com.metro.network 1.0
 import "."
 
 Window {
@@ -16,6 +15,23 @@ Window {
     // Global server settings (editable via header)
     property string serverIp: ""
     property int serverPort: 12345
+
+    // 앱 시작 시 1초 후 자동 접속 (serverIp 설정 후 재접속도 처리)
+    Timer {
+        id: autoConnectTimer
+        interval: 1000
+        repeat: false
+        running: true
+        onTriggered: {
+            if (mainWindow.serverIp !== "")
+                networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort)
+        }
+    }
+
+    onServerIpChanged: {
+        if (serverIp !== "" && !networkClient.isConnected)
+            networkClient.connectToServer(serverIp, serverPort)
+    }
 
     RowLayout {
         anchors.fill: parent
