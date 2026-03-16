@@ -32,5 +32,6 @@
         <file>fonts/Pretendard-Thin.otf</file>
         <file>../../protocol/message_types.hpp</file>
         <file>../../protocol/sensor_thresholds.hpp</file>
+        <file alias="assets/server.crt">../assets/server.crt</file>
     </qresource>
 </RCC>
