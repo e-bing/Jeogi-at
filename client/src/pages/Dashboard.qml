@@ -226,45 +226,6 @@ ColumnLayout {
         }
     }
 
-    // Header: Title + Status (Added for consistency and feedback)
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.margins: 20
-        spacing: 20
-
-        Text {
-            text: "실시간 혼잡도 및 환경 모니터링"
-            font: Style.fontBold
-            color: Style.colorSlate800
-        }
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Rectangle {
-            width: 12
-            height: 12
-            radius: 6
-            color: networkClient.isConnected ? "#22C55E" : "#EF4444"
-        }
-        Text {
-            text: networkClient.statusMessage
-            color: Style.colorSlate500
-            font: Style.fontSmall
-        }
-
-        Button {
-            text: networkClient.isConnected ? "Disconnect" : "Connect"
-            onClicked: {
-                if (networkClient.isConnected)
-                    networkClient.disconnectFromServer();
-                else
-                    networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-            }
-        }
-    }
-
     ScrollView {
         Layout.fillWidth: true
         Layout.fillHeight: true
