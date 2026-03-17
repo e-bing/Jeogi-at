@@ -91,24 +91,6 @@ Rectangle {
             }
         }
 
-        // Server settings (gear) - opens dialog to change server IP/port
-        Rectangle {
-            id: gearBtn
-            width: 32
-            height: 32
-            color: Style.colorSlate200
-            radius: 16
-            Text {
-                anchors.centerIn: parent
-                text: "⚙️"
-            }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: serverDialog.open()
-            }
-        }
-
         Rectangle {
             width: 32
             height: 32
@@ -123,38 +105,6 @@ Rectangle {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Style.isDarkMode = !Style.isDarkMode
-            }
-        }
-
-        // Dialog for editing server IP / port
-        Dialog {
-            id: serverDialog
-            title: "서버 설정"
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            modal: true
-            contentItem: ColumnLayout {
-                spacing: 8
-                width: 320
-                TextField {
-                    id: headerIpField
-                    placeholderText: "Server IP"
-                    text: mainWindow.serverIp
-                    Keys.onReturnPressed: serverDialog.accept()
-                }
-                TextField {
-                    id: headerPortField
-                    placeholderText: "Server Port"
-                    text: mainWindow.serverPort.toString()
-                    inputMethodHints: Qt.ImhDigitsOnly
-                    Keys.onReturnPressed: serverDialog.accept()
-                }
-            }
-            onAccepted: {
-                if (headerIpField.text && headerIpField.text.length > 0)
-                    mainWindow.serverIp = headerIpField.text;
-                var p = parseInt(headerPortField.text);
-                if (!isNaN(p))
-                    mainWindow.serverPort = p;
             }
         }
 

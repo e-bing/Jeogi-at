@@ -147,27 +147,6 @@ ColumnLayout {
             color: Style.colorSlate800
         }
         Item { Layout.fillWidth: true }
-        Rectangle { width: 12; height: 12; radius: 6; color: networkClient.isConnected ? "#22C55E" : "#EF4444" }
-        Text { text: networkClient.statusMessage; color: Style.colorSlate500; font: Style.fontSmall }
-        Button {
-            id: connectBtn
-            text: networkClient.isConnected ? "서버 연결 해제" : "서버 연결"
-            font.bold: true
-            background: Rectangle {
-                implicitWidth: 100; implicitHeight: 32
-                color: connectBtn.pressed ? Style.colorPrimaryDark : (connectBtn.hovered ? Style.colorPrimary : "transparent")
-                border.color: Style.colorPrimary; border.width: 1; radius: 4
-            }
-            contentItem: Text {
-                text: connectBtn.text; font: connectBtn.font
-                color: connectBtn.hovered || connectBtn.pressed ? "white" : Style.colorPrimary
-                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-            }
-            onClicked: {
-                if (networkClient.isConnected) networkClient.disconnectFromServer();
-                else networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-            }
-        }
     }
 
     // Tabs
