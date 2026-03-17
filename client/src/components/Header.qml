@@ -7,7 +7,7 @@ Rectangle {
     id: headerRoot
     color: Style.colorSurface
 
-    property string title: "메인 화면"
+    property string title: "통합 모니터링"
 
     // Bottom border
     Rectangle {

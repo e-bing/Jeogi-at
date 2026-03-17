@@ -51,8 +51,8 @@ Rectangle {
             Repeater {
                 model: [
                     {
-                        name: "1. 혼잡도 상태",
-                        title: "혼잡도 상태",
+                        name: "1. 통합 모니터링",
+                        title: "통합 모니터링",
                         icon: "../logo/camera_logo.png",
                         reverseIcon: "../logo/reverse_camera_logo.png",
                         iconSize: 50,

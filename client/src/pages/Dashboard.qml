@@ -1408,7 +1408,7 @@ ColumnLayout {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "ROI 설정"
+                        text: "승강장 구역 설정"
                         color: "white"
                         font.pixelSize: 15
                         font.bold: true
