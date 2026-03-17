@@ -109,6 +109,8 @@ public:
   Q_INVOKABLE void disconnectFromServer();
   Q_INVOKABLE void sendDeviceCommand(const QString &device,
                                      const QString &action);
+  Q_INVOKABLE void sendRoiUpdate(const QString &cameraId, int zoneId,
+                                 const QVariantList &roi);
 
 signals:
   void isConnectedChanged();
@@ -122,6 +124,7 @@ signals:
   void systemMonitorReceived(QVariantMap data);
   void tempHumiReceived(QVariantMap data);
   void tempHumiStatsReceived(QVariantList data);
+  void roiListReceived(QVariantList zones);
 
 private slots:
   void onEncrypted();

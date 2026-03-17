@@ -8,6 +8,7 @@
         <file>components/Footer.qml</file>
         <file>components/SystemStatItem.qml</file>
         <file>pages/Dashboard.qml</file>
+        <file>pages/RoiEditorDialog.qml</file>
         <file>pages/Statistics.qml</file>
         <file>pages/CameraManagement.qml</file>
         <file>pages/RecordingPage.qml</file>

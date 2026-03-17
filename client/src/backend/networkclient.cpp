@@ -143,6 +143,28 @@ void NetworkClient::sendDeviceCommand(const QString &device,
   setStatus(QString("Sent command: %1 -> %2").arg(device, action));
 }
 
+void NetworkClient::sendRoiUpdate(const QString &cameraId, int zoneId,
+                                   const QVariantList &roi) {
+  if (socket->state() != QAbstractSocket::ConnectedState) return;
+
+  QJsonArray roiArr;
+  for (const QVariant &v : roi)
+    roiArr.append(v.toDouble());
+
+  QJsonObject payload;
+  payload[Protocol::FIELD_CAMERA_ID] = cameraId;
+  payload[Protocol::FIELD_ZONE_ID]   = zoneId;
+  payload[Protocol::FIELD_ROI]       = roiArr;
+
+  QJsonObject msg;
+  msg[Protocol::FIELD_TYPE] = Protocol::MSG_ROI_UPDATE;
+  msg[Protocol::FIELD_DATA] = payload;
+
+  QByteArray bytes = QJsonDocument(msg).toJson(QJsonDocument::Compact) + "\n";
+  socket->write(bytes);
+  socket->flush();
+}
+
 // ──────────────────────────────────────────────────────────────
 //  소켓 이벤트 핸들러 (private slots)
 // ──────────────────────────────────────────────────────────────
@@ -328,6 +350,10 @@ void NetworkClient::processJsonResponse(const QByteArray &line) {
     int totalCount = jsonObj[Protocol::FIELD_TOTAL_COUNT].toInt();
     QJsonArray zoneCountsArr = jsonObj[Protocol::FIELD_ZONE_COUNTS].toArray();
     emit zoneCongestionReceived(zonesArr.toVariantList(), totalCount, zoneCountsArr.toVariantList());
+
+  } else if (type == Protocol::MSG_ROI_LIST) {
+    QJsonArray zonesArr = dataVal.toArray();
+    emit roiListReceived(zonesArr.toVariantList());
   }
 }
 
