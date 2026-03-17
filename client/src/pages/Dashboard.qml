@@ -31,6 +31,26 @@ ColumnLayout {
     property string cam3Source: ""
     property string cam4Source: ""
 
+    // ROI 데이터 (서버에서 수신한 전체 존 목록)
+    property var roiZones: []
+
+    // 카메라 인덱스(0-3) → camera_id 문자열 매핑
+    // 수신한 zones의 camera_id 등장 순서 기준으로 자동 결정
+    function getRoiCameraStringId(camIdx) {
+        var seen = []
+        for (var i = 0; i < roiZones.length; i++) {
+            var cid = roiZones[i].camera_id
+            if (seen.indexOf(cid) === -1) seen.push(cid)
+        }
+        return camIdx < seen.length ? seen[camIdx] : ""
+    }
+
+    function getZonesForCamera(camIdx) {
+        var cid = getRoiCameraStringId(camIdx)
+        if (cid === "") return []
+        return roiZones.filter(function(z) { return z.camera_id === cid })
+    }
+
     property int cam1Count: 0
     property int cam2Count: 0
     property int cam3Count: 0
@@ -200,6 +220,9 @@ ColumnLayout {
             dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
                                          now.getMinutes().toString().padStart(2, '0') + ":" +
                                          now.getSeconds().toString().padStart(2, '0');
+        }
+        function onRoiListReceived(zones) {
+            dashboardRoot.roiZones = zones
         }
     }
 
@@ -1306,6 +1329,10 @@ ColumnLayout {
             }
         }
     }
+    RoiEditorDialog {
+        id: roiEditorDialog
+    }
+
     // Dashboard.qml 하단에 추가
     Popup {
         id: expandedCameraPopup
@@ -1381,49 +1408,69 @@ ColumnLayout {
                     }
                 }
             }
-            Rectangle {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.bottomMargin: 20
-                Layout.preferredWidth: 140
-                Layout.preferredHeight: 44
+                spacing: 12
 
-                radius: height / 2  // 높이의 절반으로 설정하여 완벽한 알약 모양 생성
+                // ROI 설정 버튼
+                Rectangle {
+                    width: 140; height: 44
+                    radius: height / 2
+                    color: roiMouseArea.pressed ? "#1d4ed8" : (roiMouseArea.containsMouse ? "#3b82f6" : "#2563eb")
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
-                // MouseArea의 상태에 따라 배경색 즉각 반영
-                color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
-                border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
-                border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "ROI 설정"
+                        color: "white"
+                        font.pixelSize: 15
+                        font.bold: true
+                        font.letterSpacing: 1.0
+                    }
 
-                // 부드러운 색상 전환 애니메이션
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 150
+                    MouseArea {
+                        id: roiMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var camIdx = expandedCameraPopup.currentCameraIndex
+                            var camStringId = dashboardRoot.getRoiCameraStringId(camIdx)
+                            var zones = dashboardRoot.getZonesForCamera(camIdx)
+                            roiEditorDialog.openForCamera(camIdx, camStringId, zones)
+                        }
                     }
                 }
-                Behavior on border.color {
-                    ColorAnimation {
-                        duration: 150
+
+                // 닫기 버튼
+                Rectangle {
+                    width: 140; height: 44
+                    radius: height / 2
+                    color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
+                    border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
+                    border.width: 1
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "닫기"
+                        color: closeMouseArea.pressed ? "#94A3B8" : "white"
+                        font.pixelSize: 15
+                        font.bold: true
+                        font.letterSpacing: 1.0
                     }
-                }
 
-                Text {
-                    anchors.centerIn: parent
-                    text: "닫기"
-                    color: closeMouseArea.pressed ? "#94A3B8" : "white"
-                    font.pixelSize: 15
-                    font.bold: true
-                    font.letterSpacing: 1.0
-                }
-
-                MouseArea {
-                    id: closeMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor // 마우스를 올렸을 때 클릭 가능한 손가락 커서로 변경
-
-                    onClicked: {
-                        expandedCameraPopup.currentCameraIndex = -1; // 소스 연결 해제
-                        expandedCameraPopup.close();
+                    MouseArea {
+                        id: closeMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            expandedCameraPopup.currentCameraIndex = -1
+                            expandedCameraPopup.close()
+                        }
                     }
                 }
             }
