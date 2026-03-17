@@ -346,7 +346,11 @@ ColumnLayout {
                                         fillMode: Image.PreserveAspectCrop
                                         smooth: false
                                         cache: false
-                                        visible: true
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] > 0
+                                        }
                                     }
 
                                     Image {
@@ -356,7 +360,11 @@ ColumnLayout {
                                         asynchronous: true
                                         smooth: false
                                         cache: false
-                                        visible: status == Image.Ready
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] > 0 && status == Image.Ready
+                                        }
                                         source: {
                                             if (index === 0)
                                                 return dashboardRoot.cam1Source;
@@ -391,7 +399,11 @@ ColumnLayout {
                                     Rectangle {
                                         anchors.fill: parent
                                         color: "transparent"
-                                        visible: cameraImageFront.source === "" && cameraImageBack.source === ""
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] === 0
+                                        }
 
                                         ColumnLayout {
                                             anchors.centerIn: parent
@@ -444,7 +456,11 @@ ColumnLayout {
                                                 return dashboardRoot.cam4Source;
                                             return "";
                                         }
-                                        visible: true
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] > 0
+                                        }
                                         opacity: 1.0
                                         onStatusChanged: {
                                             // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
@@ -477,15 +493,20 @@ ColumnLayout {
                                         }
                                     }
 
-                                    // Status Badge (LIVE)
+                                    // Status Badge (LIVE / OFF)
                                     Rectangle {
+                                        property bool isLive: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] > 0
+                                        }
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.margins: 12
-                                        width: 54
+                                        width: isLive ? 54 : 44
                                         height: 22
                                         radius: 6
-                                        color: (cameraImageBack.source !== "") ? "#cc22c55e" : "#cc64748b"
+                                        color: isLive ? "#cc22c55e" : "#cc475569"
                                         border.color: "#33ffffff"
                                         border.width: 1
 
@@ -497,7 +518,7 @@ ColumnLayout {
                                                 height: 8
                                                 radius: 4
                                                 color: "white"
-                                                visible: cameraImageBack.source !== ""
+                                                visible: parent.parent.isLive
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
                                                     NumberAnimation {
@@ -513,7 +534,7 @@ ColumnLayout {
                                                 }
                                             }
                                             Text {
-                                                text: (cameraImageBack.source !== "") ? "LIVE" : "OFF"
+                                                text: parent.parent.isLive ? "LIVE" : "OFF"
                                                 color: "white"
                                                 font.pixelSize: 11
                                                 font.bold: true
@@ -524,7 +545,11 @@ ColumnLayout {
 
                                     // Object Count Badge
                                     Rectangle {
-                                        visible: (cameraImageBack.source !== "") && getCamCount(index) > 0
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps,
+                                                       dashboardRoot.cam3Fps, dashboardRoot.cam4Fps]
+                                            return fps[index] > 0 && getCamCount(index) > 0
+                                        }
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.topMargin: 40
