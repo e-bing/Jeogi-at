@@ -41,7 +41,7 @@ Window {
         Loader {
             id: sidebarLoader
             Layout.fillHeight: true
-            Layout.preferredWidth: 250
+            Layout.preferredWidth: 200
             source: "components/Sidebar.qml"
 
             Connections {

@@ -36,8 +36,8 @@ Rectangle {
 
                 Image {
                     source: "../logo/logo.png"
-                    Layout.preferredWidth: 220
-                    Layout.preferredHeight: 80
+                    Layout.preferredWidth: 160
+                    Layout.preferredHeight: 60
                     fillMode: Image.PreserveAspectFit
                 }
             }
@@ -51,8 +51,8 @@ Rectangle {
             Repeater {
                 model: [
                     {
-                        name: "1. 혼잡도 상태",
-                        title: "혼잡도 상태",
+                        name: "1. 통합 모니터링",
+                        title: "통합 모니터링",
                         icon: "../logo/camera_logo.png",
                         reverseIcon: "../logo/reverse_camera_logo.png",
                         iconSize: 50,
@@ -100,7 +100,7 @@ Rectangle {
 
                         // Icon Placeholder
                         Item {
-                            width: 80 // Fixed width for alignment
+                            width: 50 // Fixed width for alignment
                             height: parent.height
 
                             // Image Icon (if available)
