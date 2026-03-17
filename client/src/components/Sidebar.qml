@@ -36,7 +36,7 @@ Rectangle {
 
                 Image {
                     source: "../logo/logo.png"
-                    Layout.preferredWidth: 320
+                    Layout.preferredWidth: 220
                     Layout.preferredHeight: 80
                     fillMode: Image.PreserveAspectFit
                 }
@@ -95,7 +95,7 @@ Rectangle {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 24
+                        anchors.leftMargin: 8
                         spacing: 12
 
                         // Icon Placeholder

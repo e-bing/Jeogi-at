@@ -79,6 +79,35 @@ Rectangle {
         RowLayout {
             spacing: 15
 
+            // Connection status
+            Rectangle {
+                width: 8
+                height: 8
+                radius: 4
+                color: networkClient.isConnected ? "#22C55E" : "#EF4444"
+            }
+            Text {
+                text: networkClient.statusMessage
+                color: Style.colorSlate500
+                font.pixelSize: 11
+            }
+            Button {
+                text: networkClient.isConnected ? "Disconnect" : "Connect"
+                implicitHeight: 28
+                font.pixelSize: 11
+                onClicked: {
+                    if (networkClient.isConnected)
+                        networkClient.disconnectFromServer();
+                    else
+                        networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+                }
+            }
+
+            Rectangle {
+                width: 1
+                height: 12
+                color: Style.colorSlate300
+            }
             Text {
                 text: "관리자: 조예찬"
                 color: Style.colorSlate500

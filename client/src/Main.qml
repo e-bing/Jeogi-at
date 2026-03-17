@@ -7,7 +7,7 @@ import "."
 Window {
     id: mainWindow
     width: 1280
-    height: 800
+    height: 900
     visible: true
     title: qsTr("Smart Subway Management System")
     color: Style.colorBackground
@@ -41,7 +41,7 @@ Window {
         Loader {
             id: sidebarLoader
             Layout.fillHeight: true
-            Layout.preferredWidth: 350 // Increased to 350 for extra large logo
+            Layout.preferredWidth: 250
             source: "components/Sidebar.qml"
 
             Connections {
