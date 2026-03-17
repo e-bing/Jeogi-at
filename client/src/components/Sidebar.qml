@@ -36,8 +36,8 @@ Rectangle {
 
                 Image {
                     source: "../logo/logo.png"
-                    Layout.preferredWidth: 220
-                    Layout.preferredHeight: 80
+                    Layout.preferredWidth: 160
+                    Layout.preferredHeight: 60
                     fillMode: Image.PreserveAspectFit
                 }
             }
@@ -100,7 +100,7 @@ Rectangle {
 
                         // Icon Placeholder
                         Item {
-                            width: 80 // Fixed width for alignment
+                            width: 50 // Fixed width for alignment
                             height: parent.height
 
                             // Image Icon (if available)
