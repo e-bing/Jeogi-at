@@ -4,12 +4,12 @@
 
 # 1. server.crt 설정
 
-Qt 클라이언트는 서버와 TLS 암호화 통신을 합니다. 서버 인증서 파일이 `assets/server.crt`에 있어야 합니다.
+Qt 클라이언트는 서버와 TLS 암호화 통신을 합니다. 서버 인증서 파일이 `src/config/server.crt`에 있어야 합니다.
 
 서버 담당자로부터 `server.crt` 파일을 받아 아래 경로에 넣습니다.
 
 ```
-client/assets/server.crt
+client/src/config/server.crt
 ```
 
 > 인증서가 없거나 서버 IP와 불일치하면 접속이 거부됩니다.
