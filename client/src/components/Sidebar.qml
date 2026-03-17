@@ -69,8 +69,8 @@ Rectangle {
                         pageSource: "pages/Statistics.qml"
                     },
                     {
-                        name: "3. 디바이스 제어 및 확인",
-                        title: "디바이스 제어 및 확인",
+                        name: "3. 디바이스 확인",
+                        title: "디바이스 확인",
                         icon: "../logo/device_logo.png",
                         reverseIcon: "../logo/reverse_device_logo.png",
                         iconSize: 50,
