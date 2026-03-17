@@ -53,4 +53,21 @@ typedef struct
     uint32_t data_size;
 } WAV_Header;
 
+typedef enum
+{
+    AUDIO_SOURCE_SD = 0,
+    AUDIO_SOURCE_STREAM
+} AudioSource_t;
+
+void Audio_SetSource(AudioSource_t source);
+AudioSource_t Audio_GetSource(void);
+
+/* SPI 수신 데이터 push 용 */
+uint32_t Audio_StreamWrite(const uint8_t *src, uint32_t len);
+
+/* 스트림 재생 시작/정지 */
+uint8_t Audio_StartStream(void);
+void Audio_Stop(void);
+
+
 #endif /* INC_SERVICES_AUDIO_PLAYER_H_ */
