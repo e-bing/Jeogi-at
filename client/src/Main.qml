@@ -41,7 +41,7 @@ Window {
         Loader {
             id: sidebarLoader
             Layout.fillHeight: true
-            Layout.preferredWidth: 350 // Increased to 350 for extra large logo
+            Layout.preferredWidth: 250
             source: "components/Sidebar.qml"
 
             Connections {
