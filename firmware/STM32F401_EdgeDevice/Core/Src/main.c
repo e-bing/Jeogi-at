@@ -116,6 +116,7 @@ int main(void)
   MX_FATFS_Init();
   MX_USART6_UART_Init();
   MX_TIM4_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   // test: LED panel & timer
