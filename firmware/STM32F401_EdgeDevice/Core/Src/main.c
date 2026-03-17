@@ -79,6 +79,15 @@ int _write(int file, char *ptr, int len)
   return len;
 }
 
+
+// test: streaming
+extern void StreamRx_Start(void);
+extern uint8_t g_spiStreamRxBuf[];
+extern volatile uint32_t g_spiRxHalfCnt;
+extern volatile uint32_t g_spiRxDoneCnt;
+extern volatile uint32_t g_spiErrCnt;
+extern volatile uint32_t g_spiLastErr;
+
 /* USER CODE END 0 */
 
 /**
@@ -135,6 +144,14 @@ int main(void)
   // init: sd card & audio amp
   Audio_Init();
 
+
+  // test: audio streaming
+  StreamRx_Start();
+
+  uint32_t prevHalf = 0;
+  uint32_t prevDone = 0;
+  uint32_t prevErr  = 0;
+
   // init: uart_protocol
   UART_CMD_Init(&huart6);
 
@@ -145,16 +162,43 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // start: uart handler
-    UART_Handler_Process();
+//    // start: uart handler
+//    UART_Handler_Process();
+//
+//    // start: LED panel
+//    AppTask_Run();
+//    /* LED panel refresh */
+//    //    HUB75_RefreshStep();
+//
+//    // start: Audio play
+//    Audio_Process();
 
-    // start: LED panel
-    AppTask_Run();
-    /* LED panel refresh */
-    //    HUB75_RefreshStep();
 
-    // start: Audio play
-    Audio_Process();
+
+	// test: streaming log
+    if (prevHalf != g_spiRxHalfCnt)
+    {
+        prevHalf = g_spiRxHalfCnt;
+        printf("SPI half cnt = %lu\r\n", prevHalf);
+    }
+
+    if (prevDone != g_spiRxDoneCnt)
+    {
+        prevDone = g_spiRxDoneCnt;
+        printf("SPI done cnt = %lu\r\n", prevDone);
+        printf("RX data = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+               g_spiStreamRxBuf[0], g_spiStreamRxBuf[1],
+               g_spiStreamRxBuf[2], g_spiStreamRxBuf[3],
+               g_spiStreamRxBuf[4], g_spiStreamRxBuf[5],
+               g_spiStreamRxBuf[6], g_spiStreamRxBuf[7]);
+    }
+
+    if (prevErr != g_spiErrCnt)
+    {
+        prevErr = g_spiErrCnt;
+        printf("SPI err cnt = %lu, code = 0x%08lX\r\n", prevErr, g_spiLastErr);
+    }
+
 
     /* USER CODE END WHILE */
 

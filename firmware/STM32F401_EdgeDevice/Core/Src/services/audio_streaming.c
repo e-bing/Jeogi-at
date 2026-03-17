@@ -1,20 +1,17 @@
-/*
- * audio_streaming.c
- *
- *  Created on: 2026. 3. 17.
- *      Author: 2-21
- */
-
-
 #include "main.h"
 #include "spi.h"
-#include "services/audio_player.h"
 #include <stdio.h>
+#include <string.h>
 
-#define SPI_STREAM_RX_SIZE   1920U
+#define SPI_STREAM_RX_SIZE 8U
 
-static uint8_t g_spiStreamRxBuf[SPI_STREAM_RX_SIZE];
-static volatile uint8_t g_spiStreamRxBusy = 0;
+uint8_t g_spiStreamRxBuf[SPI_STREAM_RX_SIZE];
+volatile uint8_t g_spiStreamRxBusy = 0;
+
+volatile uint32_t g_spiRxHalfCnt = 0;
+volatile uint32_t g_spiRxDoneCnt = 0;
+volatile uint32_t g_spiErrCnt = 0;
+volatile uint32_t g_spiLastErr = 0;
 
 void StreamRx_Start(void)
 {
@@ -30,16 +27,28 @@ void StreamRx_Start(void)
         g_spiStreamRxBusy = 0;
         printf("SPI1 Receive Start Fail\r\n");
     }
+    else
+    {
+        printf("SPI1 Receive Armed\r\n");
+    }
+}
+
+void HAL_SPI_RxHalfCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi == &hspi1)
+    {
+        g_spiRxHalfCnt++;
+    }
 }
 
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == &hspi1)
     {
+        g_spiRxDoneCnt++;
         g_spiStreamRxBusy = 0;
 
-        Audio_StreamWrite(g_spiStreamRxBuf, SPI_STREAM_RX_SIZE);
-
+        /* 다음 수신 재시작 */
         StreamRx_Start();
     }
 }
@@ -48,9 +57,11 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == &hspi1)
     {
+        g_spiErrCnt++;
+        g_spiLastErr = hspi->ErrorCode;
         g_spiStreamRxBusy = 0;
-        printf("SPI1 Error: 0x%08lX\r\n", hspi->ErrorCode);
 
+        /* 에러 후 재시작 */
         StreamRx_Start();
     }
 }

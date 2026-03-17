@@ -531,6 +531,22 @@ void Audio_Process(void)
     {
         AudioPlayer_PlayNextFromQueue();
     }
+
+    // run: streaming
+//    if (!s_isPlaying && s_audioSource == AUDIO_SOURCE_STREAM)
+	if (s_audioSource == AUDIO_SOURCE_STREAM)
+    {
+        uint32_t prebufferBytes = AUDIO_PLAYER_MONO_SAMPLES * 2U * 2U;
+
+        if (AudioStream_GetCount() >= prebufferBytes)
+        {
+            if (Audio_StartStream())
+            {
+                printf("Stream Play Triggered\r\n");
+            }
+        }
+    }
+    //
 }
 
 void Audio_Stop(void)
