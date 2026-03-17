@@ -2,6 +2,6 @@
     "mqtt_broker": "tcp://192.168.0.49:1883",
     "sensor_topic": "sensor/air_quality",
     "sht20_topic": "sensor/temp_humi",
-    "subway_api_key": "7a554a494c6c796b3437794d45466f"
+    "subway_api_key": "Your_Subway_API_Key_Here",
 
 }
