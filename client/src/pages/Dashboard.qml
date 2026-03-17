@@ -903,236 +903,6 @@ ColumnLayout {
                 Layout.preferredHeight: 300
                 spacing: 20
 
-                // Device Control
-                Rectangle {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 4
-                    color: Style.colorSurface
-                    radius: 12
-                    border.color: Style.colorSlate200
-                    border.width: 1
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.topMargin: 15
-                        anchors.leftMargin: 20
-                        anchors.rightMargin: 20
-                        anchors.bottomMargin: 20
-                        spacing: 0
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                text: "👆 디바이스 통합 제어"
-                                font.pixelSize: 22
-                                font.bold: true
-                                color: Style.colorSlate800
-                            }
-                            Item {
-                                Layout.fillWidth: true
-                            }
-                            ColumnLayout {
-                                spacing: 2
-                                Text {
-                                    text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
-                                    color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
-                                    font.bold: true
-                                    font.pixelSize: 10
-                                }
-                                Rectangle {
-                                    width: 48
-                                    height: 24
-                                    radius: 12
-                                    color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
-
-                                    Rectangle {
-                                        id: modeKnob
-                                        x: dashboardRoot.isManualMode ? 26 : 2
-                                        y: 2
-                                        width: 20
-                                        height: 20
-                                        radius: 10
-                                        color: "white"
-                                        Behavior on x {
-                                            NumberAnimation {
-                                                duration: 200
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
-                                            console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
-                                            if (networkClient && networkClient.sendDeviceCommand) {
-                                                networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: 1
-                            columnSpacing: 15
-                            rowSpacing: 10
-
-                            Repeater {
-                                model: [
-                                    {
-                                        name: "환기 팬",
-                                        device: networkClient.DEVICE_MOTOR,
-                                        icon: "🍃",
-                                        type: "toggle",
-                                        options: []
-                                    },
-                                    {
-                                        name: "안내 방송",
-                                        device: networkClient.DEVICE_SPEAKER,
-                                        icon: "🔊",
-                                        type: "buttons",
-                                        options: ["1", "2", "3", "4"]
-                                    },
-                                    {
-                                        name: "디스플레이",
-                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
-                                        icon: "🖥️",
-                                        type: "buttons",
-                                        options: ["1", "2", "3"]
-                                    }
-                                ]
-
-                                Rectangle {
-                                    id: deviceItem
-                                    property var deviceData: modelData
-                                    property bool isActive: false
-                                    property string activeOption: ""
-
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 50
-                                    border.color: Style.colorSlate200
-                                    radius: 8
-                                    color: "white"
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 15
-                                        Text {
-                                            text: deviceItem.deviceData.icon
-                                        }
-                                        Text {
-                                            text: deviceItem.deviceData.name
-                                            font.bold: true
-                                            color: "#0F172A" // Persistent Slate 900
-                                        }
-                                        Item {
-                                            Layout.fillWidth: true
-                                        }
-
-                                        // 1) Toggle switch
-                                        Rectangle {
-                                            visible: deviceItem.deviceData.type === "toggle"
-                                            width: 36
-                                            height: 20
-                                            radius: 10
-                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
-
-                                            Rectangle {
-                                                id: knob
-                                                x: deviceItem.isActive ? 18 : 2
-                                                y: 2
-                                                width: 16
-                                                height: 16
-                                                radius: 8
-                                                color: "white"
-                                                Behavior on x {
-                                                    NumberAnimation {
-                                                        duration: 200
-                                                    }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    deviceItem.isActive = !deviceItem.isActive;
-                                                    console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
-                                                    if (networkClient && networkClient.sendDeviceCommand) {
-                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // 2) Numbered buttons
-                                        RowLayout {
-                                            visible: deviceItem.deviceData.type === "buttons"
-                                            spacing: 6
-
-                                            Timer {
-                                                id: resetTimer
-                                                interval: 3000
-                                                repeat: false
-                                                onTriggered: {
-                                                    deviceItem.activeOption = "";
-                                                }
-                                            }
-
-                                            Repeater {
-                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
-                                                Rectangle {
-                                                    width: 28
-                                                    height: 28
-                                                    radius: 6
-                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
-                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
-                                                    border.width: 1
-
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: modelData
-                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
-                                                        font.bold: true
-                                                        font.pixelSize: 13
-                                                    }
-
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            var val = modelData;
-                                                            deviceItem.activeOption = val;
-                                                            resetTimer.restart(); // Restart countdown for this row
-                                                            console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
-                                                            if (networkClient && networkClient.sendDeviceCommand) {
-                                                                var targetAction = networkClient.ACTION_1; // default fallback
-                                                                if (val === "2")
-                                                                    targetAction = networkClient.ACTION_2;
-                                                                else if (val === "3")
-                                                                    targetAction = networkClient.ACTION_3;
-                                                                else if (val === "4")
-                                                                    targetAction = networkClient.ACTION_4;
-
-                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // Congestion
                 Rectangle {
                     Layout.fillHeight: true
@@ -1305,6 +1075,233 @@ ColumnLayout {
                                             font.bold: true
                                             font.pixelSize: 16
                                             Layout.alignment: Qt.AlignHCenter
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Device Control
+                Rectangle {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 4
+                    color: Style.colorSurface
+                    radius: 12
+                    border.color: Style.colorSlate200
+                    border.width: 1
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.topMargin: 15
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 20
+                        anchors.bottomMargin: 20
+                        spacing: 0
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "👆 디바이스 통합 제어"
+                                font.pixelSize: 22
+                                font.bold: true
+                                color: Style.colorSlate800
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                            ColumnLayout {
+                                spacing: 2
+                                Text {
+                                    text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
+                                    color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
+                                    font.bold: true
+                                    font.pixelSize: 10
+                                }
+                                Rectangle {
+                                    width: 48
+                                    height: 24
+                                    radius: 12
+                                    color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
+
+                                    Rectangle {
+                                        id: modeKnob
+                                        x: dashboardRoot.isManualMode ? 26 : 2
+                                        y: 2
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        color: "white"
+                                        Behavior on x {
+                                            NumberAnimation {
+                                                duration: 200
+                                            }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
+                                            console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
+                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 1
+                            columnSpacing: 15
+                            rowSpacing: 10
+
+                            Repeater {
+                                model: [
+                                    {
+                                        name: "환기 팬",
+                                        device: networkClient.DEVICE_MOTOR,
+                                        icon: "🍃",
+                                        type: "toggle",
+                                        options: []
+                                    },
+                                    {
+                                        name: "안내 방송",
+                                        device: networkClient.DEVICE_SPEAKER,
+                                        icon: "🔊",
+                                        type: "buttons",
+                                        options: ["1", "2", "3", "4"]
+                                    },
+                                    {
+                                        name: "디스플레이",
+                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
+                                        icon: "🖥️",
+                                        type: "buttons",
+                                        options: ["1", "2", "3"]
+                                    }
+                                ]
+
+                                Rectangle {
+                                    id: deviceItem
+                                    property var deviceData: modelData
+                                    property bool isActive: false
+                                    property string activeOption: ""
+
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 50
+                                    border.color: Style.colorSlate200
+                                    radius: 8
+                                    color: "white"
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 15
+                                        Text {
+                                            text: deviceItem.deviceData.icon
+                                        }
+                                        Text {
+                                            text: deviceItem.deviceData.name
+                                            font.bold: true
+                                            color: "#0F172A"
+                                        }
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
+
+                                        // 1) Toggle switch
+                                        Rectangle {
+                                            visible: deviceItem.deviceData.type === "toggle"
+                                            width: 36
+                                            height: 20
+                                            radius: 10
+                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
+
+                                            Rectangle {
+                                                id: knob
+                                                x: deviceItem.isActive ? 18 : 2
+                                                y: 2
+                                                width: 16
+                                                height: 16
+                                                radius: 8
+                                                color: "white"
+                                                Behavior on x {
+                                                    NumberAnimation {
+                                                        duration: 200
+                                                    }
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    deviceItem.isActive = !deviceItem.isActive;
+                                                    if (networkClient && networkClient.sendDeviceCommand) {
+                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2) Numbered buttons
+                                        RowLayout {
+                                            visible: deviceItem.deviceData.type === "buttons"
+                                            spacing: 6
+
+                                            Timer {
+                                                id: resetTimer
+                                                interval: 3000
+                                                repeat: false
+                                                onTriggered: {
+                                                    deviceItem.activeOption = "";
+                                                }
+                                            }
+
+                                            Repeater {
+                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
+                                                Rectangle {
+                                                    width: 28
+                                                    height: 28
+                                                    radius: 6
+                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
+                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
+                                                    border.width: 1
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData
+                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
+                                                        font.bold: true
+                                                        font.pixelSize: 13
+                                                    }
+
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var val = modelData;
+                                                            deviceItem.activeOption = val;
+                                                            resetTimer.restart();
+                                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                                var targetAction = networkClient.ACTION_1;
+                                                                if (val === "2")
+                                                                    targetAction = networkClient.ACTION_2;
+                                                                else if (val === "3")
+                                                                    targetAction = networkClient.ACTION_3;
+                                                                else if (val === "4")
+                                                                    targetAction = networkClient.ACTION_4;
+                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
