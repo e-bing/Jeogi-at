@@ -6,8 +6,10 @@ import "."
 
 Window {
     id: mainWindow
-    width: 1280
+    width: 1390
     height: 900
+    minimumWidth: 1390
+    minimumHeight: 720
     visible: true
     title: qsTr("Smart Subway Management System")
     color: Style.colorBackground
