@@ -6,8 +6,7 @@ import ".."
 
 ColumnLayout {
     id: dashboardRoot
-    width: parent.width
-    height: parent.height
+    anchors.fill: parent
     spacing: 0
 
     property var airStatsData: ({})
@@ -30,6 +29,12 @@ ColumnLayout {
     property string cam2Source: ""
     property string cam3Source: ""
     property string cam4Source: ""
+
+    property bool showBoundingBox: false
+    property var cam1Objects: []
+    property var cam2Objects: []
+    property var cam3Objects: []
+    property var cam4Objects: []
 
     // ROI 데이터 (서버에서 수신한 전체 존 목록)
     property var roiZones: []
@@ -161,6 +166,14 @@ ColumnLayout {
         return 0;
     }
 
+    function getCamObjects(index) {
+        if (index === 0) return dashboardRoot.cam1Objects;
+        if (index === 1) return dashboardRoot.cam2Objects;
+        if (index === 2) return dashboardRoot.cam3Objects;
+        if (index === 3) return dashboardRoot.cam4Objects;
+        return [];
+    }
+
     Connections {
         target: networkClient
         function onIsConnectedChanged() {
@@ -201,18 +214,22 @@ ColumnLayout {
                 dashboardRoot._cam1Count++;
                 dashboardRoot.cam1Source = url;
                 dashboardRoot.cam1Count = objectCount;
+                dashboardRoot.cam1Objects = metadata.objs || [];
             } else if (cameraId === 2) {
                 dashboardRoot._cam2Count++;
                 dashboardRoot.cam2Source = url;
                 dashboardRoot.cam2Count = objectCount;
+                dashboardRoot.cam2Objects = metadata.objs || [];
             } else if (cameraId === 3) {
                 dashboardRoot._cam3Count++;
                 dashboardRoot.cam3Source = url;
                 dashboardRoot.cam3Count = objectCount;
+                dashboardRoot.cam3Objects = metadata.objs || [];
             } else if (cameraId === 4) {
                 dashboardRoot._cam4Count++;
                 dashboardRoot.cam4Source = url;
                 dashboardRoot.cam4Count = objectCount;
+                dashboardRoot.cam4Objects = metadata.objs || [];
             }
         }
         function onTempHumiReceived(data) {
@@ -232,21 +249,16 @@ ColumnLayout {
         }
     }
 
-    ScrollView {
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        clip: true
-        contentWidth: availableWidth
+        spacing: 10
 
-        ColumnLayout {
-            width: parent.width
+        // Top Row: Cameras + Environment
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             spacing: 10
-
-            // Top Row: Cameras + Environment
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 500
-                spacing: 10
 
                 // Camera Card
                 Rectangle {
@@ -274,14 +286,14 @@ ColumnLayout {
                             }
                             Text {
                                 id: detailsText
-                                text: "상세보기"
-                                color: Style.colorPrimary
+                                text: dashboardRoot.showBoundingBox ? "바운딩박스 on" : "바운딩박스 off"
+                                color: dashboardRoot.showBoundingBox ? "#22C55E" : Style.colorPrimary
                                 font.pixelSize: 12
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        console.log("상세보기 클릭됨");
+                                        dashboardRoot.showBoundingBox = !dashboardRoot.showBoundingBox;
                                     }
                                 }
                             }
@@ -530,6 +542,21 @@ ColumnLayout {
                                         }
                                     }
 
+                                    // Bounding Box Overlay
+                                    Repeater {
+                                        model: dashboardRoot.showBoundingBox ? getCamObjects(index) : []
+                                        delegate: Rectangle {
+                                            x: modelData.x * camContainer.width
+                                            y: modelData.y * camContainer.height
+                                            width: modelData.w * camContainer.width
+                                            height: modelData.h * camContainer.height
+                                            color: "transparent"
+                                            border.color: "#00FF00"
+                                            border.width: 2
+                                            radius: 2
+                                        }
+                                    }
+
                                     // Camera Label
                                     Text {
                                         anchors.right: parent.right
@@ -576,7 +603,7 @@ ColumnLayout {
                 // Environment Card
                 Rectangle {
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 300
+                    Layout.preferredWidth: 350
                     color: Style.colorSurface
                     radius: 12
                     border.color: Style.colorSlate200
@@ -1080,7 +1107,7 @@ ColumnLayout {
 
                 // Device Control
                 Rectangle {
-                    Layout.preferredWidth: 300
+                    Layout.preferredWidth: 350
                     Layout.preferredHeight: deviceControlInner.implicitHeight + 35
                     Layout.alignment: Qt.AlignTop
                     color: Style.colorSurface
@@ -1305,7 +1332,6 @@ ColumnLayout {
                 }
             }
         }
-    }
     RoiEditorDialog {
         id: roiEditorDialog
     }
@@ -1343,6 +1369,7 @@ ColumnLayout {
 
             // 팝업 내부 더블 버퍼링 렌더링 영역
             Item {
+                id: expandedImageContainer
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -1382,6 +1409,23 @@ ColumnLayout {
                         if (status === Image.Ready) {
                             expandedImageBack.source = source;
                         }
+                    }
+                }
+
+                // Bounding Box Overlay (PreserveAspectFit 보정)
+                Repeater {
+                    model: dashboardRoot.showBoundingBox ? getCamObjects(expandedCameraPopup.currentCameraIndex) : []
+                    delegate: Rectangle {
+                        property real imgX: (expandedImageContainer.width - expandedImageFront.paintedWidth) / 2
+                        property real imgY: (expandedImageContainer.height - expandedImageFront.paintedHeight) / 2
+                        x: imgX + modelData.x * expandedImageFront.paintedWidth
+                        y: imgY + modelData.y * expandedImageFront.paintedHeight
+                        width: modelData.w * expandedImageFront.paintedWidth
+                        height: modelData.h * expandedImageFront.paintedHeight
+                        color: "transparent"
+                        border.color: "#00FF00"
+                        border.width: 2
+                        radius: 2
                     }
                 }
             }
