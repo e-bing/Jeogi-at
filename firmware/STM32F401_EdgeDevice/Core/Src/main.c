@@ -35,6 +35,7 @@
 #include "app_task.h"
 #include "uart_handler.h"
 #include "services/audio_player.h"
+#include "services/audio_streaming.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,15 +79,6 @@ int _write(int file, char *ptr, int len)
   HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, 2000);
   return len;
 }
-
-
-// test: streaming
-extern void StreamRx_Start(void);
-extern uint8_t g_spiStreamRxBuf[];
-extern volatile uint32_t g_spiRxHalfCnt;
-extern volatile uint32_t g_spiRxDoneCnt;
-extern volatile uint32_t g_spiErrCnt;
-extern volatile uint32_t g_spiLastErr;
 
 /* USER CODE END 0 */
 
@@ -144,13 +136,9 @@ int main(void)
   // init: sd card & audio amp
   Audio_Init();
 
-
   // test: audio streaming
+  Audio_SetSource(AUDIO_SOURCE_STREAM);
   StreamRx_Start();
-
-  uint32_t prevHalf = 0;
-  uint32_t prevDone = 0;
-  uint32_t prevErr  = 0;
 
   // init: uart_protocol
   UART_CMD_Init(&huart6);
@@ -163,42 +151,31 @@ int main(void)
   while (1)
   {
 //    // start: uart handler
-//    UART_Handler_Process();
+    UART_Handler_Process();
 //
 //    // start: LED panel
 //    AppTask_Run();
 //    /* LED panel refresh */
-//    //    HUB75_RefreshStep();
+//    HUB75_RefreshStep();
 //
 //    // start: Audio play
-//    Audio_Process();
+    Audio_Process();
 
-
-
-	// test: streaming log
-    if (prevHalf != g_spiRxHalfCnt)
+    /* debug print */
+    static uint32_t lastTick = 0;
+    if (HAL_GetTick() - lastTick >= 1000)   // 1초마다 출력
     {
-        prevHalf = g_spiRxHalfCnt;
-        printf("SPI half cnt = %lu\r\n", prevHalf);
-    }
+        lastTick = HAL_GetTick();
 
-    if (prevDone != g_spiRxDoneCnt)
-    {
-        prevDone = g_spiRxDoneCnt;
-        printf("SPI done cnt = %lu\r\n", prevDone);
-        printf("RX data = %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-               g_spiStreamRxBuf[0], g_spiStreamRxBuf[1],
-               g_spiStreamRxBuf[2], g_spiStreamRxBuf[3],
-               g_spiStreamRxBuf[4], g_spiStreamRxBuf[5],
-               g_spiStreamRxBuf[6], g_spiStreamRxBuf[7]);
+        printf("spi half=%lu full=%lu err=%lu last=0x%08lX drop=%lu stream=%lu i2s_err=%lu\r\n",
+               g_spiRxHalfCnt,
+               g_spiRxDoneCnt,
+               g_spiErrCnt,
+               g_spiLastErr,
+               g_spiDroppedBytes,
+               Audio_DebugStreamCount(),
+               audio_i2s_err_cnt);
     }
-
-    if (prevErr != g_spiErrCnt)
-    {
-        prevErr = g_spiErrCnt;
-        printf("SPI err cnt = %lu, code = 0x%08lX\r\n", prevErr, g_spiLastErr);
-    }
-
 
     /* USER CODE END WHILE */
 

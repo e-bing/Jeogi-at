@@ -130,10 +130,11 @@ static uint32_t AudioStream_GetCount(void)
     return s_streamCount;
 }
 
-/* SPI 수신 완료 시 호출해서 PCM byte를 밀어넣는 함수 */
 uint32_t Audio_StreamWrite(const uint8_t *src, uint32_t len)
 {
     uint32_t written = 0;
+
+    __disable_irq();
 
     while (written < len)
     {
@@ -149,12 +150,16 @@ uint32_t Audio_StreamWrite(const uint8_t *src, uint32_t len)
         written++;
     }
 
+    __enable_irq();
+
     return written;
 }
 
 static uint32_t AudioStream_Read(uint8_t *dst, uint32_t len)
 {
     uint32_t read = 0;
+
+    __disable_irq();
 
     while (read < len)
     {
@@ -169,7 +174,20 @@ static uint32_t AudioStream_Read(uint8_t *dst, uint32_t len)
         read++;
     }
 
+    __enable_irq();
+
     return read;
+}
+
+uint32_t Audio_DebugStreamCount(void)
+{
+    uint32_t count;
+
+    __disable_irq();
+    count = s_streamCount;
+    __enable_irq();
+
+    return count;
 }
 
 /* ================= Queue ================= */
@@ -427,15 +445,14 @@ uint8_t Audio_StartStream(void)
     memset(s_monoBuf, 0, sizeof(s_monoBuf));
     memset(s_i2sBuf, 0, sizeof(s_i2sBuf));
 
-    /* 2 half-buffer 이상 쌓였을 때 시작 권장 */
-    prebufferBytes = AUDIO_PLAYER_MONO_SAMPLES * 2U * 2U;
+    /* 최소 2개 half-buffer보다 조금 더 */
+    prebufferBytes = AUDIO_PLAYER_MONO_SAMPLES * 2U * 4U;
 
     if (AudioStream_GetCount() < prebufferBytes)
     {
         return 0;
     }
 
-    /* pre-fill */
     AudioPlayer_FillHalfBuffer(&s_i2sBuf[0]);
     AudioPlayer_FillHalfBuffer(&s_i2sBuf[AUDIO_PLAYER_MONO_SAMPLES * 2]);
 
@@ -517,7 +534,6 @@ void Audio_Process(void)
             }
         }
 
-        /* SD 파일 재생일 때만 EOF로 stop */
         if ((s_audioSource == AUDIO_SOURCE_SD) && s_stopPending && s_wavEof)
         {
             if (s_bufferEvent == 0)
@@ -532,21 +548,20 @@ void Audio_Process(void)
         AudioPlayer_PlayNextFromQueue();
     }
 
-    // run: streaming
-//    if (!s_isPlaying && s_audioSource == AUDIO_SOURCE_STREAM)
-	if (s_audioSource == AUDIO_SOURCE_STREAM)
+
+    if (!s_isPlaying && s_audioSource == AUDIO_SOURCE_STREAM)
     {
-        uint32_t prebufferBytes = AUDIO_PLAYER_MONO_SAMPLES * 2U * 2U;
+        uint32_t prebufferBytes = AUDIO_PLAYER_MONO_SAMPLES * 2U * 4U;
 
         if (AudioStream_GetCount() >= prebufferBytes)
         {
             if (Audio_StartStream())
             {
+
                 printf("Stream Play Triggered\r\n");
             }
         }
     }
-    //
 }
 
 void Audio_Stop(void)

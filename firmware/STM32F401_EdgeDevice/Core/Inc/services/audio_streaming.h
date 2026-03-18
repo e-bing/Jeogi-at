@@ -9,7 +9,11 @@
 #define INC_SERVICES_AUDIO_STREAMING_H_
 
 
-
+extern volatile uint32_t g_spiRxHalfCnt;
+extern volatile uint32_t g_spiRxDoneCnt;
+extern volatile uint32_t g_spiErrCnt;
+extern volatile uint32_t g_spiLastErr;
+extern volatile uint32_t g_spiDroppedBytes;
 
 
 

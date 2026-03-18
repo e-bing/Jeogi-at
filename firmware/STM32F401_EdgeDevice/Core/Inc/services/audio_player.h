@@ -69,5 +69,7 @@ uint32_t Audio_StreamWrite(const uint8_t *src, uint32_t len);
 uint8_t Audio_StartStream(void);
 void Audio_Stop(void);
 
+/* debug */
+uint32_t Audio_DebugStreamCount(void);
 
 #endif /* INC_SERVICES_AUDIO_PLAYER_H_ */
