@@ -36,8 +36,8 @@ Rectangle {
 
                 Image {
                     source: "../logo/logo.png"
-                    Layout.preferredWidth: 320
-                    Layout.preferredHeight: 80
+                    Layout.preferredWidth: 160
+                    Layout.preferredHeight: 60
                     fillMode: Image.PreserveAspectFit
                 }
             }
@@ -51,8 +51,8 @@ Rectangle {
             Repeater {
                 model: [
                     {
-                        name: "1. 혼잡도 상태",
-                        title: "혼잡도 상태",
+                        name: "1. 통합 모니터링",
+                        title: "통합 모니터링",
                         icon: "../logo/camera_logo.png",
                         reverseIcon: "../logo/reverse_camera_logo.png",
                         iconSize: 50,
@@ -69,8 +69,8 @@ Rectangle {
                         pageSource: "pages/Statistics.qml"
                     },
                     {
-                        name: "3. 디바이스 제어 및 확인",
-                        title: "디바이스 제어 및 확인",
+                        name: "3. 디바이스 확인",
+                        title: "디바이스 확인",
                         icon: "../logo/device_logo.png",
                         reverseIcon: "../logo/reverse_device_logo.png",
                         iconSize: 50,
@@ -95,12 +95,12 @@ Rectangle {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 24
+                        anchors.leftMargin: 8
                         spacing: 12
 
                         // Icon Placeholder
                         Item {
-                            width: 80 // Fixed width for alignment
+                            width: 50 // Fixed width for alignment
                             height: parent.height
 
                             // Image Icon (if available)

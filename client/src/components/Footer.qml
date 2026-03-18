@@ -117,6 +117,85 @@ Rectangle {
         RowLayout {
             spacing: 15
 
+            // Connection status
+            Rectangle {
+                width: 8
+                height: 8
+                radius: 4
+                color: networkClient.isConnected ? "#22C55E" : "#EF4444"
+            }
+            Text {
+                text: networkClient.statusMessage
+                color: Style.colorSlate500
+                font.pixelSize: 11
+            }
+            Button {
+                text: networkClient.isConnected ? "Disconnect" : "Connect"
+                implicitHeight: 28
+                font.pixelSize: 11
+                onClicked: {
+                    if (networkClient.isConnected)
+                        networkClient.disconnectFromServer();
+                    else
+                        networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
+                }
+            }
+
+            // Server settings (gear)
+            Rectangle {
+                width: 24
+                height: 24
+                color: Style.colorSlate200
+                radius: 12
+                Text {
+                    anchors.centerIn: parent
+                    text: "⚙️"
+                    font.pixelSize: 12
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: footerServerDialog.open()
+                }
+            }
+
+            Dialog {
+                id: footerServerDialog
+                title: "서버 설정"
+                standardButtons: Dialog.Ok | Dialog.Cancel
+                modal: true
+                anchors.centerIn: Overlay.overlay
+                contentItem: ColumnLayout {
+                    spacing: 8
+                    width: 320
+                    TextField {
+                        id: footerIpField
+                        placeholderText: "Server IP"
+                        text: mainWindow.serverIp
+                        Keys.onReturnPressed: footerServerDialog.accept()
+                    }
+                    TextField {
+                        id: footerPortField
+                        placeholderText: "Server Port"
+                        text: mainWindow.serverPort.toString()
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Keys.onReturnPressed: footerServerDialog.accept()
+                    }
+                }
+                onAccepted: {
+                    if (footerIpField.text && footerIpField.text.length > 0)
+                        mainWindow.serverIp = footerIpField.text;
+                    var p = parseInt(footerPortField.text);
+                    if (!isNaN(p))
+                        mainWindow.serverPort = p;
+                }
+            }
+
+            Rectangle {
+                width: 1
+                height: 12
+                color: Style.colorSlate300
+            }
             Text {
                 text: "관리자: 조예찬"
                 color: Style.colorSlate500

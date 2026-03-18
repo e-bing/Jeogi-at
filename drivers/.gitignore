@@ -65,3 +65,7 @@ dkms.conf
 
 # Build directories
 build/
+
+# Runtime/local config
+config/*.json
+!config/.gitkeep

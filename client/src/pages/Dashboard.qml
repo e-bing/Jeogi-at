@@ -12,7 +12,7 @@ ColumnLayout {
 
     property var airStatsData: ({})
     property var tempHumiData: ({})
-    
+
     // 개별 반응형 프로퍼티 (데이터 수신 확인용)
     property double tempValue: 0.0
     property double humiValue: 0.0
@@ -30,6 +30,30 @@ ColumnLayout {
     property string cam2Source: ""
     property string cam3Source: ""
     property string cam4Source: ""
+
+    // ROI 데이터 (서버에서 수신한 전체 존 목록)
+    property var roiZones: []
+
+    // 카메라 인덱스(0-3) → camera_id 문자열 매핑
+    // 수신한 zones의 camera_id 등장 순서 기준으로 자동 결정
+    function getRoiCameraStringId(camIdx) {
+        var seen = [];
+        for (var i = 0; i < roiZones.length; i++) {
+            var cid = roiZones[i].camera_id;
+            if (seen.indexOf(cid) === -1)
+                seen.push(cid);
+        }
+        return camIdx < seen.length ? seen[camIdx] : "";
+    }
+
+    function getZonesForCamera(camIdx) {
+        var cid = getRoiCameraStringId(camIdx);
+        if (cid === "")
+            return [];
+        return roiZones.filter(function (z) {
+            return z.camera_id === cid;
+        });
+    }
 
     property int cam1Count: 0
     property int cam2Count: 0
@@ -152,15 +176,17 @@ ColumnLayout {
             console.log("Dashboard - Real-time Air Data Received: " + JSON.stringify(data));
             dashboardRoot.airStatsData = data;
 
-            if (data.co2_ppm !== undefined) dashboardRoot.co2Value = data.co2_ppm;
-            if (data.co_level !== undefined) dashboardRoot.coValue = data.co_level;
-            if (data.temp !== undefined) dashboardRoot.tempValue = data.temp;
-            if (data.humi !== undefined) dashboardRoot.humiValue = data.humi;
+            if (data.co2_ppm !== undefined)
+                dashboardRoot.co2Value = data.co2_ppm;
+            if (data.co_level !== undefined)
+                dashboardRoot.coValue = data.co_level;
+            if (data.temp !== undefined)
+                dashboardRoot.tempValue = data.temp;
+            if (data.humi !== undefined)
+                dashboardRoot.humiValue = data.humi;
 
             let now = new Date();
-            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
-                                         now.getMinutes().toString().padStart(2, '0') + ":" +
-                                         now.getSeconds().toString().padStart(2, '0');
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
         }
         function onZoneCongestionReceived(zones, totalCount, counts) {
             console.log("[Zone] zones:", JSON.stringify(zones), "total:", totalCount, "counts:", JSON.stringify(counts));
@@ -193,52 +219,16 @@ ColumnLayout {
             console.log("Dashboard - Temp/Humi Received: " + JSON.stringify(data));
             dashboardRoot.tempHumiData = data;
 
-            if (data.temperature !== undefined) dashboardRoot.tempValue = data.temperature;
-            if (data.humidity !== undefined) dashboardRoot.humiValue = data.humidity;
+            if (data.temperature !== undefined)
+                dashboardRoot.tempValue = data.temperature;
+            if (data.humidity !== undefined)
+                dashboardRoot.humiValue = data.humidity;
 
             let now = new Date();
-            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" +
-                                         now.getMinutes().toString().padStart(2, '0') + ":" +
-                                         now.getSeconds().toString().padStart(2, '0');
+            dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
         }
-    }
-
-    // Header: Title + Status (Added for consistency and feedback)
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.margins: 20
-        spacing: 20
-
-        Text {
-            text: "실시간 혼잡도 및 환경 모니터링"
-            font: Style.fontBold
-            color: Style.colorSlate800
-        }
-
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Rectangle {
-            width: 12
-            height: 12
-            radius: 6
-            color: networkClient.isConnected ? "#22C55E" : "#EF4444"
-        }
-        Text {
-            text: networkClient.statusMessage
-            color: Style.colorSlate500
-            font: Style.fontSmall
-        }
-
-        Button {
-            text: networkClient.isConnected ? "Disconnect" : "Connect"
-            onClicked: {
-                if (networkClient.isConnected)
-                    networkClient.disconnectFromServer();
-                else
-                    networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort);
-            }
+        function onRoiListReceived(zones) {
+            dashboardRoot.roiZones = zones;
         }
     }
 
@@ -250,19 +240,18 @@ ColumnLayout {
 
         ColumnLayout {
             width: parent.width
-            spacing: 20
+            spacing: 10
 
             // Top Row: Cameras + Environment
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 400
-                spacing: 20
+                Layout.preferredHeight: 500
+                spacing: 10
 
                 // Camera Card
                 Rectangle {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
-                    Layout.preferredWidth: 6
                     color: Style.colorSurface
                     radius: 12
                     border.color: Style.colorSlate200
@@ -323,7 +312,10 @@ ColumnLayout {
                                         fillMode: Image.PreserveAspectCrop
                                         smooth: false
                                         cache: false
-                                        visible: true
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] > 0;
+                                        }
                                     }
 
                                     Image {
@@ -333,7 +325,10 @@ ColumnLayout {
                                         asynchronous: true
                                         smooth: false
                                         cache: false
-                                        visible: status == Image.Ready
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] > 0 && status == Image.Ready;
+                                        }
                                         source: {
                                             if (index === 0)
                                                 return dashboardRoot.cam1Source;
@@ -368,7 +363,10 @@ ColumnLayout {
                                     Rectangle {
                                         anchors.fill: parent
                                         color: "transparent"
-                                        visible: cameraImageFront.source === "" && cameraImageBack.source === ""
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] === 0;
+                                        }
 
                                         ColumnLayout {
                                             anchors.centerIn: parent
@@ -421,7 +419,10 @@ ColumnLayout {
                                                 return dashboardRoot.cam4Source;
                                             return "";
                                         }
-                                        visible: true
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] > 0;
+                                        }
                                         opacity: 1.0
                                         onStatusChanged: {
                                             // 로딩 실패해도 이전 이미지 유지 (검은 화면 방지)
@@ -454,15 +455,19 @@ ColumnLayout {
                                         }
                                     }
 
-                                    // Status Badge (LIVE)
+                                    // Status Badge (LIVE / OFF)
                                     Rectangle {
+                                        property bool isLive: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] > 0;
+                                        }
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.margins: 12
-                                        width: 54
+                                        width: isLive ? 54 : 44
                                         height: 22
                                         radius: 6
-                                        color: (cameraImageBack.source !== "") ? "#cc22c55e" : "#cc64748b"
+                                        color: isLive ? "#cc22c55e" : "#cc475569"
                                         border.color: "#33ffffff"
                                         border.width: 1
 
@@ -474,7 +479,7 @@ ColumnLayout {
                                                 height: 8
                                                 radius: 4
                                                 color: "white"
-                                                visible: cameraImageBack.source !== ""
+                                                visible: parent.parent.isLive
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
                                                     NumberAnimation {
@@ -490,7 +495,7 @@ ColumnLayout {
                                                 }
                                             }
                                             Text {
-                                                text: (cameraImageBack.source !== "") ? "LIVE" : "OFF"
+                                                text: parent.parent.isLive ? "LIVE" : "OFF"
                                                 color: "white"
                                                 font.pixelSize: 11
                                                 font.bold: true
@@ -501,7 +506,10 @@ ColumnLayout {
 
                                     // Object Count Badge
                                     Rectangle {
-                                        visible: (cameraImageBack.source !== "") && getCamCount(index) > 0
+                                        visible: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            return fps[index] > 0 && getCamCount(index) > 0;
+                                        }
                                         anchors.left: parent.left
                                         anchors.top: parent.top
                                         anchors.topMargin: 40
@@ -568,8 +576,7 @@ ColumnLayout {
                 // Environment Card
                 Rectangle {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 4
+                    Layout.preferredWidth: 300
                     color: Style.colorSurface
                     radius: 12
                     border.color: Style.colorSlate200
@@ -587,7 +594,9 @@ ColumnLayout {
                                 font: Style.fontBold
                                 color: Style.colorSlate800
                             }
-                            Item { Layout.fillWidth: true }
+                            Item {
+                                Layout.fillWidth: true
+                            }
                             Text {
                                 text: "수신: " + dashboardRoot.lastEnvUpdate
                                 font.pixelSize: 10
@@ -632,10 +641,6 @@ ColumnLayout {
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
-                            }
-
-                            Item {
-                                Layout.fillWidth: true
                             }
                         }
 
@@ -891,244 +896,13 @@ ColumnLayout {
             // Second Row
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 300
-                spacing: 20
-
-                // Device Control
-                Rectangle {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 4
-                    color: Style.colorSurface
-                    radius: 12
-                    border.color: Style.colorSlate200
-                    border.width: 1
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.topMargin: 15
-                        anchors.leftMargin: 20
-                        anchors.rightMargin: 20
-                        anchors.bottomMargin: 20
-                        spacing: 0
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                text: "👆 디바이스 통합 제어"
-                                font.pixelSize: 22
-                                font.bold: true
-                                color: Style.colorSlate800
-                            }
-                            Item {
-                                Layout.fillWidth: true
-                            }
-                            ColumnLayout {
-                                spacing: 2
-                                Text {
-                                    text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
-                                    color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
-                                    font.bold: true
-                                    font.pixelSize: 10
-                                }
-                                Rectangle {
-                                    width: 48
-                                    height: 24
-                                    radius: 12
-                                    color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
-
-                                    Rectangle {
-                                        id: modeKnob
-                                        x: dashboardRoot.isManualMode ? 26 : 2
-                                        y: 2
-                                        width: 20
-                                        height: 20
-                                        radius: 10
-                                        color: "white"
-                                        Behavior on x {
-                                            NumberAnimation {
-                                                duration: 200
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
-                                            console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
-                                            if (networkClient && networkClient.sendDeviceCommand) {
-                                                networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: 1
-                            columnSpacing: 15
-                            rowSpacing: 10
-
-                            Repeater {
-                                model: [
-                                    {
-                                        name: "환기 팬",
-                                        device: networkClient.DEVICE_MOTOR,
-                                        icon: "🍃",
-                                        type: "toggle",
-                                        options: []
-                                    },
-                                    {
-                                        name: "안내 방송",
-                                        device: networkClient.DEVICE_SPEAKER,
-                                        icon: "🔊",
-                                        type: "buttons",
-                                        options: ["1", "2", "3", "4"]
-                                    },
-                                    {
-                                        name: "디스플레이",
-                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
-                                        icon: "🖥️",
-                                        type: "buttons",
-                                        options: ["1", "2", "3"]
-                                    }
-                                ]
-
-                                Rectangle {
-                                    id: deviceItem
-                                    property var deviceData: modelData
-                                    property bool isActive: false
-                                    property string activeOption: ""
-
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 50
-                                    border.color: Style.colorSlate200
-                                    radius: 8
-                                    color: "white"
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 15
-                                        Text {
-                                            text: deviceItem.deviceData.icon
-                                        }
-                                        Text {
-                                            text: deviceItem.deviceData.name
-                                            font.bold: true
-                                            color: "#0F172A" // Persistent Slate 900
-                                        }
-                                        Item {
-                                            Layout.fillWidth: true
-                                        }
-
-                                        // 1) Toggle switch
-                                        Rectangle {
-                                            visible: deviceItem.deviceData.type === "toggle"
-                                            width: 36
-                                            height: 20
-                                            radius: 10
-                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
-
-                                            Rectangle {
-                                                id: knob
-                                                x: deviceItem.isActive ? 18 : 2
-                                                y: 2
-                                                width: 16
-                                                height: 16
-                                                radius: 8
-                                                color: "white"
-                                                Behavior on x {
-                                                    NumberAnimation {
-                                                        duration: 200
-                                                    }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    deviceItem.isActive = !deviceItem.isActive;
-                                                    console.log("Device control:", deviceItem.deviceData.name, "->", deviceItem.isActive ? "on" : "off");
-                                                    if (networkClient && networkClient.sendDeviceCommand) {
-                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // 2) Numbered buttons
-                                        RowLayout {
-                                            visible: deviceItem.deviceData.type === "buttons"
-                                            spacing: 6
-
-                                            Timer {
-                                                id: resetTimer
-                                                interval: 3000
-                                                repeat: false
-                                                onTriggered: {
-                                                    deviceItem.activeOption = "";
-                                                }
-                                            }
-
-                                            Repeater {
-                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
-                                                Rectangle {
-                                                    width: 28
-                                                    height: 28
-                                                    radius: 6
-                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
-                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
-                                                    border.width: 1
-
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: modelData
-                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
-                                                        font.bold: true
-                                                        font.pixelSize: 13
-                                                    }
-
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            var val = modelData;
-                                                            deviceItem.activeOption = val;
-                                                            resetTimer.restart(); // Restart countdown for this row
-                                                            console.log("Device control:", deviceItem.deviceData.name, "-> Option", val);
-                                                            if (networkClient && networkClient.sendDeviceCommand) {
-                                                                var targetAction = networkClient.ACTION_1; // default fallback
-                                                                if (val === "2")
-                                                                    targetAction = networkClient.ACTION_2;
-                                                                else if (val === "3")
-                                                                    targetAction = networkClient.ACTION_3;
-                                                                else if (val === "4")
-                                                                    targetAction = networkClient.ACTION_4;
-
-                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                spacing: 10
 
                 // Congestion
                 Rectangle {
-                    Layout.fillHeight: true
+                    Layout.preferredHeight: deviceControlInner.implicitHeight + 35
+                    Layout.alignment: Qt.AlignTop
                     Layout.fillWidth: true
-                    Layout.preferredWidth: 6
                     color: Style.colorSurface
                     radius: 12
                     border.color: Style.colorSlate200
@@ -1303,9 +1077,239 @@ ColumnLayout {
                         }
                     }
                 }
+
+                // Device Control
+                Rectangle {
+                    Layout.preferredWidth: 300
+                    Layout.preferredHeight: deviceControlInner.implicitHeight + 35
+                    Layout.alignment: Qt.AlignTop
+                    color: Style.colorSurface
+                    radius: 12
+                    border.color: Style.colorSlate200
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: deviceControlInner
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: 15
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 20
+                        spacing: 12
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.rightMargin: 15
+                            Text {
+                                text: "👆 디바이스 통합 제어"
+                                font: Style.fontBold
+                                color: Style.colorSlate800
+                            }
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                text: dashboardRoot.isManualMode ? "수동 모드" : "자동 모드"
+                                color: Style.isDarkMode ? "#FFFFFF" : "#0F172A"
+                                font.bold: true
+                                font.pixelSize: 10
+                            }
+                            Rectangle {
+                                width: 36
+                                height: 20
+                                radius: 10
+                                color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
+
+                                Rectangle {
+                                    id: modeKnob
+                                    x: dashboardRoot.isManualMode ? 18 : 2
+                                    y: 2
+                                    width: 16
+                                    height: 16
+                                    radius: 8
+                                    color: "white"
+                                    Behavior on x {
+                                        NumberAnimation {
+                                            duration: 200
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        dashboardRoot.isManualMode = !dashboardRoot.isManualMode;
+                                        console.log("Mode changed to:", dashboardRoot.isManualMode ? "Manual" : "Auto");
+                                        if (networkClient && networkClient.sendDeviceCommand) {
+                                            networkClient.sendDeviceCommand(networkClient.DEVICE_MODE_CONTROL, dashboardRoot.isManualMode ? networkClient.ACTION_MANUAL : networkClient.ACTION_AUTO);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 1
+                            columnSpacing: 15
+                            rowSpacing: 10
+
+                            Repeater {
+                                model: [
+                                    {
+                                        name: "환기 팬",
+                                        device: networkClient.DEVICE_MOTOR,
+                                        icon: "🍃",
+                                        type: "toggle",
+                                        options: []
+                                    },
+                                    {
+                                        name: "안내 방송",
+                                        device: networkClient.DEVICE_SPEAKER,
+                                        icon: "🔊",
+                                        type: "buttons",
+                                        options: ["1", "2", "3", "4"]
+                                    },
+                                    {
+                                        name: "디스플레이",
+                                        device: networkClient.DEVICE_DIGITAL_DISPLAY,
+                                        icon: "🖥️",
+                                        type: "buttons",
+                                        options: ["1", "2", "3"]
+                                    }
+                                ]
+
+                                Rectangle {
+                                    id: deviceItem
+                                    property var deviceData: modelData
+                                    property bool isActive: false
+                                    property string activeOption: ""
+
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 50
+                                    border.color: Style.colorSlate200
+                                    radius: 8
+                                    color: "white"
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 15
+                                        Text {
+                                            text: deviceItem.deviceData.icon
+                                        }
+                                        Text {
+                                            text: deviceItem.deviceData.name
+                                            font: Style.fontBold
+                                            color: "#0F172A"
+                                        }
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
+
+                                        // 1) Toggle switch
+                                        Rectangle {
+                                            visible: deviceItem.deviceData.type === "toggle"
+                                            width: 36
+                                            height: 20
+                                            radius: 10
+                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
+
+                                            Rectangle {
+                                                id: knob
+                                                x: deviceItem.isActive ? 18 : 2
+                                                y: 2
+                                                width: 16
+                                                height: 16
+                                                radius: 8
+                                                color: "white"
+                                                Behavior on x {
+                                                    NumberAnimation {
+                                                        duration: 200
+                                                    }
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    deviceItem.isActive = !deviceItem.isActive;
+                                                    if (networkClient && networkClient.sendDeviceCommand) {
+                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2) Numbered buttons
+                                        RowLayout {
+                                            visible: deviceItem.deviceData.type === "buttons"
+                                            spacing: 6
+
+                                            Timer {
+                                                id: resetTimer
+                                                interval: 3000
+                                                repeat: false
+                                                onTriggered: {
+                                                    deviceItem.activeOption = "";
+                                                }
+                                            }
+
+                                            Repeater {
+                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
+                                                Rectangle {
+                                                    width: 28
+                                                    height: 28
+                                                    radius: 6
+                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
+                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
+                                                    border.width: 1
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData
+                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
+                                                        font.bold: true
+                                                        font.pixelSize: 13
+                                                    }
+
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var val = modelData;
+                                                            deviceItem.activeOption = val;
+                                                            resetTimer.restart();
+                                                            if (networkClient && networkClient.sendDeviceCommand) {
+                                                                var targetAction = networkClient.ACTION_1;
+                                                                if (val === "2")
+                                                                    targetAction = networkClient.ACTION_2;
+                                                                else if (val === "3")
+                                                                    targetAction = networkClient.ACTION_3;
+                                                                else if (val === "4")
+                                                                    targetAction = networkClient.ACTION_4;
+                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
+    RoiEditorDialog {
+        id: roiEditorDialog
+    }
+
     // Dashboard.qml 하단에 추가
     Popup {
         id: expandedCameraPopup
@@ -1381,49 +1385,83 @@ ColumnLayout {
                     }
                 }
             }
-            Rectangle {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.bottomMargin: 20
-                Layout.preferredWidth: 140
-                Layout.preferredHeight: 44
+                spacing: 12
 
-                radius: height / 2  // 높이의 절반으로 설정하여 완벽한 알약 모양 생성
+                // ROI 설정 버튼
+                Rectangle {
+                    width: 140
+                    height: 44
+                    radius: height / 2
+                    color: roiMouseArea.pressed ? "#1d4ed8" : (roiMouseArea.containsMouse ? "#3b82f6" : "#2563eb")
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
 
-                // MouseArea의 상태에 따라 배경색 즉각 반영
-                color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
-                border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
-                border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "승강장 구역 설정"
+                        color: "white"
+                        font.pixelSize: 15
+                        font.bold: true
+                        font.letterSpacing: 1.0
+                    }
 
-                // 부드러운 색상 전환 애니메이션
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 150
+                    MouseArea {
+                        id: roiMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var camIdx = expandedCameraPopup.currentCameraIndex;
+                            var camStringId = dashboardRoot.getRoiCameraStringId(camIdx);
+                            var zones = dashboardRoot.getZonesForCamera(camIdx);
+                            roiEditorDialog.openForCamera(camIdx, camStringId, zones);
+                        }
                     }
                 }
-                Behavior on border.color {
-                    ColorAnimation {
-                        duration: 150
+
+                // 닫기 버튼
+                Rectangle {
+                    width: 140
+                    height: 44
+                    radius: height / 2
+                    color: closeMouseArea.pressed ? "#0F172A" : (closeMouseArea.containsMouse ? "#334155" : "#1E293B")
+                    border.color: closeMouseArea.containsMouse ? "#94A3B8" : "#475569"
+                    border.width: 1
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
                     }
-                }
+                    Behavior on border.color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
 
-                Text {
-                    anchors.centerIn: parent
-                    text: "닫기"
-                    color: closeMouseArea.pressed ? "#94A3B8" : "white"
-                    font.pixelSize: 15
-                    font.bold: true
-                    font.letterSpacing: 1.0
-                }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "닫기"
+                        color: closeMouseArea.pressed ? "#94A3B8" : "white"
+                        font.pixelSize: 15
+                        font.bold: true
+                        font.letterSpacing: 1.0
+                    }
 
-                MouseArea {
-                    id: closeMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor // 마우스를 올렸을 때 클릭 가능한 손가락 커서로 변경
-
-                    onClicked: {
-                        expandedCameraPopup.currentCameraIndex = -1; // 소스 연결 해제
-                        expandedCameraPopup.close();
+                    MouseArea {
+                        id: closeMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            expandedCameraPopup.currentCameraIndex = -1;
+                            expandedCameraPopup.close();
+                        }
                     }
                 }
             }

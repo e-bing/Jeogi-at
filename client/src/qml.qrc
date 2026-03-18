@@ -8,6 +8,7 @@
         <file>components/Footer.qml</file>
         <file>components/SystemStatItem.qml</file>
         <file>pages/Dashboard.qml</file>
+        <file>pages/RoiEditorDialog.qml</file>
         <file>pages/Statistics.qml</file>
         <file>pages/CameraManagement.qml</file>
         <file>pages/RecordingPage.qml</file>
@@ -32,6 +33,6 @@
         <file>fonts/Pretendard-Thin.otf</file>
         <file>../../protocol/message_types.hpp</file>
         <file>../../protocol/sensor_thresholds.hpp</file>
-        <file alias="assets/server.crt">../assets/server.crt</file>
+        <file alias="assets/server.crt">config/server.crt</file>
     </qresource>
 </RCC>

@@ -27,7 +27,7 @@ static uint32_t train_event_start_tick = 0U;
 #define DASHBOARD_REFRESH_MS 5000U
 #define TRAIN_ANIM_REFRESH_MS 120U
 #define DASHBOARD_GUIDE_TOGGLE_MS 2000U
-#define TRAIN_EVENT_SHOW_MS 5000U
+#define TRAIN_EVENT_SHOW_MS 10000U
 
 #define DASHBOARD_SHOW_MS 10000U
 #define GAS_SHOW_MS 5000U
@@ -202,7 +202,7 @@ void MatrixRun_SetScreen(uint8_t screen)
 {
     if (screen > SCREEN_TRAIN) return;
     HUB75_Clear();
-    auto_cycle_enabled = 0U;
+    //auto_cycle_enabled = 0U;
     current_screen = screen;
     last_switch_tick = HAL_GetTick();  // 타이머 리셋 (바로 안 넘어가게)
     last_refresh_tick = 0U;
