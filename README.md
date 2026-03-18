@@ -72,7 +72,7 @@
 
 * **AI/Vision:** NCNN, YOLO26
 * **Server:** C++, OpenCV, MQTT (Paho), OpenSSL, MariaDB/SQLite
-* **Device Control Node:** Python/C++, MQTT (Paho), UART (STM32 브릿지)
+* **Device Control Node:** C/C++, MQTT (Paho), UART (STM32 브릿지)
 * **Client:** Windows Application (Qt 6.10.0)
 * **Embedded:** HAL Driver, UART/SPI/I2S Communication
 
