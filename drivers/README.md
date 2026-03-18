@@ -24,17 +24,20 @@ chmod +x setup_drivers.sh
 
 ### 2. 설정 파일 수정
 
-`config/config.json`에 MQTT 브로커 주소와 토픽을 설정합니다.
+`config/config.json`에 MQTT 브로커 주소, 토픽, 지하철 Open API 키를 설정합니다.
 
 ```json
 {
     "mqtt_broker": "tcp://<서버 IP>:1883",
+    "subway_api_key": "<서울_열린데이터광장_API_인증키>",
     "sensor_topic": "sensor/air_quality",
     "sht20_topic": "sensor/temp_humi"
 }
 ```
 
-> **참고:** `mqtt_broker`의 IP는 서버 측 IP로 변경해 주세요.
+> **참고 1:** `mqtt_broker`는 사용자 환경(서버 IP/포트)에 맞게 반드시 수정해야 합니다.  
+> **참고 2:** `"subway_api_key"`는 사용자 본인 인증키로 반드시 변경해야 하며, **실시간 지하철 Open API용 인증키**를 사용해야 합니다.
+> **참고 3:** 서울시 지하철 관련 Open API 인증키는 **서울 열린데이터광장**에서 발급받을 수 있습니다. (https://data.seoul.go.kr/)
 
 ---
 
@@ -73,4 +76,4 @@ chmod +x build.sh
 - 커널 모듈 로드 상태 확인: `lsmod | grep -E "motor_driver|sht20"`
 - 디바이스 파일 확인: `ls /dev/motor /dev/sht20`
 - 커널 모듈 수동 제거: `sudo rmmod motor_driver sht20_driver`
-- **설정 파일** `config/config.json`에는 네트워크 정보가 포함되므로 외부에 유출되지 않도록 주의해 주세요.
+- **설정 파일** `config/config.json`에는 네트워크 정보와 API 인증키가 포함되므로 외부에 유출되지 않도록 주의해 주세요.

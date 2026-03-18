@@ -79,44 +79,6 @@ Item {
                 Layout.fillWidth: true
             }
 
-            // Connection dot
-            Rectangle {
-                width: 10
-                height: 10
-                radius: 5
-                color: networkClient.isConnected ? "#22C55E" : "#EF4444"
-            }
-            Text {
-                text: networkClient.statusMessage
-                font.family: "Pretendard"
-                font.pixelSize: 12
-                color: Style.colorSlate500
-            }
-
-            // Connect / Disconnect button
-            Rectangle {
-                id: connBtn
-                width: 90
-                height: 32
-                radius: 8
-                color: connBtnArea.containsPress ? Style.colorSlate300 : connBtnArea.containsMouse ? Style.colorSlate200 : "transparent"
-                border.color: Style.colorSlate300
-                border.width: 1
-                Text {
-                    anchors.centerIn: parent
-                    text: networkClient.isConnected ? "연결 해제" : "서버 연결"
-                    font.family: "Pretendard"
-                    font.pixelSize: 12
-                    color: Style.colorSlate700 !== undefined ? Style.colorSlate700 : Style.colorSlate600
-                }
-                MouseArea {
-                    id: connBtnArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: networkClient.isConnected ? networkClient.disconnectFromServer() : networkClient.connectToServer(mainWindow.serverIp, mainWindow.serverPort)
-                }
-            }
         }
 
         // Divider
