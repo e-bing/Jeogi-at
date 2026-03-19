@@ -139,6 +139,12 @@ int main(void)
   // init: uart_protocol
   UART_CMD_Init(&huart6);
 
+
+  // test: stream
+  AudioStreamRx_Init();
+  AudioStreamRx_Start();
+
+
   printf("running..\r\n");
   /* USER CODE END 2 */
 
@@ -147,7 +153,7 @@ int main(void)
   while (1)
   {
 //    // start: uart handler
-    UART_Handler_Process();
+//    UART_Handler_Process();
 //
 //    // start: LED panel
 //    AppTask_Run();
@@ -155,7 +161,8 @@ int main(void)
 //    HUB75_RefreshStep();
 //
 //    // start: Audio play
-    Audio_Process();
+//    Audio_Process();
+
 
     /* USER CODE END WHILE */
 
