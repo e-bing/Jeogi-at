@@ -13,7 +13,7 @@
 static uint32_t s_sensor_tick = 0U;
 
 #define SENSOR_READ_INTERVAL_MS 10000U
-#define SENSOR_EMA_ALPHA        0.2f
+#define SENSOR_EMA_ALPHA 0.1f
 
 static void AppTask_UpdateGasSensors(void)
 {
@@ -33,15 +33,15 @@ static void AppTask_UpdateGasSensors(void)
   int co2_f = (int)((co2 - (float)co2_i) * 100.0f);
   Data_Manager_SetSensorValues(co, co2);
 
-  //uart6 debug sensor
-//  if (co_f < 0) { co_f = -co_f; }
-//  if (co2_f < 0) { co2_f = -co2_f; }
-//
-//  printf("[SENSOR] adc_co=%lu adc_co2=%lu | CO=%d.%02d ppm CO2=%d.%02d ppm\r\n",
-//         (unsigned long)adc_value_co,
-//         (unsigned long)adc_value_co2,
-//         co_i, co_f,
-//         co2_i, co2_f);
+  // uart6 debug sensor
+  //  if (co_f < 0) { co_f = -co_f; }
+  //  if (co2_f < 0) { co2_f = -co2_f; }
+  //
+  //  printf("[SENSOR] adc_co=%lu adc_co2=%lu | CO=%d.%02d ppm CO2=%d.%02d ppm\r\n",
+  //         (unsigned long)adc_value_co,
+  //         (unsigned long)adc_value_co2,
+  //         co_i, co_f,
+  //         co2_i, co2_f);
 }
 
 void AppTask_Init(void)

@@ -363,7 +363,7 @@ void Screen_Show_CO2(DB_Data_t *data)
     co2_color = co2_to_color(co2_ppm);
     co_color = co_to_color(co_ppm);
 
-    Screen_Show_DualMetricLayout("CO2", "CO", co2_ppm * 10, co_ppm, "PPM", "PPM",
+    Screen_Show_DualMetricLayout("GAS", "CO", co2_ppm * 10, co_ppm, "PPM", "PPM",
                                  1, 4, 0, 0, 0U, 0U, 1U, co2_color, co_color);
 }
 
