@@ -113,7 +113,7 @@ void hanwha_worker(std::atomic<bool>* client_connected,
                    std::queue<SendPacket>& q, std::mutex& mtx,
                    std::condition_variable& cv) {
   auto last_send = chrono::steady_clock::now();
-  while (*client_connected) {
+  while (*client_connected && !stop_flag) {
     auto now = chrono::steady_clock::now();
     if (now - last_send >= chrono::milliseconds(10)) {  // 100fps 목표
       string json_payload;
@@ -161,7 +161,7 @@ void hanwha_worker(std::atomic<bool>* client_connected,
 void pi_worker(std::atomic<bool>* client_connected, std::queue<SendPacket>& q,
                std::mutex& mtx, std::condition_variable& cv) {
   auto last_send = chrono::steady_clock::now();
-  while (*client_connected) {
+  while (*client_connected && !stop_flag) {
     auto now = chrono::steady_clock::now();
     if (now - last_send >= chrono::milliseconds(30)) {  // 33fps
       lock_guard<mutex> lock(g_node_map_mutex);
@@ -275,7 +275,7 @@ void handle_client(int client_socket) {
   int db_tick = 500;
   int sys_tick = 500;
 
-  while (client_connected) {
+  while (client_connected && !stop_flag) {
     // ROI가 업데이트되었을 때 재전송
     if (g_roi_updated.exchange(false)) {
       try {
