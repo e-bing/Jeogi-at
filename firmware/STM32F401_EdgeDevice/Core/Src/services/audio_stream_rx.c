@@ -27,7 +27,9 @@ static volatile uint32_t s_rxBlockCount = 0;
 static volatile uint32_t s_overflowDropCount = 0;
 static volatile uint32_t s_spiErrorCount = 0;
 
-static void AudioStreamRx_Push(const uint8_t *src, uint32_t len);
+/* internal */
+static uint32_t AudioStreamRx_PushBlock(const uint8_t *src, uint32_t len);
+static uint8_t AudioStreamRx_TakeReadyBlock(uint8_t *outIndex);
 
 void AudioStreamRx_Init(void)
 {
@@ -93,58 +95,136 @@ uint32_t AudioStreamRx_Available(void)
     return s_count;
 }
 
+/*
+ * 링 버퍼 -> dst
+ * 바이트 단위 루프 대신 최대 2번 memcpy
+ */
 uint32_t AudioStreamRx_Read(uint8_t *dst, uint32_t len)
 {
-    uint32_t i;
     uint32_t readLen;
-
-    __disable_irq();
+    uint32_t firstChunk;
+    uint32_t secondChunk;
 
     readLen = (len <= s_count) ? len : s_count;
 
-    for (i = 0; i < readLen; i++)
+    firstChunk = AUDIO_STREAM_RING_SIZE - s_read;
+    if (firstChunk > readLen)
     {
-        dst[i] = s_ringBuf[s_read];
-        s_read = (s_read + 1U) % AUDIO_STREAM_RING_SIZE;
+        firstChunk = readLen;
+    }
+
+    secondChunk = readLen - firstChunk;
+
+    memcpy(dst, &s_ringBuf[s_read], firstChunk);
+
+    if (secondChunk > 0U)
+    {
+        memcpy(dst + firstChunk, &s_ringBuf[0], secondChunk);
+    }
+
+    s_read += readLen;
+    if (s_read >= AUDIO_STREAM_RING_SIZE)
+    {
+        s_read -= AUDIO_STREAM_RING_SIZE;
     }
 
     s_count -= readLen;
-
-    __enable_irq();
 
     return readLen;
 }
 
 /*
+ * ready된 DMA 블록 하나만 가져옴
+ * 한 번 호출에 최대 1블록만 처리하게 하기 위한 함수
+ */
+static uint8_t AudioStreamRx_TakeReadyBlock(uint8_t *outIndex)
+{
+    __disable_irq();
+
+    if (s_readyFlags[0] != 0U)
+    {
+        s_readyFlags[0] = 0;
+        *outIndex = 0;
+        __enable_irq();
+        return 1;
+    }
+
+    if (s_readyFlags[1] != 0U)
+    {
+        s_readyFlags[1] = 0;
+        *outIndex = 1;
+        __enable_irq();
+        return 1;
+    }
+
+    __enable_irq();
+    return 0;
+}
+
+/*
+ * src -> 링 버퍼
+ * 넣을 수 있는 만큼만 push
+ * 최대 2번 memcpy
+ */
+static uint32_t AudioStreamRx_PushBlock(const uint8_t *src, uint32_t len)
+{
+    uint32_t freeSize;
+    uint32_t pushLen;
+    uint32_t firstChunk;
+    uint32_t secondChunk;
+
+    freeSize = AUDIO_STREAM_RING_SIZE - s_count;
+    pushLen = (len <= freeSize) ? len : freeSize;
+
+    firstChunk = AUDIO_STREAM_RING_SIZE - s_write;
+    if (firstChunk > pushLen)
+    {
+        firstChunk = pushLen;
+    }
+
+    secondChunk = pushLen - firstChunk;
+
+    memcpy(&s_ringBuf[s_write], src, firstChunk);
+
+    if (secondChunk > 0U)
+    {
+        memcpy(&s_ringBuf[0], src + firstChunk, secondChunk);
+    }
+
+    s_write += pushLen;
+    if (s_write >= AUDIO_STREAM_RING_SIZE)
+    {
+        s_write -= AUDIO_STREAM_RING_SIZE;
+    }
+
+    s_count += pushLen;
+
+    if (pushLen < len)
+    {
+        s_overflowDropCount += (len - pushLen);
+    }
+
+    return pushLen;
+}
+
+/*
  * 메인 루프에서 주기적으로 호출
- * - DMA 완료된 버퍼를 ring buffer로 옮김
+ * - ready된 DMA 버퍼가 있으면 1개만 링 버퍼로 옮김
  * - callback 안에서 무거운 copy 작업을 하지 않기 위한 함수
  */
 void AudioStreamRx_Process(void)
 {
-    uint8_t localReady0 = 0;
-    uint8_t localReady1 = 0;
+    uint8_t bufIndex;
 
-    __disable_irq();
-    localReady0 = s_readyFlags[0];
-    localReady1 = s_readyFlags[1];
-    s_readyFlags[0] = 0;
-    s_readyFlags[1] = 0;
-    __enable_irq();
-
-    if (localReady0)
+    if (AudioStreamRx_TakeReadyBlock(&bufIndex) != 0U)
     {
-        AudioStreamRx_Push(s_spiRxBuf[0], AUDIO_STREAM_RX_BLOCK_SIZE);
+        AudioStreamRx_PushBlock(s_spiRxBuf[bufIndex], AUDIO_STREAM_RX_BLOCK_SIZE);
     }
 
-    if (localReady1)
-    {
-        AudioStreamRx_Push(s_spiRxBuf[1], AUDIO_STREAM_RX_BLOCK_SIZE);
-    }
-
-    /* 너무 자주 찍히지 않게 상태 로그 */
+    /* 필요할 때만 켜서 확인 */
+#if 0
     static uint32_t lastRxBlockCount = 0;
-    if ((s_rxBlockCount - lastRxBlockCount) >= 50U)
+    if ((s_rxBlockCount - lastRxBlockCount) >= 100U)
     {
         lastRxBlockCount = s_rxBlockCount;
         printf("SPI RX blocks=%lu avail=%lu drop=%lu err=%lu\r\n",
@@ -153,24 +233,7 @@ void AudioStreamRx_Process(void)
                s_overflowDropCount,
                s_spiErrorCount);
     }
-}
-
-static void AudioStreamRx_Push(const uint8_t *src, uint32_t len)
-{
-    uint32_t i;
-
-    for (i = 0; i < len; i++)
-    {
-        if (s_count >= AUDIO_STREAM_RING_SIZE)
-        {
-            s_overflowDropCount++;
-            break;
-        }
-
-        s_ringBuf[s_write] = src[i];
-        s_write = (s_write + 1U) % AUDIO_STREAM_RING_SIZE;
-        s_count++;
-    }
+#endif
 }
 
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
@@ -187,7 +250,7 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
         s_readyFlags[doneIndex] = 1;
         s_dmaBufIndex = nextIndex;
 
-        /* 핵심: 다음 DMA를 최대한 빨리 재시작 */
+        /* 다음 DMA를 최대한 빨리 재시작 */
         if (HAL_SPI_Receive_DMA(&hspi1,
                                 s_spiRxBuf[nextIndex],
                                 AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
