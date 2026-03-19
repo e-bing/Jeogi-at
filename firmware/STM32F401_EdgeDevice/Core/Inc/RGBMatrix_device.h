@@ -32,48 +32,48 @@ void DWT_Delay(uint32_t us);
 #define GPIO_RESET(port, pin)    ((port)->BSRR = ((uint32_t)(pin) << 16U))
 
 /* ---------------- RGB data pins ---------------- */
-#define RGB_R1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_12)
-#define RGB_R1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_12)
+#define RGB_R1_HIGH()    GPIO_SET(HUB75_R1_GPIO_Port, HUB75_R1_Pin)
+#define RGB_R1_LOW()     GPIO_RESET(HUB75_R1_GPIO_Port, HUB75_R1_Pin)
 
-#define RGB_G1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_2)
-#define RGB_G1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_2)
+#define RGB_G1_HIGH()    GPIO_SET(HUB75_G1_GPIO_Port, HUB75_G1_Pin)
+#define RGB_G1_LOW()     GPIO_RESET(HUB75_G1_GPIO_Port, HUB75_G1_Pin)
 
-#define RGB_B1_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_1)
-#define RGB_B1_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_1)
+#define RGB_B1_HIGH()    GPIO_SET(HUB75_B1_GPIO_Port, HUB75_B1_Pin)
+#define RGB_B1_LOW()     GPIO_RESET(HUB75_B1_GPIO_Port, HUB75_B1_Pin)
 
-#define RGB_R2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_15)
-#define RGB_R2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_15)
+#define RGB_R2_HIGH()    GPIO_SET(HUB75_R2_GPIO_Port, HUB75_R2_Pin)
+#define RGB_R2_LOW()     GPIO_RESET(HUB75_R2_GPIO_Port, HUB75_R2_Pin)
 
-#define RGB_G2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_4)
-#define RGB_G2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_4)
+#define RGB_G2_HIGH()    GPIO_SET(HUB75_G2_GPIO_Port, HUB75_G2_Pin)
+#define RGB_G2_LOW()     GPIO_RESET(HUB75_G2_GPIO_Port, HUB75_G2_Pin)
 
-#define RGB_B2_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_14)
-#define RGB_B2_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_14)
+#define RGB_B2_HIGH()    GPIO_SET(HUB75_B2_GPIO_Port, HUB75_B2_Pin)
+#define RGB_B2_LOW()     GPIO_RESET(HUB75_B2_GPIO_Port, HUB75_B2_Pin)
 
 
 /* ---------------- Row select pins ---------------- */
-#define RGB_A_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_12)
-#define RGB_A_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_12)
+#define RGB_A_HIGH()     GPIO_SET(HUB75_A_GPIO_Port, HUB75_A_Pin)
+#define RGB_A_LOW()      GPIO_RESET(HUB75_A_GPIO_Port, HUB75_A_Pin)
 
-#define RGB_B_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_11)
-#define RGB_B_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_11)
+#define RGB_B_HIGH()     GPIO_SET(HUB75_B_GPIO_Port, HUB75_B_Pin)
+#define RGB_B_LOW()      GPIO_RESET(HUB75_B_GPIO_Port, HUB75_B_Pin)
 
-#define RGB_C_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_6)
-#define RGB_C_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_6)
+#define RGB_C_HIGH()     GPIO_SET(HUB75_C_GPIO_Port, HUB75_C_Pin)
+#define RGB_C_LOW()      GPIO_RESET(HUB75_C_GPIO_Port, HUB75_C_Pin)
 
-#define RGB_D_HIGH()     GPIO_SET(GPIOA, GPIO_PIN_7)
-#define RGB_D_LOW()      GPIO_RESET(GPIOA, GPIO_PIN_7)
+#define RGB_D_HIGH()     GPIO_SET(HUB75_D_GPIO_Port, HUB75_D_Pin)
+#define RGB_D_LOW()      GPIO_RESET(HUB75_D_GPIO_Port, HUB75_D_Pin)
 
 
 /* ---------------- Control pins ---------------- */
-#define RGB_CLK_HIGH()   GPIO_SET(GPIOB, GPIO_PIN_13)
-#define RGB_CLK_LOW()    GPIO_RESET(GPIOB, GPIO_PIN_13)
+#define RGB_CLK_HIGH()   GPIO_SET(HUB75_CLK_GPIO_Port, HUB75_CLK_Pin)
+#define RGB_CLK_LOW()    GPIO_RESET(HUB75_CLK_GPIO_Port, HUB75_CLK_Pin)
 
-#define RGB_LAT_HIGH()   GPIO_SET(GPIOB, GPIO_PIN_5)
-#define RGB_LAT_LOW()    GPIO_RESET(GPIOB, GPIO_PIN_5)
+#define RGB_LAT_HIGH()   GPIO_SET(HUB75_LAT_GPIO_Port, HUB75_LAT_Pin)
+#define RGB_LAT_LOW()    GPIO_RESET(HUB75_LAT_GPIO_Port, HUB75_LAT_Pin)
 
-#define RGB_OE_HIGH()    GPIO_SET(GPIOB, GPIO_PIN_6)
-#define RGB_OE_LOW()     GPIO_RESET(GPIOB, GPIO_PIN_6)
+#define RGB_OE_HIGH()    GPIO_SET(HUB75_OE_GPIO_Port, HUB75_OE_Pin)
+#define RGB_OE_LOW()     GPIO_RESET(HUB75_OE_GPIO_Port, HUB75_OE_Pin)
 
 /* -------------------------------------------------
  * Optional compatibility macros
