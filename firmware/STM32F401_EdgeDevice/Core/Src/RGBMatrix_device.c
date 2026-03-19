@@ -87,55 +87,6 @@ void HUB75_RefreshStep_ISR(void)
 }
 
 
-/**
- * row 1개만 출력하는 step 함수
- * main loop에서 자주 호출
- */
-void HUB75_RefreshStep(void)
-{
-    static uint8_t row = 0;
-    uint16_t x;
-
-    /* 이전 row 출력 잠시 off */
-    RGB_OE(1);
-
-    /* 현재 row 데이터 shift */
-    for (x = 0; x < LED_Width; x++) {
-        uint8_t top = LED_Buffer[x + (row * LED_Width)];
-        uint8_t bot = LED_Buffer[x + ((row + (LED_Height / 2)) * LED_Width)];
-
-        RGB_R1((top & 0x01) ? 1 : 0);
-        RGB_G1((top & 0x02) ? 1 : 0);
-        RGB_B1((top & 0x04) ? 1 : 0);
-
-        RGB_R2((bot & 0x01) ? 1 : 0);
-        RGB_G2((bot & 0x02) ? 1 : 0);
-        RGB_B2((bot & 0x04) ? 1 : 0);
-
-        RGB_CLK(0);
-        RGB_CLK(1);
-    }
-
-    /* row address 지정 */
-    RGB_A((row & 0x01) ? 1 : 0);
-    RGB_B((row & 0x02) ? 1 : 0);
-    RGB_C((row & 0x04) ? 1 : 0);
-    RGB_D((row & 0x08) ? 1 : 0);
-
-    /* latch */
-    RGB_LAT(1);
-    RGB_LAT(0);
-
-    /* 현재 row 표시 on
-       busy wait 없이 다음 호출 전까지 보이게 둠 */
-    RGB_OE(0);
-
-    row++;
-    if (row >= (LED_Height / 2)) {
-        row = 0;
-    }
-}
-
 /* 기존 함수는 남겨둬도 되지만 사용하지 않는 걸 권장 */
 void RGBMatrixWriteData(void)
 {

@@ -53,5 +53,8 @@ typedef struct
     uint32_t data_size;
 } WAV_Header;
 
+// stream
+uint8_t Audio_StartStream(void);
+void Audio_RequestStopStream(void);
 
 #endif /* INC_SERVICES_AUDIO_PLAYER_H_ */
