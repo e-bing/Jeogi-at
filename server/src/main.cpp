@@ -33,7 +33,7 @@ CongestionAnalyzer g_analyzer;
 
 void signal_handler(int signum) {
   stop_flag = 1;
-  exit(0);
+  // exit(0);
 }
 
 int main() {
@@ -103,7 +103,7 @@ int main() {
 
       // 서버 수락 루프를 별도 스레드에서 실행 (SDL 루프 방해 방지)
       thread server_accept_thread([server_fd]() {
-        while (true) {
+        while (!stop_flag) {
           int client_socket = accept(server_fd, NULL, NULL);
           if (client_socket >= 0) {
             cout << "새 클라이언트 연결 시도 → TLS 핸드셰이크 시작" << endl;
@@ -167,6 +167,7 @@ int main() {
   }
 
   running = false;  // 루프 종료 신호
+  close(server_fd);
 
   cout << "\nStopping Server..." << endl;
   if (sensor_thread.joinable()) sensor_thread.join();
@@ -178,7 +179,6 @@ int main() {
   congestion_pub.stop();
   g_analyzer.stop();
 
-  close(server_fd);
   cleanup_tls();
 
   return 0;
