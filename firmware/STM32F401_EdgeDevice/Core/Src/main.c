@@ -35,7 +35,6 @@
 #include "app_task.h"
 #include "uart_handler.h"
 #include "services/audio_player.h"
-#include "services/audio_streaming.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -134,11 +133,8 @@ int main(void)
   AppTask_Init();
 
   // init: sd card & audio amp
+  sd_init();
   Audio_Init();
-
-  // test: audio streaming
-  Audio_SetSource(AUDIO_SOURCE_STREAM);
-  StreamRx_Start();
 
   // init: uart_protocol
   UART_CMD_Init(&huart6);
@@ -160,22 +156,6 @@ int main(void)
 //
 //    // start: Audio play
     Audio_Process();
-
-    /* debug print */
-    static uint32_t lastTick = 0;
-    if (HAL_GetTick() - lastTick >= 1000)   // 1초마다 출력
-    {
-        lastTick = HAL_GetTick();
-
-        printf("spi half=%lu full=%lu err=%lu last=0x%08lX drop=%lu stream=%lu i2s_err=%lu\r\n",
-               g_spiRxHalfCnt,
-               g_spiRxDoneCnt,
-               g_spiErrCnt,
-               g_spiLastErr,
-               g_spiDroppedBytes,
-               Audio_DebugStreamCount(),
-               audio_i2s_err_cnt);
-    }
 
     /* USER CODE END WHILE */
 
