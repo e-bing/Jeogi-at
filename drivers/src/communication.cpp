@@ -251,7 +251,7 @@ bool send_to_stm32_get_co2(int uart_fd, float& out_co2) {
     write(uart_fd, req, sizeof(req));
     vector<uint8_t> rx;
     if (read_packet(uart_fd, rx, 300) && rx.size() >= 9 && rx[2] >= 4 && rx[4] == CMD_GET_CO2) {
-        out_co2 = (float)((rx[5] << 8) | rx[6]) / 100.0f;
+        out_co2 = (float)((rx[5] << 8) | rx[6]) / 100.0f * 5.0f;
         return true;
     }
     return false;
