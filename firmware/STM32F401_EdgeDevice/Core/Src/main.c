@@ -157,12 +157,9 @@ int main(void)
 //
 //    // start: LED panel
     AppTask_Run();
-//    /* LED panel refresh */
-    HUB75_RefreshStep();
-//
+
 //    // start: Audio play
     Audio_Process();
-
 
     /* USER CODE END WHILE */
 
