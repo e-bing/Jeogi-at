@@ -70,8 +70,8 @@ void PiNode::run() {
   AVDictionary* opts = nullptr;
   std::string url = "tcp://" + pi_ip + ":5000";
 
-  av_dict_set(&opts, "probesize", "1000000", 0);
-  av_dict_set(&opts, "analyzeduration", "1000000", 0);
+  av_dict_set(&opts, "probesize", "100000", 0);
+  av_dict_set(&opts, "analyzeduration", "100000", 0);
   av_dict_set(&opts, "fflags", "nobuffer", 0);  // 버퍼링 제거
   av_dict_set(&opts, "flags", "low_delay", 0);  // 저지연 모드 활성화
   av_dict_set(&opts, "err_detect", "ignore_err", 0);

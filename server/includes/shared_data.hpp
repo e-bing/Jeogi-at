@@ -1,6 +1,7 @@
 #ifndef SHARED_DATA_HPP
 #define SHARED_DATA_HPP
 
+#include <csignal>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -9,6 +10,7 @@
 #include <vector>
 
 inline std::string g_mqtt_broker = "";
+extern volatile sig_atomic_t stop_flag;
 
 // 감지된 객체 정보 구조체
 struct DetectedObject {
