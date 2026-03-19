@@ -2,6 +2,7 @@
 #include "spi.h"
 #include "gpio.h"
 #include <string.h>
+#include "fatfs.h"
 
 /* ================= CS CONTROL ================= */
 
@@ -197,6 +198,22 @@ uint8_t sd_init(void)
 
     /* OCR[0] bit6 = CCS (SDHC/SDXC) */
     if (ocr[0] & 0x40) g_sd_is_sdhc = 1;
+
+
+    printf("SD init OK\r\n");
+
+    uint8_t buf[512];
+
+	if (sd_read_block(0, buf) == 0)
+	{
+		printf("Read OK\r\n");
+
+		hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+		HAL_SPI_Init(&hspi2);
+
+		FRESULT res = f_mount(&USERFatFS, USERPath, 1);
+		printf("FATFS mount = %d\r\n", res);
+	}
 
     return 0;
 }

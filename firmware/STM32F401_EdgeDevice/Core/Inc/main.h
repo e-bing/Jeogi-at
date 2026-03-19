@@ -61,10 +61,6 @@ void Error_Handler(void);
 #define SPI2_CS_GPIO_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
-#define HUB75_C_Pin GPIO_PIN_6
-#define HUB75_C_GPIO_Port GPIOA
-#define HUB75_D_Pin GPIO_PIN_7
-#define HUB75_D_GPIO_Port GPIOA
 #define HUB75_B1_Pin GPIO_PIN_1
 #define HUB75_B1_GPIO_Port GPIOB
 #define HUB75_G1_Pin GPIO_PIN_2
@@ -77,6 +73,10 @@ void Error_Handler(void);
 #define HUB75_B2_GPIO_Port GPIOB
 #define HUB75_R2_Pin GPIO_PIN_15
 #define HUB75_R2_GPIO_Port GPIOB
+#define HUB75_D_Pin GPIO_PIN_8
+#define HUB75_D_GPIO_Port GPIOA
+#define HUB75_C_Pin GPIO_PIN_9
+#define HUB75_C_GPIO_Port GPIOA
 #define HUB75_B_Pin GPIO_PIN_11
 #define HUB75_B_GPIO_Port GPIOA
 #define HUB75_A_Pin GPIO_PIN_12

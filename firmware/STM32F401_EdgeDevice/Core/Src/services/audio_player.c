@@ -1,6 +1,4 @@
 #include "services/audio_player.h"
-#include "drivers/storage/sd_spi.h"
-#include "spi.h"
 #include "i2s.h"
 
 #include <string.h>
@@ -36,18 +34,14 @@ static volatile uint8_t s_queueTail = 0;
 
 static volatile uint8_t s_bufferEvent = 0;
 static volatile uint8_t s_wavEof = 0;
-static volatile uint8_t s_isFilling = 0;
 static volatile uint8_t s_isPlaying = 0;
 static volatile uint8_t s_stopPending = 0;
-
-/* ================= Debug Counters ================= */
-
-volatile uint32_t audio_i2s_err_cnt = 0;
-volatile uint32_t audio_miss_fill_cnt = 0;
 
 /* ================= Internal Function Prototypes ================= */
 
 static void AudioPlayer_FillHalfBuffer(int16_t *dst);
+static uint32_t AudioSource_ReadMonoPcm(int16_t *dst, uint32_t bytesToRead);
+
 static uint8_t AudioPlayer_IsQueueEmpty(void);
 static uint8_t AudioPlayer_IsQueueFull(void);
 static void AudioPlayer_ClearQueue(void);
@@ -59,25 +53,15 @@ static void AudioPlayer_PlayNextFromQueue(void);
 
 void Audio_Init(void)
 {
-    uint8_t buf[512];
+    AudioPlayer_ClearQueue();
 
-    if (sd_init() == 0)
-    {
-        printf("SD init OK\r\n");
+    s_bufferEvent = 0;
+    s_wavEof = 0;
+    s_isPlaying = 0;
+    s_stopPending = 0;
 
-        if (sd_read_block(0, buf) == 0)
-        {
-            printf("Read OK\r\n");
-
-            hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
-            HAL_SPI_Init(&hspi2);
-        }
-
-        {
-            FRESULT res = f_mount(&USERFatFS, USERPath, 1);
-            printf("FATFS mount = %d\r\n", res);
-        }
-    }
+    memset(s_monoBuf, 0, sizeof(s_monoBuf));
+    memset(s_i2sBuf, 0, sizeof(s_i2sBuf));
 }
 
 /* ================= Queue ================= */
@@ -142,11 +126,21 @@ static void AudioPlayer_PlayNextFromQueue(void)
     }
 }
 
+/* ================= Source Read ================= */
+
+static uint32_t AudioSource_ReadMonoPcm(int16_t *dst, uint32_t bytesToRead)
+{
+    UINT bytesRead = 0;
+
+    f_read(&s_wavFile, dst, bytesToRead, &bytesRead);
+    return (uint32_t)bytesRead;
+}
+
 /* ================= Buffer Fill ================= */
 
 static void AudioPlayer_FillHalfBuffer(int16_t *dst)
 {
-    UINT bytesRead = 0;
+    uint32_t bytesRead;
 
     if (s_wavEof)
     {
@@ -154,18 +148,10 @@ static void AudioPlayer_FillHalfBuffer(int16_t *dst)
         return;
     }
 
-    if (s_isFilling)
-    {
-        audio_miss_fill_cnt++;
-    }
-
-    s_isFilling = 1;
-
-    /* Read mono PCM data */
-    f_read(&s_wavFile,
-           s_monoBuf,
-           AUDIO_PLAYER_MONO_SAMPLES * 2,
-           &bytesRead);
+    bytesRead = AudioSource_ReadMonoPcm(
+        s_monoBuf,
+        AUDIO_PLAYER_MONO_SAMPLES * 2U
+    );
 
     {
         int sampleCount = (int)(bytesRead / 2U);
@@ -174,7 +160,6 @@ static void AudioPlayer_FillHalfBuffer(int16_t *dst)
         {
             s_wavEof = 1;
             memset(dst, 0, AUDIO_PLAYER_MONO_SAMPLES * 2 * sizeof(int16_t));
-            s_isFilling = 0;
             return;
         }
 
@@ -198,8 +183,6 @@ static void AudioPlayer_FillHalfBuffer(int16_t *dst)
             s_wavEof = 1;
         }
     }
-
-    s_isFilling = 0;
 }
 
 /* ================= DMA Callbacks ================= */
@@ -224,7 +207,7 @@ void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s)
 {
     if (hi2s == &hi2s3)
     {
-        audio_i2s_err_cnt++;
+        printf("I2S Error\r\n");
     }
 }
 
@@ -239,7 +222,6 @@ uint8_t Audio_StartWav(const char *filename)
 
     s_bufferEvent = 0;
     s_wavEof = 0;
-    s_isFilling = 0;
     s_stopPending = 0;
 
     if (f_open(&s_wavFile, filename, FA_READ) != FR_OK)
@@ -279,39 +261,38 @@ uint8_t Audio_StartWav(const char *filename)
 /* usage: Audio_Guide((uint8_t[8]){0, 1, 0, 1, 1, 0, 0, 0}); */
 void Audio_Guide(const uint8_t *congestion)
 {
+    char has_zero = 0;
+    char all_two = 1;
 
-	char has_zero = 0;
-	char all_two = 1;
+    for (int i = 0; i < 8; i++)
+    {
+        if (congestion[i] == 0)
+        {
+            if (!has_zero)
+            {
+                AudioPlayer_Enqueue("guide_start.wav");
+                has_zero = 1;
+            }
 
-	for (int i = 0; i < 8; i++)
-	{
-	    if (congestion[i] == 0)
-	    {
-	        if (!has_zero)
-	        {
-	            AudioPlayer_Enqueue("guide_start.wav");
-	            has_zero = 1;
-	        }
+            char filename[AUDIO_PLAYER_NAME_MAX];
+            snprintf(filename, sizeof(filename), "guide_%d.wav", i + 1);
+            AudioPlayer_Enqueue(filename);
+        }
 
-	        char filename[AUDIO_PLAYER_NAME_MAX];
-	        snprintf(filename, sizeof(filename), "guide_%d.wav", i + 1);
-	        AudioPlayer_Enqueue(filename);
-	    }
+        if (congestion[i] != 2)
+        {
+            all_two = 0;
+        }
+    }
 
-	    if (congestion[i] != 2)
-	    {
-	        all_two = 0;
-	    }
-	}
-
-	if (has_zero)
-	{
-	    AudioPlayer_Enqueue("guide_end.wav");
-	}
-	else if (all_two)
-	{
-	    AudioPlayer_Enqueue("warning.wav");
-	}
+    if (has_zero)
+    {
+        AudioPlayer_Enqueue("guide_end.wav");
+    }
+    else if (all_two)
+    {
+        AudioPlayer_Enqueue("warning.wav");
+    }
 
     AudioPlayer_PlayNextFromQueue();
 }
@@ -342,7 +323,6 @@ void Audio_Process(void)
             }
         }
 
-        /* stop after last zero-padded buffer has been handed off */
         if (s_stopPending && s_wavEof)
         {
             if (s_bufferEvent == 0)
@@ -371,7 +351,6 @@ void Audio_Stop(void)
     s_isPlaying   = 0;
     s_wavEof      = 0;
     s_bufferEvent = 0;
-    s_isFilling   = 0;
     s_stopPending = 0;
 
     printf("Play End\r\n");

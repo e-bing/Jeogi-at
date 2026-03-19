@@ -85,10 +85,12 @@ DSTATUS USER_initialize (
   /* USER CODE BEGIN INIT */
     if (pdrv != 0) return STA_NOINIT;
 
-    if (sd_init() == 0)
-        return 0;
-    else
-        return STA_NOINIT;
+    return 0;
+
+//    if (sd_init() == 0)
+//        return 0;
+//    else
+//        return STA_NOINIT;
 
 	// end
     Stat = STA_NOINIT;

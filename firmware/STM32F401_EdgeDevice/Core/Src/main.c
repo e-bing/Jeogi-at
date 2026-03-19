@@ -116,6 +116,7 @@ int main(void)
   MX_FATFS_Init();
   MX_USART6_UART_Init();
   MX_TIM4_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   // test: LED panel & timer
@@ -132,6 +133,7 @@ int main(void)
   AppTask_Init();
 
   // init: sd card & audio amp
+  sd_init();
   Audio_Init();
 
   // init: uart_protocol
@@ -144,15 +146,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // start: uart handler
+//    // start: uart handler
     UART_Handler_Process();
-
-    // start: LED panel
-    AppTask_Run();
-    /* LED panel refresh */
-    //    HUB75_RefreshStep();
-
-    // start: Audio play
+//
+//    // start: LED panel
+//    AppTask_Run();
+//    /* LED panel refresh */
+//    HUB75_RefreshStep();
+//
+//    // start: Audio play
     Audio_Process();
 
     /* USER CODE END WHILE */

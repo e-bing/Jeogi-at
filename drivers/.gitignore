@@ -47,6 +47,7 @@ subway_api/subway_api_test
 *.su
 *.idb
 *.pdb
+*.pcm
 
 # Kernel Module Compile Results
 *.mod

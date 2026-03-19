@@ -1,4 +1,5 @@
-QT += core gui quick network
+QT += core gui quick network \
+    multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -18,13 +19,15 @@ win32 {
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    backend/util/micstreamer/micstreamer.cpp \
     main.cpp \
     backend/networkclient.cpp \
     backend/recordingmanager.cpp
 
 HEADERS += \
     backend/networkclient.h \
-    backend/recordingmanager.h
+    backend/recordingmanager.h \
+    backend/util/micstreamer/micstreamer.h
 
 RESOURCES += qml.qrc
 
