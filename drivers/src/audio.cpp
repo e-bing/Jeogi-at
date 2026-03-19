@@ -1,7 +1,7 @@
 #include "audio.hpp"
+#include "../../protocol/message_types.hpp"
 #include "communication.hpp"
 #include "config_loader.h"
-#include "../../protocol/message_types.hpp"
 #include <iostream>
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
@@ -34,12 +34,13 @@ public:
       }
 
       int index = stoi(filename) - 1;
-      cout << "[Audio] 재생 명령 수신: " << filename << " → index " << index << endl;
+      cout << "[Audio] 재생 명령 수신: " << filename << " → index " << index
+           << endl;
       if (g_wav_list.empty()) {
-          cerr << "[Audio] WAV 목록 미수신 - 재생 불가" << endl;
-          return;
+        cerr << "[Audio] WAV 목록 미수신 - 재생 불가" << endl;
+        return;
       }
-      play_wav(index);
+      play_wav("test.wav");
     } catch (const exception &e) {
       cerr << "[Audio] JSON 파싱 실패: " << e.what() << endl;
     }
@@ -64,7 +65,8 @@ void init_audio(int uart_fd) {
     cout << " - " << f << "\n";
 
   // [테스트용] 초기화 직후 첫 번째 WAV 파일 즉시 재생
-   if (!g_wav_list.empty()) play_wav(0);
+  if (!g_wav_list.empty())
+    play_wav(0);
 }
 
 /**
@@ -75,6 +77,22 @@ void play_wav(const string &filename) {
     cerr << "[Audio] UART 미초기화 - play_wav 불가" << endl;
     return;
   }
+
+  // 2. 목록에 파일이 있는지 검사
+  bool exists = false;
+  for (const auto &wav : g_wav_list) {
+    if (wav == filename) {
+      exists = true;
+      break;
+    }
+  }
+
+  if (!exists) {
+    cerr << "[Audio] 오류: 목록에 '" << filename << "' 파일이 없습니다!"
+         << endl;
+    return;
+  }
+
   send_to_stm32_play_wav(g_audio_uart_fd, filename);
 }
 
