@@ -157,13 +157,24 @@ int main() {
         g_analyzer
             .getCongestionLevels();  // 현재 8개 구역의 레벨(0,1,2) 가져오기
 
-    int total_pi = 0;
+    int total_people = 0;
+    {
+      lock_guard<mutex> lock(g_hw_data_mutex);
+      total_people = g_hw_objects.size();
+    }
     {
       lock_guard<mutex> lock(g_node_map_mutex);
       for (auto const& [id, camData] : g_pi_node_map) {
-        total_pi += camData->objects.size();
+        total_people += camData->objects.size();
       }
     }
+
+    cout << "\r[혼잡도] [";
+    for (int i = 0; i < (int)levels.size(); i++) {
+      cout << levels[i];
+      if (i + 1 < (int)levels.size()) cout << ", ";
+    }
+    cout << "] | [총 인원] " << total_people << " 명  " << flush;
   }
 
   running = false;  // 루프 종료 신호
