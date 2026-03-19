@@ -66,6 +66,8 @@ void receive_sensor_data(MYSQL* conn) {
     SensorCallback(MYSQL* c) : conn_(c) {}
 
     void message_arrived(mqtt::const_message_ptr msg) override {
+      static auto last_print = chrono::steady_clock::now();
+
       try {
         string topic = msg->get_topic();
         json data = json::parse(msg->get_payload_str());
@@ -81,14 +83,14 @@ void receive_sensor_data(MYSQL* conn) {
 
           // DB 통합 저장 수행
           if (save_sensor_data(conn_, co, co2, current_temp, current_humi)) {
-            // 수신된 모든 값을 한눈에 확인할 수 있게 출력한다.
-            cout << "----------------------------------------" << endl;
-            cout << "📊 [SENSOR DATA RECEIVED]" << endl;
-            cout << "   CO    : " << co << " ppm" << endl;
-            cout << "   CO2   : " << co2 << " ppm" << endl;
-            cout << "   TEMP  : " << current_temp << " °C" << endl;
-            cout << "   HUMI  : " << current_humi << " %" << endl;
-            cout << "----------------------------------------" << endl;
+            auto now = chrono::steady_clock::now();
+            if (chrono::duration_cast<chrono::seconds>(now - last_print)
+                    .count() >= 10) {
+              last_print = now;
+              cout << "[SENSOR] CO:" << co << " CO2:" << co2
+                   << " T:" << current_temp << "°C H:" << current_humi << "%"
+                   << endl;
+            }
           }
         }
 
