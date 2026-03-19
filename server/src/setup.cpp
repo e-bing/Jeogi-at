@@ -1,5 +1,6 @@
 #include <termios.h>
 #include <unistd.h>
+
 #include <iostream>
 #include <regex>
 #include <string>
@@ -86,7 +87,6 @@ int main() {
     sprintf(id_buf, "CAM_%02d", camera_count);
     pi_node["id"] = std::string(id_buf);
 
-    // 구역 정보 나중에 qt에서 받아오게 설정
     pi_node["platforms"] = json::array();
 
     char num_str[3];
@@ -101,30 +101,31 @@ int main() {
   // 3. MQTT 브로커 설정 - localhost 고정
   std::cout << "[3] MQTT Broker Settings\n";
   config["mqtt"]["broker"] = "tcp://localhost:1883";
-  std::cout << " - MQTT Broker: " << config["mqtt"]["broker"] << " (Fixed to localhost)\n";
+  std::cout << " - MQTT Broker: " << config["mqtt"]["broker"]
+            << " (Fixed to localhost)\n";
 
   // 4. DB 설정 (최초 1회 입력)
-    std::cout << "\n[4] Database Settings\n";
+  std::cout << "\n[4] Database Settings\n";
 
-    std::cout << " - DB Host (default: localhost): ";
-    std::cin.ignore();
-    getline(std::cin, input);
-    config["db"]["host"] = input.empty() ? "localhost" : input;
+  std::cout << " - DB Host (default: localhost): ";
+  std::cin.ignore();
+  getline(std::cin, input);
+  config["db"]["host"] = input.empty() ? "localhost" : input;
 
-    std::cout << " - DB Name (default: jeogi): ";
-    getline(std::cin, input);
-    config["db"]["name"] = input.empty() ? "jeogi" : input;
+  std::cout << " - DB Name (default: jeogi): ";
+  getline(std::cin, input);
+  config["db"]["name"] = input.empty() ? "jeogi" : input;
 
-    std::cout << " - DB User: ";
-    getline(std::cin, input);
-    config["db"]["user"] = input;
+  std::cout << " - DB User: ";
+  getline(std::cin, input);
+  config["db"]["user"] = input;
 
-    std::cout << " - DB Password (Input will be hidden): ";
-    setEcho(false);
-    getline(std::cin, input);
-    setEcho(true);
-    std::cout << "\n";
-    config["db"]["pass"] = input;
+  std::cout << " - DB Password (Input will be hidden): ";
+  setEcho(false);
+  getline(std::cin, input);
+  setEcho(true);
+  std::cout << "\n";
+  config["db"]["pass"] = input;
 
   // 3. 파일 저장
   config["pi_nodes"] = pi_list;
