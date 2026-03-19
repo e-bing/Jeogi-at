@@ -95,9 +95,6 @@ ColumnLayout {
             dashboardRoot.cam3Fps = dashboardRoot._cam3Count;
             dashboardRoot.cam4Fps = dashboardRoot._cam4Count;
 
-            console.log("[FPS] 수신 CAM1:", dashboardRoot._cam1Count, "CAM2:", dashboardRoot._cam2Count, "CAM3:", dashboardRoot._cam3Count);
-            console.log("[FPS] 렌더 CAM1:", dashboardRoot._cam1RenderCount, "CAM2:", dashboardRoot._cam2RenderCount, "CAM3:", dashboardRoot._cam3RenderCount);
-
             dashboardRoot._cam1Count = 0;
             dashboardRoot._cam2Count = 0;
             dashboardRoot._cam3Count = 0;
@@ -202,7 +199,6 @@ ColumnLayout {
             dashboardRoot.lastEnvUpdate = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
         }
         function onZoneCongestionReceived(zones, totalCount, counts) {
-            console.log("[Zone] zones:", JSON.stringify(zones), "total:", totalCount, "counts:", JSON.stringify(counts));
             dashboardRoot.sectionSums = zones;
             dashboardRoot.grandTotalOccupants = totalCount;
             dashboardRoot.zoneCounts = counts;
@@ -286,7 +282,7 @@ ColumnLayout {
                             }
                             Text {
                                 id: detailsText
-                                text: dashboardRoot.showBoundingBox ? "바운딩박스 on" : "바운딩박스 off"
+                                text: dashboardRoot.showBoundingBox ? "객체 인식 ON" : "객체 인식 OFF"
                                 color: dashboardRoot.showBoundingBox ? "#22C55E" : Style.colorPrimary
                                 font.pixelSize: 12
                                 MouseArea {
@@ -544,7 +540,13 @@ ColumnLayout {
 
                                     // Bounding Box Overlay
                                     Repeater {
-                                        model: dashboardRoot.showBoundingBox ? getCamObjects(index) : []
+                                        model: {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            if (dashboardRoot.showBoundingBox && fps[index] > 0) {
+                                                return getCamObjects(index);
+                                            }
+                                            return [];
+                                        }
                                         delegate: Rectangle {
                                             x: modelData.x * camContainer.width
                                             y: modelData.y * camContainer.height
@@ -578,13 +580,10 @@ ColumnLayout {
                                     MouseArea {
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        // onClicked: console.log("Camera " + (index + 1) + " clicked")
 
                                         onClicked: {
-                                            // 소스가 비어있지 않은지 확인 (문자열 강제 형변환)
-                                            var targetSource = String(cameraImageBack.source) || String(cameraImageFront.source);
-
-                                            if (targetSource !== "") {
+                                            let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                                            if (fps[index] > 0) {
                                                 // Repeater의 현재 index를 팝업에 전달하여 실시간 바인딩 활성화
                                                 expandedCameraPopup.currentCameraIndex = index;
                                                 expandedCameraPopup.currentTitle = "CAM-0" + (index + 1) + " 확대화면";
@@ -1414,7 +1413,14 @@ ColumnLayout {
 
                 // Bounding Box Overlay (PreserveAspectFit 보정)
                 Repeater {
-                    model: dashboardRoot.showBoundingBox ? getCamObjects(expandedCameraPopup.currentCameraIndex) : []
+                    model: {
+                        let fps = [dashboardRoot.cam1Fps, dashboardRoot.cam2Fps, dashboardRoot.cam3Fps, dashboardRoot.cam4Fps];
+                        let camIdx = expandedCameraPopup.currentCameraIndex;
+                        if (dashboardRoot.showBoundingBox && camIdx >= 0 && fps[camIdx] > 0) {
+                            return getCamObjects(camIdx);
+                        }
+                        return [];
+                    }
                     delegate: Rectangle {
                         property real imgX: (expandedImageContainer.width - expandedImageFront.paintedWidth) / 2
                         property real imgY: (expandedImageContainer.height - expandedImageFront.paintedHeight) / 2
