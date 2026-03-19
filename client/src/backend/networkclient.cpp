@@ -99,7 +99,7 @@ void NetworkClient::connectToServer(const QString &host, quint16 port) {
   }
 
   // 3. server.crt를 CA로 등록하여 서버 인증서 검증
-  QFile certFile(":/assets/server.crt");
+  QFile certFile(":/config/server.crt");
   if (!certFile.open(QIODevice::ReadOnly)) {
     qDebug() << "❌ server.crt 로드 실패";
     setStatus("Error: server.crt not found");

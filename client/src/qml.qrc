@@ -33,6 +33,6 @@
         <file>fonts/Pretendard-Thin.otf</file>
         <file>../../protocol/message_types.hpp</file>
         <file>../../protocol/sensor_thresholds.hpp</file>
-        <file alias="assets/server.crt">config/server.crt</file>
+        <file alias="config/server.crt">config/server.crt</file>
     </qresource>
 </RCC>

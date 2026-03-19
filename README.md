@@ -48,7 +48,7 @@
 
 * **공기 질 측정** 
 
-  유해가스(MQ-135) 및 일산화탄소(MQ-7) 센서 데이터 수집
+  유해가스(MQ-135) 및 일산화탄소(MQ-7) 센서 데이터 수집, SHT20을 통한 온/습도 측정
 * **자동 환기 제어**
   
   설정된 임계값 초과 시 DC 모터(팬)를 가동하여 정화
@@ -62,15 +62,17 @@
 
 ### 🛰️ Hardware & Environment
 
-* **Vision:** Hanwha Vision PNO-A9081R, RPi Camera Module 2
-* **Main Server:** Raspberry Pi 4 (4GB)
+* **Vision:** Hanwha Vision PNO-A9081R, Raspberry Pi 4 + RPi Camera Module 2
+* **Main Server:** Raspberry Pi 4
+* **Device Control Node:** Raspberry Pi 4
 * **MCU Node:** STM32 NUCLEO-F401RE
-* **Peripherals:** P5 LED Matrix (HUB75), MAX98357 (I2S), MQ-7/135, DC Motor
+* **Peripherals:** P5 LED Matrix (HUB75), MAX98357 (I2S), MQ-7/135, SHT20 (I2C), DC Motor (GPIO/PWM)
 
 ### 💻 Software Stack
 
 * **AI/Vision:** NCNN, YOLO26
 * **Server:** C++, OpenCV, MQTT (Paho), OpenSSL, MariaDB/SQLite
+* **Device Control Node:** C/C++, MQTT (Paho), UART (STM32 브릿지)
 * **Client:** Windows Application (Qt 6.10.0)
 * **Embedded:** HAL Driver, UART/SPI/I2S Communication
 
@@ -86,11 +88,22 @@
 ### 🛡️ Security & Network
 
 * **Secure Communication:** 중앙 서버와 Qt 클라이언트 간 데이터 보호를 위한 **OpenSSL(TLS/SSL)** 적용
+* **MQTT 토폴로지:**
+  * 카메라 노드(Publisher) → 중앙 서버 브로커로 사람 객체에 대한 메타데이터 발행
+  * 중앙 서버(브로커 + 클라이언트) ↔ 장치 제어 노드(클라이언트): 제어 명령 및 센서 텔레메트리 양방향 교환
 * **Messaging:** MQTT 브로커를 통한 비동기 데이터 취합 및 JSON 파싱 처리
+
+### 🔧 Device Control Node (RPi)
+
+* **역할 분리:** 중앙 서버의 부하를 줄이기 위해 물리적 장치 제어를 별도 RPi 노드로 분리
+* **MQTT 통신:** 중앙 서버로부터 제어 명령을 구독(Subscribe)하고, 센서 텔레메트리를 발행(Publish)
+* **STM32 브릿지:** UART를 통해 STM32와 직접 통신, LED·오디오·센서 명령 전달 및 상태 수신
+* **로컬 제어:** DC 모터(팬) GPIO/PWM 직접 제어, SHT20(I2C) 온/습도 데이터 수집 및 MQTT 발행
 
 ### ⚙️ Firmware (STM32)
 
 * **Multi-Tasking:** LED 리프레시, 센서 데이터 수집, 오디오 재생 태스크를 관리
+* **UART 통신:** 장치 제어 RPi와 UART로 연결되어 명령 수신 및 상태 응답
 * **Storage:** SPI 인터페이스 기반 SD Card 연동으로 음원 파일 관리
 
 ---
@@ -101,9 +114,9 @@
 repo/
  ├─ server/           # 중앙 관리 서버 (C++, API, DB, MQTT)
  ├─ embedded-linux/   # 카메라 노드 (YOLO, GStreamer, MQTT)
- ├─ firmware/         # STM32 펌웨어
+ ├─ drivers/          # 디바이스 컨트롤 노드, 드라이버
+ ├─ firmware/         # MCU 펌웨어
  ├─ client/           # Qt 관리자용 어플리케이션
- ├─ drivers/          # 커스텀 장치 드라이버
  └─ docs/             # 설계서 및 프로토콜 정의서
 
 ```

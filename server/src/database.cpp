@@ -165,7 +165,7 @@ json get_realtime_air_quality(MYSQL* conn) {
             recorded_at
         FROM air_stats
         WHERE station_id = 1
-        ORDER BY recorded_at DESC
+        ORDER BY id DESC
         LIMIT 1;
     )";
 
