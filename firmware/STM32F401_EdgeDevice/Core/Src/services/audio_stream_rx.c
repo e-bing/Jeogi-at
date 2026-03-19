@@ -5,29 +5,46 @@
  *      Author: 2-21
  */
 
-
 #include "services/audio_stream_rx.h"
 #include "spi.h"
 #include <string.h>
 #include <stdio.h>
 
-#define AUDIO_STREAM_RX_BLOCK_SIZE   960U
-#define AUDIO_STREAM_RING_SIZE       8192U
+#define AUDIO_STREAM_RX_BLOCK_SIZE   1920U
+#define AUDIO_STREAM_RING_SIZE       32768U
 
-static uint8_t s_spiRxBuf[AUDIO_STREAM_RX_BLOCK_SIZE];
+static uint8_t s_spiRxBuf[2][AUDIO_STREAM_RX_BLOCK_SIZE];
 static uint8_t s_ringBuf[AUDIO_STREAM_RING_SIZE];
 
 static volatile uint32_t s_write = 0;
 static volatile uint32_t s_read  = 0;
 static volatile uint32_t s_count = 0;
 
+/* ping-pong DMA state */
+static volatile uint8_t s_dmaBufIndex = 0;
+static volatile uint8_t s_readyFlags[2] = {0, 0};
+static volatile uint32_t s_rxBlockCount = 0;
+static volatile uint32_t s_overflowDropCount = 0;
+static volatile uint32_t s_spiErrorCount = 0;
+
 static void AudioStreamRx_Push(const uint8_t *src, uint32_t len);
 
 void AudioStreamRx_Init(void)
 {
+    __disable_irq();
+
     s_write = 0;
     s_read = 0;
     s_count = 0;
+
+    s_dmaBufIndex = 0;
+    s_readyFlags[0] = 0;
+    s_readyFlags[1] = 0;
+    s_rxBlockCount = 0;
+    s_overflowDropCount = 0;
+    s_spiErrorCount = 0;
+
+    __enable_irq();
 
     memset(s_spiRxBuf, 0, sizeof(s_spiRxBuf));
     memset(s_ringBuf, 0, sizeof(s_ringBuf));
@@ -36,15 +53,32 @@ void AudioStreamRx_Init(void)
 void AudioStreamRx_Reset(void)
 {
     __disable_irq();
+
     s_write = 0;
     s_read = 0;
     s_count = 0;
+
+    s_dmaBufIndex = 0;
+    s_readyFlags[0] = 0;
+    s_readyFlags[1] = 0;
+    s_rxBlockCount = 0;
+    s_overflowDropCount = 0;
+    s_spiErrorCount = 0;
+
     __enable_irq();
 }
 
 void AudioStreamRx_Start(void)
 {
-    if (HAL_SPI_Receive_DMA(&hspi1, s_spiRxBuf, AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
+    __disable_irq();
+    s_dmaBufIndex = 0;
+    s_readyFlags[0] = 0;
+    s_readyFlags[1] = 0;
+    __enable_irq();
+
+    if (HAL_SPI_Receive_DMA(&hspi1,
+                            s_spiRxBuf[s_dmaBufIndex],
+                            AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
     {
         printf("SPI RX DMA Start Fail\r\n");
     }
@@ -65,6 +99,7 @@ uint32_t AudioStreamRx_Read(uint8_t *dst, uint32_t len)
     uint32_t readLen;
 
     __disable_irq();
+
     readLen = (len <= s_count) ? len : s_count;
 
     for (i = 0; i < readLen; i++)
@@ -74,9 +109,50 @@ uint32_t AudioStreamRx_Read(uint8_t *dst, uint32_t len)
     }
 
     s_count -= readLen;
+
     __enable_irq();
 
     return readLen;
+}
+
+/*
+ * 메인 루프에서 주기적으로 호출
+ * - DMA 완료된 버퍼를 ring buffer로 옮김
+ * - callback 안에서 무거운 copy 작업을 하지 않기 위한 함수
+ */
+void AudioStreamRx_Process(void)
+{
+    uint8_t localReady0 = 0;
+    uint8_t localReady1 = 0;
+
+    __disable_irq();
+    localReady0 = s_readyFlags[0];
+    localReady1 = s_readyFlags[1];
+    s_readyFlags[0] = 0;
+    s_readyFlags[1] = 0;
+    __enable_irq();
+
+    if (localReady0)
+    {
+        AudioStreamRx_Push(s_spiRxBuf[0], AUDIO_STREAM_RX_BLOCK_SIZE);
+    }
+
+    if (localReady1)
+    {
+        AudioStreamRx_Push(s_spiRxBuf[1], AUDIO_STREAM_RX_BLOCK_SIZE);
+    }
+
+    /* 너무 자주 찍히지 않게 상태 로그 */
+    static uint32_t lastRxBlockCount = 0;
+    if ((s_rxBlockCount - lastRxBlockCount) >= 50U)
+    {
+        lastRxBlockCount = s_rxBlockCount;
+        printf("SPI RX blocks=%lu avail=%lu drop=%lu err=%lu\r\n",
+               s_rxBlockCount,
+               s_count,
+               s_overflowDropCount,
+               s_spiErrorCount);
+    }
 }
 
 static void AudioStreamRx_Push(const uint8_t *src, uint32_t len)
@@ -87,7 +163,7 @@ static void AudioStreamRx_Push(const uint8_t *src, uint32_t len)
     {
         if (s_count >= AUDIO_STREAM_RING_SIZE)
         {
-            /* overflow: 가장 단순하게는 뒤 데이터 버림 */
+            s_overflowDropCount++;
             break;
         }
 
@@ -101,30 +177,22 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == &hspi1)
     {
-        static uint32_t rxCount = 0;
+        uint8_t doneIndex;
+        uint8_t nextIndex;
 
-        if (hspi == &hspi1)
+        doneIndex = s_dmaBufIndex;
+        nextIndex = (uint8_t)(doneIndex ^ 1U);
+
+        s_rxBlockCount++;
+        s_readyFlags[doneIndex] = 1;
+        s_dmaBufIndex = nextIndex;
+
+        /* 핵심: 다음 DMA를 최대한 빨리 재시작 */
+        if (HAL_SPI_Receive_DMA(&hspi1,
+                                s_spiRxBuf[nextIndex],
+                                AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
         {
-            rxCount++;
-
-            if ((rxCount % 20U) == 0U)
-            {
-                printf("RX done first16: ");
-                for (int i = 0; i < 16; i++)
-                {
-                    printf("%02X ", s_spiRxBuf[i]);
-                }
-                printf("... len=%u\r\n", (unsigned int)AUDIO_STREAM_RX_BLOCK_SIZE);
-            }
-
-            AudioStreamRx_Push(s_spiRxBuf, AUDIO_STREAM_RX_BLOCK_SIZE);
-
-            memset(s_spiRxBuf, 0, sizeof(s_spiRxBuf));
-
-            if (HAL_SPI_Receive_DMA(&hspi1, s_spiRxBuf, AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
-            {
-                printf("SPI RX DMA Restart Fail\r\n");
-            }
+            s_spiErrorCount++;
         }
     }
 }
@@ -134,30 +202,26 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
     if (hspi == &hspi1)
     {
         uint32_t err = hspi->ErrorCode;
-
-        printf("SPI RX Error: 0x%08lX ", err);
-
-        if (err & HAL_SPI_ERROR_OVR)  printf("[OVR] ");
-        if (err & HAL_SPI_ERROR_MODF) printf("[MODF] ");
-        if (err & HAL_SPI_ERROR_CRC)  printf("[CRC] ");
-        if (err & HAL_SPI_ERROR_FRE)  printf("[FRE] ");
-#ifdef HAL_SPI_ERROR_DMA
-        if (err & HAL_SPI_ERROR_DMA)  printf("[DMA] ");
-#endif
-        printf("\r\n");
+        s_spiErrorCount++;
 
         HAL_SPI_Abort(hspi);
         __HAL_SPI_CLEAR_OVRFLAG(hspi);
 
-        memset(s_spiRxBuf, 0, sizeof(s_spiRxBuf));
+        __disable_irq();
+        s_dmaBufIndex = 0;
+        s_readyFlags[0] = 0;
+        s_readyFlags[1] = 0;
+        __enable_irq();
 
-        if (HAL_SPI_Receive_DMA(&hspi1, s_spiRxBuf, AUDIO_STREAM_RX_BLOCK_SIZE) == HAL_OK)
+        if (HAL_SPI_Receive_DMA(&hspi1,
+                                s_spiRxBuf[s_dmaBufIndex],
+                                AUDIO_STREAM_RX_BLOCK_SIZE) != HAL_OK)
         {
-            printf("SPI RX DMA Restart OK\r\n");
+            printf("SPI RX Restart Fail err=0x%08lX\r\n", err);
         }
         else
         {
-            printf("SPI RX DMA Restart Fail\r\n");
+            printf("SPI RX Restart OK err=0x%08lX\r\n", err);
         }
     }
 }
