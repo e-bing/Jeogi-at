@@ -46,7 +46,7 @@ PiNode::PiNode(const std::string& ip, const std::string& topic,
 
 void PiNode::run() {
   av_log_set_level(AV_LOG_FATAL);
-  // 1. MQTT 초기화 (지역변수 client 대신 멤버변수 mqtt_client 사용)
+  // 1. MQTT 초기화
   mqtt_client =
       new mqtt::async_client("tcp://" + pi_ip + ":1883", "Monitor_" + node_id);
   this->cb = new PiMqttCallback(node_id);
@@ -65,7 +65,7 @@ void PiNode::run() {
     return;
   }
 
-  // 2. FFmpeg 설정 (지역변수 선언문 제거 -> 멤버 변수 사용)
+  // 2. FFmpeg 설정
   avformat_network_init();
   AVDictionary* opts = nullptr;
   std::string url = "tcp://" + pi_ip + ":5000";
@@ -133,12 +133,6 @@ void PiNode::process_loop() {
             camData->height = frame->height;
             camData->frame_buffer.resize(y_size + uv_size * 2);
 
-            // Y, U, V 플레인을 하나의 벡터에 순서대로 복사
-            // memcpy(camData->frame_buffer.data(), frame->data[0], y_size);
-            // memcpy(camData->frame_buffer.data() + y_size, frame->data[1],
-            //        uv_size);
-            // memcpy(camData->frame_buffer.data() + y_size + uv_size,
-            //        frame->data[2], uv_size);
             // Y 플레인
             for (int i = 0; i < h; i++) {
               memcpy(camData->frame_buffer.data() + i * w,

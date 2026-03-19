@@ -123,22 +123,22 @@ void hanwha_worker(std::atomic<bool>* client_connected,
         lock_guard<mutex> lock_data(g_hw_data_mutex);
 
         if (!g_hw_frame_buffer.empty()) {
-          // [Step A] YUV Raw -> OpenCV Mat 변환
+          // YUV Raw -> OpenCV Mat 변환
           int width = 1920;
           int height = 1080;
           cv::Mat yuv_frame(height * 1.5, width, CV_8UC1,
                             g_hw_frame_buffer.data());
 
-          // [Step B] BGR 변환 및 리사이징 (성능을 위해 640x480 권장)
+          // BGR 변환 및 리사이징
           cv::Mat bgr_frame, resized_frame;
           cv::cvtColor(yuv_frame, bgr_frame, cv::COLOR_YUV2BGR_I420);
           cv::resize(bgr_frame, resized_frame, cv::Size(640, 480));
 
-          // [Step C] JPEG 압축 (압축률 80% 정도가 적당)
+          // JPEG 압축
           cv::imencode(".jpg", resized_frame, jpg_buffer,
                        {cv::IMWRITE_JPEG_QUALITY, 80});
 
-          // [Step D] JSON 생성
+          // JSON 생성
           json j;
           j[Protocol::FIELD_COUNT] = g_hw_objects.size();
           for (auto& o : g_hw_objects) {

@@ -29,10 +29,8 @@ void HanwhaNode::run() {
   for (int i = 0; i < fmtCtx->nb_streams; i++) {
     if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
       video_idx = i;
-      std::cout << "[DEBUG] Video Stream Found: " << i << std::endl;
     } else if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_DATA) {
       data_idx = i;
-      std::cout << "[DEBUG] Metadata Stream Found: " << i << std::endl;
     }
   }
 
