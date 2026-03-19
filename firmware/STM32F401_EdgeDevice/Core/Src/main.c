@@ -156,9 +156,9 @@ int main(void)
     UART_Handler_Process();
 //
 //    // start: LED panel
-//    AppTask_Run();
+    AppTask_Run();
 //    /* LED panel refresh */
-//    HUB75_RefreshStep();
+    HUB75_RefreshStep();
 //
 //    // start: Audio play
     Audio_Process();

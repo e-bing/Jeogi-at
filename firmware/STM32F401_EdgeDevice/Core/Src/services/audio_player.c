@@ -1,6 +1,7 @@
 #include "services/audio_player.h"
 #include "services/audio_stream_rx.h"   /* SPI RX ring buffer 모듈 */
 #include "i2s.h"
+#include "main.h"                       /* HAL_GetTick() */
 
 #include <string.h>
 #include <stdio.h>
@@ -16,6 +17,13 @@
  * 4블록 = 40ms 정도 쌓인 뒤 시작하도록 설정
  */
 #define AUDIO_STREAM_PREBUFFER_BYTES   (1920U * 4U)
+
+/*
+ * stream timeout
+ * 마지막 데이터 관측 이후 이 시간 이상 데이터가 없으면
+ * stream 종료로 판단
+ */
+#define AUDIO_STREAM_TIMEOUT_MS        500U
 
 /* ================= Audio Buffers ================= */
 
@@ -46,13 +54,6 @@ static volatile uint8_t s_queueTail = 0;
 
 /* ================= Playback Source ================= */
 
-/*
- * [추가]
- * 현재 재생 source가 무엇인지 구분하기 위한 상태
- *
- * - WAV   : SD의 WAV 파일을 읽어 재생
- * - STREAM: SPI로 들어온 PCM stream을 재생
- */
 typedef enum
 {
     AUDIO_SOURCE_NONE = 0,
@@ -70,14 +71,15 @@ static volatile uint8_t s_isPlaying = 0;
 static volatile uint8_t s_stopPending = 0;
 
 /*
- * [추가]
- * stream은 WAV처럼 EOF가 없으므로,
- * 외부에서 "이제 stream 재생을 정리하자"라고 요청할 때 쓰는 플래그
- *
- * 현재 1차 버전에서는 꼭 안 써도 되지만,
- * 나중에 방송 종료 시 안전하게 정지할 수 있도록 넣어둠.
+ * stream 정지 요청 플래그
+ * 현재 timeout 방식으로 종료하더라도 기존 구조 호환 위해 유지
  */
 static volatile uint8_t s_streamStopRequested = 0;
+
+/*
+ * 마지막 stream 데이터 관측 시각
+ */
+static volatile uint32_t s_streamLastDataTick = 0;
 
 /* ================= Internal Function Prototypes ================= */
 
@@ -103,6 +105,7 @@ void Audio_Init(void)
     s_isPlaying = 0;
     s_stopPending = 0;
     s_streamStopRequested = 0;
+    s_streamLastDataTick = 0;
 
     memset(s_monoBuf, 0, sizeof(s_monoBuf));
     memset(s_i2sBuf, 0, sizeof(s_i2sBuf));
@@ -173,13 +176,12 @@ static void AudioPlayer_PlayNextFromQueue(void)
 /* ================= Source Read ================= */
 
 /*
- * [핵심 추가]
  * mono PCM을 읽는 공급원을 source별로 분기
  *
  * - WAV   : f_read()로 SD 파일에서 읽음
  * - STREAM: AudioStreamRx_Read()로 SPI ring buffer에서 읽음
  *
- * bytesToRead는 "바이트 단위"이다.
+ * bytesToRead는 바이트 단위
  */
 static uint32_t AudioSource_ReadMonoPcm(int16_t *dst, uint32_t bytesToRead)
 {
@@ -209,7 +211,7 @@ static uint32_t AudioSource_ReadMonoPcm(int16_t *dst, uint32_t bytesToRead)
  *
  * 주의:
  * - WAV는 sample 부족을 EOF로 처리
- * - STREAM은 sample 부족을 "일시적 underrun"으로 보고 무음으로 채움
+ * - STREAM은 sample 부족을 일시적 underrun으로 보고 무음으로 채움
  */
 static void AudioPlayer_FillHalfBuffer(int16_t *dst)
 {
@@ -317,6 +319,7 @@ uint8_t Audio_StartWav(const char *filename)
     s_wavEof = 0;
     s_stopPending = 0;
     s_streamStopRequested = 0;
+    s_streamLastDataTick = 0;
 
     if (f_open(&s_wavFile, filename, FA_READ) != FR_OK)
     {
@@ -356,7 +359,6 @@ uint8_t Audio_StartWav(const char *filename)
 }
 
 /*
- * [추가]
  * SPI로 누적된 PCM stream 재생 시작
  *
  * 시작 조건:
@@ -380,6 +382,7 @@ uint8_t Audio_StartStream(void)
     s_wavEof = 0;
     s_stopPending = 0;
     s_streamStopRequested = 0;
+    s_streamLastDataTick = HAL_GetTick();
 
     memset(s_monoBuf, 0, sizeof(s_monoBuf));
     memset(s_i2sBuf, 0, sizeof(s_i2sBuf));
@@ -403,7 +406,6 @@ uint8_t Audio_StartStream(void)
 }
 
 /*
- * [추가]
  * stream 재생 종료 요청
  *
  * 바로 끊는 게 아니라,
@@ -459,7 +461,18 @@ void Audio_Guide(const uint8_t *congestion)
 
 void Audio_Process(void)
 {
-	AudioStreamRx_Process();
+    AudioStreamRx_Process();
+
+    /*
+     * 현재 구조에서는 ring buffer에 데이터가 남아 있으면
+     * 마지막 데이터 관측 시각을 갱신
+     *
+     * 더 정확하게 하려면 실제 RX write 시점에서 갱신하는 게 가장 좋음
+     */
+    if (AudioStreamRx_Available() > 0U)
+    {
+        s_streamLastDataTick = HAL_GetTick();
+    }
 
     if (s_isPlaying)
     {
@@ -497,13 +510,25 @@ void Audio_Process(void)
         }
 
         /*
-         * STREAM 재생은 EOF가 없으므로
-         * 외부에서 stop 요청이 들어왔을 때만 종료 처리
+         * STREAM 재생은 timeout 기반으로 종료
+         * - ring buffer가 비어 있고
+         * - 현재 처리할 DMA buffer event도 없고
+         * - 마지막 데이터 관측 이후 일정 시간 경과
+         *
+         * 기존 stop request도 같이 허용
          */
-        if ((s_audioSource == AUDIO_SOURCE_STREAM) && s_streamStopRequested)
+        if (s_audioSource == AUDIO_SOURCE_STREAM)
         {
-            if ((AudioStreamRx_Available() == 0U) && (s_bufferEvent == 0U))
+            uint32_t now = HAL_GetTick();
+
+            if (((AudioStreamRx_Available() == 0U) &&
+                 (s_bufferEvent == 0U) &&
+                 ((now - s_streamLastDataTick) >= AUDIO_STREAM_TIMEOUT_MS)) ||
+                (s_streamStopRequested &&
+                 (AudioStreamRx_Available() == 0U) &&
+                 (s_bufferEvent == 0U)))
             {
+                printf("Stream Stop\r\n");
                 Audio_Stop();
             }
         }
@@ -547,6 +572,7 @@ void Audio_Stop(void)
     s_bufferEvent = 0;
     s_stopPending = 0;
     s_streamStopRequested = 0;
+    s_streamLastDataTick = 0;
     s_audioSource = AUDIO_SOURCE_NONE;
 
     printf("Play End\r\n");
