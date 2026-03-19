@@ -22,11 +22,11 @@ void handle_qt_command(const string& cmd_str) {
       if (device == Protocol::DEVICE_MODE_CONTROL) {
         if (action == Protocol::ACTION_AUTO) {
           g_auto_mode = true;
-          cout << "🤖 [MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
+          cout << "[MODE] 자동 모드 활성화 (센서 기반 제어)" << endl;
           send_mode_command(Protocol::ACTION_AUTO);
         } else if (action == Protocol::ACTION_MANUAL) {
           g_auto_mode = false;
-          cout << "👤 [MODE] 수동 모드 활성화 (Qt 제어)" << endl;
+          cout << "[MODE] 수동 모드 활성화 (Qt 제어)" << endl;
           send_mode_command(Protocol::ACTION_MANUAL);
         }
         return;
@@ -39,18 +39,18 @@ void handle_qt_command(const string& cmd_str) {
 
           if (action == Protocol::ACTION_START ||
               action == Protocol::ACTION_ON) {
-            cout << "🚀 [STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
+            cout << "[STATUS] MOTOR ON (Speed: " << speed << "%)" << endl;
             send_motor_command(Protocol::ACTION_START, speed);
           } else if (action == Protocol::ACTION_STOP ||
                      action == Protocol::ACTION_OFF) {
-            cout << "🛑 [STATUS] MOTOR OFF" << endl;
+            cout << "[STATUS] MOTOR OFF" << endl;
             send_motor_command(Protocol::ACTION_STOP, 0);
           }
         } else if (device == Protocol::DEVICE_SPEAKER) {
-          cout << "🔊 [STATUS] AUDIO command=" << action << endl;
+          cout << "[STATUS] AUDIO command=" << action << endl;
           send_audio_command(action);
         } else if (device == Protocol::DEVICE_DIGITAL_DISPLAY) {
-          cout << "🖥️ [STATUS] DIGITAL DISPLAY command=" << action << endl;
+          cout << "[STATUS] DIGITAL DISPLAY command=" << action << endl;
           send_display_command(action);
         }
       } else {

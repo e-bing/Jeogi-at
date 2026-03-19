@@ -42,7 +42,7 @@ std::vector<DetectedObject> MetadataParser::extractObj(XMLElement* root) {
 
           auto to_ratio_x = [](double val) { return (float)(val / 3840.0); };
 
-          auto to_ratio_y = [](double val) { return (float)(val / 2260.0); };
+          auto to_ratio_y = [](double val) { return (float)(val / 2160.0); };
 
           float n_l = to_ratio_x(left);
           float n_r = to_ratio_x(right);
