@@ -53,7 +53,7 @@
 ```text
 server/
  ├─ config/           # 서버 설정 파일 및 인증서 보관
- ├─ includes/         # 서버 전체 헤더 파
+ ├─ includes/         # 서버 전체 헤더 파일
  ├─ src/              # 서버 코어 로직 소스 코드
  │   ├─ main.cpp               # 메인 실행 파일
  │   ├─ hanwha_node.cpp / pi_node.cpp   # 카메라 스트리밍 및 메타데이터 수신
