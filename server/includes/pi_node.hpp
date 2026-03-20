@@ -11,7 +11,6 @@
 #include "shared_data.hpp"
 
 extern "C" {
-#include <SDL2/SDL.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/log.h>
@@ -36,12 +35,6 @@ class PiNode {
    */
   void run();
   void process_loop();
-
-  /**
-   * @brief 현재 디코딩된 프레임을 SDL 텍스처로 업데이트
-   * @param texture 업데이트할 SDL 텍스처
-   */
-  void update_texture(SDL_Texture* texture);
 
  private:
   std::string pi_ip;

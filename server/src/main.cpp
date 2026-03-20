@@ -77,7 +77,10 @@ int main() {
       return;
     }
 
-    receive_sensor_data(sensor_conn);
+    try {
+      receive_sensor_data(sensor_conn);
+    } catch (...) {
+    }
 
     close_db(sensor_conn);
   });
@@ -101,7 +104,7 @@ int main() {
         listen(server_fd, 5) >= 0) {
       cout << "📡 TLS 서버 대기 중 (포트 " << PORT << ")" << endl;
 
-      // 서버 수락 루프를 별도 스레드에서 실행 (SDL 루프 방해 방지)
+      // 서버 수락 루프를 별도 스레드에서 실행
       thread server_accept_thread([server_fd]() {
         while (!stop_flag) {
           int client_socket = accept(server_fd, NULL, NULL);
