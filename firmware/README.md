@@ -9,7 +9,7 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 
 * **UART Debug**
 * **Multi Sensor 연동**
-* **MQ7 (CO) / MQ135 (CO2) 가스 센서 측정 (ADC, EMA 필터)**
+* **MQ7 (CO) / MQ135 가스 센서 측정 (ADC, EMA 필터)**
 * **SDCard Read (SPI)**
 * **MAX98357A AMP Class D Amplifier (I2S)**
 * **LED Matrix (HUB75)**
