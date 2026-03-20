@@ -1,18 +1,22 @@
 # 🔌 STM32F401 엣지 디바이스 펌웨어
 
-**지하철 승강장 구역별 혼잡도 안내 및 환경 관리 시스템 (저기어때?)**의 펌웨어 모듈입니다.  
-STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어하며, 상위 시스템과 연동되는 엣지 장치 동작을 담당합니다.
+**지하철 승강장 구역별 혼잡도 안내 및 환경 관리 시스템 (저기어때?)** 의 펌웨어 모듈입니다.  
+STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어하며, Raspberry Pi와 UART 및 SPI 인터페이스로 연결되어 데이터 송수신과 제어를 수행합니다.
+
 
 ---
 
 ## 🤍 1. 주요 기능
 
-* **UART Debug**
-* **Multi Sensor 연동**
+* **Raspberry Pi Interface**
+    * **Command Protocol (UART)**
+    * **Audio Streaming (SPI)**
+* **Multi Sensor (ADC)**
 * **MQ7 (CO) / MQ135 가스 센서 측정 (ADC, EMA 필터)**
-* **SDCard Read (SPI)**
-* **MAX98357A AMP Class D Amplifier (I2S)**
+* **SD Card Read (SPI)**
+* **MAX98357A Class-D Amplifier (I2S)**
 * **LED Matrix (HUB75)**
+* **Debug (UART)**
 
 ---
 
@@ -27,6 +31,22 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 
 > 참고: `.ioc` 파일을 열 때 CubeMX 버전에 따라 코드 생성 옵션/핀 설정 표시가 달라질 수 있으므로 `6.8.0` 기준 사용을 권장합니다.
 
+- ### 통신 인터페이스
+    - UART: 디버그 출력 및 Raspberry Pi와의 시리얼 통신
+    - SPI: Raspberry Pi와의 고속 통신 및 SD Card 접근
+    - I2S: MAX98357A 앰프 오디오 출력
+    - GPIO / HUB75: LED Matrix 제어
+
+- ### 하드웨어 구성 요약
+    - **Raspberry Pi ↔ STM32**
+        - UART: command-based control protocol
+        - SPI: high-speed data transfer
+    - **STM32 ↔ SD Card**
+        - SPI interface
+    - **STM32 ↔ MAX98357A**
+        - I2S audio output
+    - **STM32 ↔ LED Matrix**
+        - HUB75 interface
 ---
 
 ## 🤍 3. 프로젝트 구조
