@@ -66,7 +66,7 @@
 
 ### 🛰️ Hardware & Environment
 
-* **Vision:** Hanwha Vision PNO-A9081R, Raspberry Pi 4 + RPi Camera Module 2
+* **Vision:** Hanwha Vision PNO-A9081R, Raspberry Pi 4 + RPi Camera Module V2
 
 * **Main Server:** Raspberry Pi 4
 
@@ -94,7 +94,7 @@
 
 ### 📸 Camera & Vision
 
-* **Heterogeneous Camera Support:** 한화비전 WiseAI(군중 카운팅 메타데이터)와 일반 RPi 카메라(YOLO26 기반 자체 분석) 동시 지원
+* **Heterogeneous Camera Support:** 한화비전 WiseAI(객체 인식 메타데이터)와 일반 RPi 카메라(YOLO26 기반 자체 분석) 동시 지원
 
 * **Parallel Processing:** FFmpeg 기반 영상 수신 및 처리
 
@@ -175,9 +175,9 @@ repo/
 
 | 팀원 | 주요 담당 모듈 | 주요 역할 및 기여 내역 |
 | :---: | :--- | :--- |
-| **성예빈**<br>[@e-bing](https://github.com/e-bing) | **Server & AI, Camera Edge** | <ul><li>`embedded-linux` 전체 (NCNN + YOLO) 기반 객체 탐지 엣지 카메라 로직 설계 및 구현</li><li>메인 서버(`server`) 대부분 (소켓 통신 베이스, 영상 디코딩, 멀티스레드 로직) 아키텍처 개발</li><li>MQTT 브로커 및 전체 토폴로지 통신 아키텍처(Paho C/C++) 구축 (서버 ↔ Pi Node 통신)</li><li>클라이언트(Qt) 측 실시간 영상 스트리밍 연동 및 AI 추론 파이프라인 전체 개발</li></ul> |
-| **윤태우**<br>[@taewooyun](https://github.com/taewooyun) | **Firmware Core & Audio, UART** | <ul><li>MCU(`firmware`) 시스템 통합 및 UART 기반 기기 간 통신 프로토콜, 핸들러 함수 설계</li><li>앰프 모듈, 스피커, SD Card 파일 시스템 제어 로직 펌웨어 구현</li><li>장치 제어용 RPi ↔ 관리자(Qt) 간의 실시간 음성 방송(마이크 스트리밍) 통신 기능 구현</li><li>UART 핸들러와 실시간 방송 등 로우 레벨 통신의 뼈대 구축</li></ul> |
-| **조예찬**<br>[@Jo-yechan](https://github.com/Jo-yechan) | **Client Core & Server DB, RPi Drivers** | <ul><li>`client` 대부분 (QML UI 설계, 통계 차트, 코어 로직) 개발 및 Qt-서버 제어 통신 함수 구현</li><li>`protocol` 시스템 공통 패킷 구조체(`camera_packet.hpp`, `message_types.hpp`) 작성</li><li>`server` 내 장치 연동 모듈(Audio, Display, Motor 등) 개발 및 MariaDB 기반 DB 시스템 구축</li><li>`drivers` 및 STM32 내 센서(온/습도, 유해가스, 일산화탄소) 및 환기 모터 제어 드라이버 풀스택 연동</li></ul> |
+| **성예빈**<br>[@e-bing](https://github.com/e-bing) | **Server & AI, Camera Edge** | <ul><li>`embedded-linux` 전체 (NCNN + YOLO) 기반 객체 탐지 엣지 카메라 로직 설계 및 구현</li><li>메인 서버(`server`) 소켓 통신 베이스, 한화비전 CCTV 영상 수신 및 메타데이터 파싱, 영상 디코딩, 멀티스레드 로직 아키텍처 개발</li><li>서버 측 혼잡도 산출 및 클라이언트/MCU 노드 이중 전송 시스템 구현</li><li>MQTT 브로커 및 토폴로지 통신 아키텍처(Paho C/C++) 구축 (서버 ↔ Pi Node 통신)</li><li>클라이언트(Qt) 측 실시간 영상 스트리밍 연동 및 AI 추론 파이프라인 전체 개발</li></ul> |
+| **윤태우**<br>[@taewooyun](https://github.com/taewooyun) | **Firmware Core & Audio, UART** | <ul><li>MCU(`firmware`) 시스템 통합 및 UART 기반 기기 간 통신 프로토콜, 핸들러 함수 설계</li><li>앰프 모듈, 스피커, SD Card 파일 시스템 제어 로직 펌웨어 구현</li><li>장치 제어용 RPi ↔ 관리자(Qt) 간의 실시간 음성 방송(마이크 스트리밍) 통신 기능 구현</li><li>UART 핸들러와 실시간 방송 등 로우 레벨 통신 기반 구축</li></ul> |
+| **조예찬**<br>[@Jo-yechan](https://github.com/Jo-yechan) | **Client Core & Server DB, RPi Drivers** | <ul><li>`client` (QML UI 설계, 통계 차트, 코어 로직) 개발 및 Qt-서버 제어 통신 함수 구현</li><li>`protocol` 시스템 공통 패킷 구조체(`camera_packet.hpp`, `message_types.hpp`) 작성</li><li>`server` 내 장치 연동 모듈(Audio, Display, Motor 등) 개발 및 MariaDB 기반 DB 시스템 구축</li><li>`drivers` 및 STM32 내 센서(유해가스, 일산화탄소) 및 환기 모터, 온습도 센서 제어 드라이버 풀스택 연동</li></ul> |
 | **이종관**<br>[@lyk3918](https://github.com/lyk3918) | **Hardware & Display, API** | <ul><li>LED Matrix (HUB75 인터페이스) 제어 펌웨어 및 전광판용 폰트 시스템 구축</li><li>전체 장비 하드웨어 회로도 및 배선 설계, 하드웨어 최적화 담당</li><li>실시간 공공 지하철 접근 정보(Open API) 연동 및 디스플레이(`subway_api`) 시각적 출력 로직 개발</li></ul> |
 
 ---
