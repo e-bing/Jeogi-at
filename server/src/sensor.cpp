@@ -125,7 +125,6 @@ void receive_sensor_data(MYSQL* conn) {
       mqtt::connect_options opts;
       opts.set_keep_alive_interval(20);
       opts.set_clean_session(true);
-      opts.set_automatic_reconnect(true);
 
       client.connect(opts)->wait();
       cout << "✅ 센서 MQTT 구독 연결 완료" << endl;

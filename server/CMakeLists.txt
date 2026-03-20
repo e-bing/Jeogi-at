@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 # 1. 패키지 탐색
 find_package(OpenCV REQUIRED)
-find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
@@ -30,7 +29,6 @@ include_directories(
     ${AVFORMAT_INCLUDE_DIRS}
     ${AVUTIL_INCLUDE_DIRS}
     ${SWSCALE_INCLUDE_DIRS}
-    ${SDL2_INCLUDE_DIRS}
     ${MARIADB_INCLUDE_DIRS}
 )
 
@@ -60,9 +58,8 @@ add_executable(setup src/setup.cpp)
 # 4. 라이브러리 링크
 target_link_libraries(server
     ${OpenCV_LIBS}
-    ${PAHO_CPP_LIB}      # ✅ PahoMqttCpp::paho-mqttpp3 대신 직접 찾은 경로 사용
-    ${PAHO_C_LIB}        # ✅ 의존성인 C 라이브러리도 함께 링크 
-    ${SDL2_LIBRARIES}
+    ${PAHO_CPP_LIB}
+    ${PAHO_C_LIB}
     ${AVCODEC_LIBRARIES}
     ${AVFORMAT_LIBRARIES}
     ${AVUTIL_LIBRARIES}
