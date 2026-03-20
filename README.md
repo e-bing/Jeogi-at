@@ -37,9 +37,9 @@
   YOLO26 및 CCTV 내장 지능형 분석을 활용해 구역별 인원수 검출
 * **구역별 혼잡도 가이드** 
 
-  산출된 밀집도(Low/Mid/High)를 LED Matrix 및 전용 디스플레이에 시각화하여 승객 유도
-
-  특정 상황 발생 시 SD 카드에 저장된 음원(WAV)을 I2S 인터페이스를 통해 출력
+  산출된 밀집도(원활/보통/혼잡)를 전용 디스플레이(LED Matrix)에 시각화
+  
+  원활한 구역 계산 후 SD 카드에 저장된 음원(WAV)을 I2S 인터페이스를 통해 출력
 * **이용 통계**
 
   요일/시간별 누적 데이터를 MariaDB에 저장하여 인사이트 제공
@@ -64,15 +64,22 @@
   <img width="80%" height="10%" alt="Image" src="https://github.com/user-attachments/assets/7b67f6dc-5467-4de6-b2f0-b2913c12200c" />
 </p>
 
+<p align="center">
+  <img width="80%" height="10%" alt="Image" src="https://github.com/user-attachments/assets/9a832ac5-e774-4653-aae2-5b7e170f1edb" />
+</p>
+
+<p align="center">
+  <img width="55%" height="10%" alt="Image" src="https://github.com/user-attachments/assets/4576d28a-4dd6-44d3-b635-5dea50761a88" />
+  <img width="38%" height="10%" alt="Image" src="https://github.com/user-attachments/assets/9001023d-49ea-4ada-9d89-37eafc4a28fd" />
+</p>
+
 ### 🛰️ Hardware & Environment
 
 * **Vision:** Hanwha Vision PNO-A9081R, Raspberry Pi 4 + RPi Camera Module V2
 
 * **Main Server:** Raspberry Pi 4
 
-* **Device Control Node:** Raspberry Pi 4
-
-* **MCU Node:** STM32 NUCLEO-F401RE
+* **Device Control Node:** Raspberry Pi 4, STM32 NUCLEO-F401RE
 
 * **Peripherals:** P5 LED Matrix (HUB75), MAX98357 (I2S), MQ-7/135, SHT20 (I2C), DC Motor (GPIO/PWM)
 
@@ -82,11 +89,9 @@
 
 * **Server:** C++, OpenCV, MQTT (Paho), OpenSSL, MariaDB/SQLite
 
-* **Device Control Node:** C/C++, MQTT (Paho), UART (STM32 브릿지)
+* **Device Control Node:** C/C++, MQTT (Paho), HAL Driver
 
 * **Client:** Windows Application (Qt 6.10.0)
-
-* **Embedded:** HAL Driver, UART/SPI/I2S Communication
 
 ---
 
@@ -106,7 +111,7 @@
 
   * 카메라 노드(Publisher) → 중앙 서버 브로커로 사람 객체에 대한 메타데이터 발행
 
-  * 중앙 서버(브로커 + 클라이언트) ↔ 장치 제어 노드(클라이언트): 제어 명령 및 센서 텔레메트리 양방향 교환
+  * 중앙 서버(브로커 + 클라이언트) ↔ 장치 제어 노드(브로커 + 클라이언트): 제어 명령 및 센서 텔레메트리 양방향 교환
 
 * **Messaging:** MQTT 브로커를 통한 비동기 데이터 취합 및 JSON 파싱 처리
 
@@ -124,7 +129,7 @@
 
 * **Multi-Tasking:** LED 리프레시, 센서 데이터 수집, 오디오 재생 태스크를 관리
 
-* **UART 통신:** 장치 제어 RPi와 UART로 연결되어 명령 수신 및 상태 응답
+* **UART 통신:** 장치 제어 RPi와 UART로 연결되어 커맨드 기반의 시리얼 프로토콜로 통신
 
 * **Storage:** SPI 인터페이스 기반 SD Card 연동으로 음원 파일 관리
 
@@ -171,13 +176,13 @@ repo/
 
 ---
 
-## 🤍 6. 프로젝트 팀 및 역할
+## 🤍 6. 팀원 및 역할
 
 | 팀원 | 주요 담당 모듈 | 주요 역할 및 기여 내역 |
 | :---: | :--- | :--- |
-| **성예빈**<br>[@e-bing](https://github.com/e-bing) | **Server & AI, Camera Edge** | <ul><li>`embedded-linux` 전체 (NCNN + YOLO) 기반 객체 탐지 엣지 카메라 로직 설계 및 구현</li><li>메인 서버(`server`) 소켓 통신 베이스, 한화비전 CCTV 영상 수신 및 메타데이터 파싱, 영상 디코딩, 멀티스레드 로직 아키텍처 개발</li><li>서버 측 혼잡도 산출 및 클라이언트/MCU 노드 이중 전송 시스템 구현</li><li>MQTT 브로커 및 토폴로지 통신 아키텍처(Paho C/C++) 구축 (서버 ↔ Pi Node 통신)</li><li>클라이언트(Qt) 측 실시간 영상 스트리밍 연동 및 AI 추론 파이프라인 전체 개발</li></ul> |
-| **윤태우**<br>[@taewooyun](https://github.com/taewooyun) | **Firmware Core & Audio, UART** | <ul><li>MCU(`firmware`) 시스템 통합 및 UART 기반 기기 간 통신 프로토콜, 핸들러 함수 설계</li><li>앰프 모듈, 스피커, SD Card 파일 시스템 제어 로직 펌웨어 구현</li><li>장치 제어용 RPi ↔ 관리자(Qt) 간의 실시간 음성 방송(마이크 스트리밍) 통신 기능 구현</li><li>UART 핸들러와 실시간 방송 등 로우 레벨 통신 기반 구축</li></ul> |
+| **성예빈**<br>[@e-bing](https://github.com/e-bing) | **Server & AI, Camera Edge** | <ul><li>`embedded-linux` 전체 (NCNN + YOLO) 기반 객체 탐지 엣지 카메라 로직 설계 및 구현</li><li>서버 ↔ Pi Node 통신 MQTT 브로커 및 토폴로지 통신 아키텍처 구축</li><li>메인 서버(`server`) 소켓 통신 베이스, 한화비전 CCTV 영상 수신 및 메타데이터 파싱, 영상 디코딩, 멀티스레드 로직 아키텍처 개발</li><li>서버 측 혼잡도 산출 및 클라이언트/MCU 노드 이중 전송 시스템 구현</li><li>클라이언트(Qt) 측 실시간 영상 스트리밍 연동 및 AI 추론 파이프라인 전체 개발</li></ul> |
+| **윤태우**<br>[@taewooyun](https://github.com/taewooyun) | **Firmware Core & Driver, Audio** | <ul><li>MCU(`firmware`) 드라이버 개발 및 설계</li><li>펌웨어 통합 테스트 및 최적화</li><li>오디오 입출력 처리, SD Card Read 및 파일 시스템 연동</li><li>커맨드 기반 시리얼 프로토콜 구현, RPi ↔ MCU 간 통신 기반 구축</li><li>관리자(Qt) → 장치 제어용 RPi → MCU Speaker 실시간 음성 방송(오디오 스트리밍) 기능 구현</li></ul> |
 | **조예찬**<br>[@Jo-yechan](https://github.com/Jo-yechan) | **Client Core & Server DB, RPi Drivers** | <ul><li>`client` (QML UI 설계, 통계 차트, 코어 로직) 개발 및 Qt-서버 제어 통신 함수 구현</li><li>`protocol` 시스템 공통 패킷 구조체(`camera_packet.hpp`, `message_types.hpp`) 작성</li><li>`server` 내 장치 연동 모듈(Audio, Display, Motor 등) 개발 및 MariaDB 기반 DB 시스템 구축</li><li>`drivers` 및 STM32 내 센서(유해가스, 일산화탄소) 및 환기 모터, 온습도 센서 제어 드라이버 풀스택 연동</li></ul> |
-| **이종관**<br>[@lyk3918](https://github.com/lyk3918) | **Hardware & Display, API** | <ul><li>LED Matrix (HUB75 인터페이스) 제어 펌웨어 및 전광판용 폰트 시스템 구축</li><li>전체 장비 하드웨어 회로도 및 배선 설계, 하드웨어 최적화 담당</li><li>실시간 공공 지하철 접근 정보(Open API) 연동 및 디스플레이(`subway_api`) 시각적 출력 로직 개발</li></ul> |
+| **이종관**<br>[@lyk3918](https://github.com/lyk3918) | **Hardware & Display, API** | <ul><li>LED Matrix (HUB75 인터페이스) 제어 펌웨어 및 전광판용 폰트 시스템 구축</li><li>전체 장비 하드웨어 회로도 및 배선 설계, 하드웨어 최적화 담당</li><li>실시간 혼잡도 데이터 및 온습도, 유해가스, 일산화탄소 측정 값 디스플레이 출력 기능 구현</li><li>실시간 공공 지하철 접근 정보(Open API) 연동 및 디스플레이(`subway_api`) 시각적 출력 로직 개발</li></ul> |
 
 ---
