@@ -77,7 +77,10 @@ int main() {
       return;
     }
 
-    receive_sensor_data(sensor_conn);
+    try {
+      receive_sensor_data(sensor_conn);
+    } catch (...) {
+    }
 
     close_db(sensor_conn);
   });
