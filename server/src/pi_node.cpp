@@ -96,8 +96,6 @@ void PiNode::run() {
   this->pkt = av_packet_alloc();
   this->frame = av_frame_alloc();
 
-  // 4. SDL 초기화
-
   process_loop();
 }
 
