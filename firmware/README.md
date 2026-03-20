@@ -105,3 +105,4 @@ cmake --build build_cmake -j
 
 * 링커 스크립트 관련 오류
   * `STM32F401RETX_FLASH.ld` 경로가 프로젝트 루트 기준으로 올바른지 확인해 주세요.
+
