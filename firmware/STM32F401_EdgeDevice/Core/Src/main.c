@@ -30,11 +30,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include "mq135.h"
-#include "mq7.h"
-#include "app_task.h"
-#include "uart_handler.h"
-#include "services/audio_player.h"
+#include "features/sensors/mq135.h"
+#include "features/sensors/mq7.h"
+#include "app/app_task.h"
+#include "features/protocol/uart_handler.h"
+#include "services/audio/audio_player.h"
+#include "services/audio/audio_stream_rx.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
