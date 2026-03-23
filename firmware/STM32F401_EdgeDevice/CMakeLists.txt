@@ -40,9 +40,9 @@ set(COMMON_DEFINES
 
 set(COMMON_INCLUDES
   ${CMAKE_SOURCE_DIR}/Core/Inc
-  ${CMAKE_SOURCE_DIR}/User/GUI
-  ${CMAKE_SOURCE_DIR}/User/RGBMatrix
-  ${CMAKE_SOURCE_DIR}/User/Fonts
+  ${CMAKE_SOURCE_DIR}/FATFS/Target
+  ${CMAKE_SOURCE_DIR}/FATFS/App
+  ${CMAKE_SOURCE_DIR}/Middlewares/Third_Party/FatFs/src
   ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc
   ${CMAKE_SOURCE_DIR}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
   ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
@@ -50,17 +50,44 @@ set(COMMON_INCLUDES
 )
 
 set(C_SOURCES
+  Core/Src/adc.c
+  Core/Src/dma.c
   Core/Src/gpio.c
+  Core/Src/i2s.c
   Core/Src/main.c
-  Core/Src/Matrixrun.c
-  Core/Src/app_task.c
+  Core/Src/spi.c
   Core/Src/stm32f4xx_hal_msp.c
   Core/Src/stm32f4xx_it.c
   Core/Src/syscalls.c
   Core/Src/sysmem.c
   Core/Src/system_stm32f4xx.c
+  Core/Src/tim.c
   Core/Src/usart.c
+  Core/Src/app/app_task.c
+  Core/Src/common/data_manager.c
+  Core/Src/drivers/audio/audio_out_i2s.c
+  Core/Src/drivers/display/font8.c
+  Core/Src/drivers/display/font12.c
+  Core/Src/drivers/display/gui_paint.c
+  Core/Src/drivers/display/rgb_matrix_device.c
+  Core/Src/drivers/storage/sd_spi.c
+  Core/Src/features/display/display_screens.c
+  Core/Src/features/display/matrix_run.c
+  Core/Src/features/protocol/uart_handler.c
+  Core/Src/features/protocol/uart_protocol.c
+  Core/Src/features/sensors/mq7.c
+  Core/Src/features/sensors/mq135.c
+  Core/Src/services/audio/audio_player.c
+  Core/Src/services/audio/audio_stream_rx.c
+  Core/Src/services/storage/sd_storage.c
+  FATFS/App/fatfs.c
+  FATFS/Target/user_diskio.c
+  Middlewares/Third_Party/FatFs/src/diskio.c
+  Middlewares/Third_Party/FatFs/src/ff.c
+  Middlewares/Third_Party/FatFs/src/ff_gen_drv.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+  Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
+  Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c
@@ -69,18 +96,16 @@ set(C_SOURCES
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+  Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s.c
+  Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
+  Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
   Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
-  User/Fonts/font8.c
-  User/GUI/Data_Manager.c
-  User/GUI/Display_Screens.c
-  User/GUI/GUI_Paint.c
-  User/RGBMatrix/RGBMatrix_device.c
 )
 
 set(ASM_SOURCES
