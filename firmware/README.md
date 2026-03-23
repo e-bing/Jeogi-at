@@ -9,6 +9,7 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 ## 🤍 1. 주요 기능
 
 * **Raspberry Pi Interface**
+
     * **Command Protocol (UART)**
     * **Audio Streaming (SPI)**
 * **Multi Sensor (ADC)**
@@ -23,16 +24,17 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 ## 🤍 2. 시스템 환경 및 빌드 스택
 
 * **Target MCU:** STM32F401RE (Cortex-M4, FPU)
+
 * **IDE:** STM32CubeIDE 2.0.0
 * **CubeMX:** 6.8.0
 * **Build System:** CMake 3.20+
 * **Toolchain:** GNU Arm Embedded Toolchain (`arm-none-eabi-gcc`)
-* **권장 OS:** Ubuntu 22.04 / 24.04 LTS
 
 > 참고: `.ioc` 파일을 열 때 CubeMX 버전에 따라 코드 생성 옵션/핀 설정 표시가 달라질 수 있으므로 `6.8.0` 기준 사용을 권장합니다.
 
 - ### 통신 인터페이스
     - UART: 디버그 출력 및 Raspberry Pi와의 시리얼 통신
+
     - SPI: Raspberry Pi와의 고속 통신 및 SD Card 접근
     - I2S: MAX98357A 앰프 오디오 출력
     - GPIO / HUB75: LED Matrix 제어
@@ -42,6 +44,7 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
         - UART: command-based control protocol
         - SPI: high-speed data transfer
     - **STM32 ↔ SD Card**
+
         - SPI interface
     - **STM32 ↔ MAX98357A**
         - I2S audio output
@@ -71,6 +74,7 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 아래 도구들이 설치되어 있어야 합니다.
 
 * `cmake` (3.20 이상)
+
 * `make`
 * `arm-none-eabi-gcc`
 * `arm-none-eabi-objcopy`, `arm-none-eabi-size`
@@ -102,6 +106,7 @@ cmake --build build_cmake -j
 ### 4. 빌드 산출물
 
 * ELF: `build_cmake/STM32F401_EdgeDevice`
+
 * MAP: `build_cmake/STM32F401_EdgeDevice.map`
 * HEX: `build_cmake/STM32F401_EdgeDevice.hex`
 * BIN: `build_cmake/STM32F401_EdgeDevice.bin`
@@ -111,6 +116,7 @@ cmake --build build_cmake -j
 ## 🤍 5. 플래시/디버그
 
 * `STM32F401_EdgeDevice Debug.launch`를 사용해 CubeIDE에서 디버그 실행 가능
+
 * CLI 기반 플래시가 필요하면 OpenOCD 또는 STM32CubeProgrammer를 별도 설치해 사용
 
 ---
