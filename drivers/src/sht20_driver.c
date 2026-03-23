@@ -15,9 +15,25 @@ static struct class* sht20_class = NULL;
 static struct device* sht20_device = NULL;
 static struct i2c_client *sht20_client_ptr = NULL;
 
+// CRC-8 검증 함수 (Poly: 0x31, Init: 0x00)
+static u8 sht20_crc8(const u8 *data, int len) {
+    u8 crc = 0x00;
+    int i, j;
+    for (i = 0; i < len; i++) {
+        crc ^= data[i];
+        for (j = 0; j < 8; j++) {
+            if (crc & 0x80)
+                crc = (crc << 1) ^ 0x31;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
 // 센서에서 데이터를 읽어오는 함수
 static int read_sht20_data(struct i2c_client *client, char cmd, unsigned short *result) {
-    char buf[3];
+    u8 buf[3];
     int ret;
 
     // 1. 측정 명령 전송
@@ -30,6 +46,10 @@ static int read_sht20_data(struct i2c_client *client, char cmd, unsigned short *
     // 3. 데이터 3바이트 수신 (MSB, LSB, Checksum)
     ret = i2c_master_recv(client, buf, 3);
     if (ret < 0) return ret;
+
+    // 4. CRC-8 검증
+    if (sht20_crc8(buf, 2) != buf[2])
+        return -EIO;
 
     *result = (buf[0] << 8) | (buf[1] & 0xFC);
     return 0;
