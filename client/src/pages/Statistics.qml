@@ -195,7 +195,7 @@ ColumnLayout {
                         Layout.fillWidth: true; spacing: 0
                         Rectangle { Layout.preferredWidth: 90; height: 40; color: Style.colorTableHeadAir; Text { anchors.centerIn: parent; text: "요일"; color: "white"; font.bold: true } }
                         Rectangle { Layout.fillWidth: true; height: 40; color: Style.colorTableHeadAir; Text { anchors.centerIn: parent; text: "CO 평균 (ppm)"; color: "white"; font.bold: true } }
-                        Rectangle { Layout.fillWidth: true; height: 40; color: Style.colorTableHeadAir; Text { anchors.centerIn: parent; text: "CO2 평균 (ppm)"; color: "white"; font.bold: true } }
+                        Rectangle { Layout.fillWidth: true; height: 40; color: Style.colorTableHeadAir; Text { anchors.centerIn: parent; text: "GAS 평균 (ppm)"; color: "white"; font.bold: true } }
                         Rectangle { Layout.preferredWidth: 90; height: 40; color: Style.colorTableHeadAir; Text { anchors.centerIn: parent; text: "상태"; color: "white"; font.bold: true } }
                     }
 

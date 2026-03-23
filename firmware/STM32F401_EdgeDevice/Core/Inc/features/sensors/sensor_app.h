@@ -8,6 +8,6 @@
 extern ADC_HandleTypeDef hadc1;
 
 // 센서 필터 공통 계수
-#define SENSOR_ALPHA 0.2f
+#define SENSOR_ALPHA 0.1f
 
 #endif /* FEATURES_SENSORS_SENSOR_APP_H */

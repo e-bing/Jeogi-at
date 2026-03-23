@@ -682,7 +682,7 @@ ColumnLayout {
                             spacing: 5
                             RowLayout {
                                 Text {
-                                    text: "이산화탄소 농도 (CO2)"
+                                    text: "대기질"
                                     color: Style.colorSlate500
                                     font: Style.fontSmall
                                 }
@@ -734,7 +734,7 @@ ColumnLayout {
                             }
 
                             Text {
-                                text: "💡 CO2: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
+                                text: "💡 대기질: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
                                 font.pixelSize: 10
                                 color: Style.colorSlate500
                             }
@@ -746,7 +746,7 @@ ColumnLayout {
                             spacing: 5
                             RowLayout {
                                 Text {
-                                    text: "일산화탄소 농도 (CO)"
+                                    text: "일산화탄소 농도"
                                     color: Style.colorSlate500
                                     font: Style.fontSmall
                                 }

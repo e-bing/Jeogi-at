@@ -1,11 +1,14 @@
 #include <mqtt/async_client.h>
 
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <opencv2/dnn.hpp>
 #include <opencv2/opencv.hpp>
+#include <thread>
 #include <vector>
 
 #include "net.h"
@@ -41,12 +44,93 @@ const LabCorrection lab_corr[3] = {
     {1.1875f, -25.4647f}  // B
 };
 
+// --- 추론 스레드 공유 데이터 ---
+cv::Mat g_infer_frame;
+std::mutex g_infer_mutex;
+std::atomic<bool> g_new_frame{false};
+std::atomic<bool> g_running{true};
+
 std::string get_timestamp() {
   auto now = std::chrono::system_clock::now();
   auto in_time_t = std::chrono::system_clock::to_time_t(now);
   std::stringstream ss;
   ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%dT%H:%M:%S");
   return ss.str();
+}
+
+void infer_thread_func(ncnn::Net& detector, mqtt::async_client& client) {
+  std::vector<cv::Rect> boxes;
+  std::vector<float> confidences;
+  boxes.reserve(100);
+  confidences.reserve(100);
+
+  while (g_running) {
+    if (!g_new_frame) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
+    cv::Mat frame;
+    {
+      std::lock_guard<std::mutex> lock(g_infer_mutex);
+      frame = g_infer_frame.clone();
+      g_new_frame = false;
+    }
+
+    // AI 추론
+    ncnn::Mat in = ncnn::Mat::from_pixels_resize(
+        frame.data, ncnn::Mat::PIXEL_BGR2RGB, frame.cols, frame.rows,
+        INFER_SIZE, INFER_SIZE);
+    const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
+    in.substract_mean_normalize(0, norm_vals);
+
+    ncnn::Extractor ex = detector.create_extractor();
+    ex.input("in0", in);
+    ncnn::Mat out;
+    ex.extract("out0", out);
+
+    boxes.clear();
+    confidences.clear();
+    json objects_array = json::array();
+    float scale_w = (float)CAPTURE_W / INFER_SIZE;
+    float scale_h = (float)CAPTURE_H / INFER_SIZE;
+
+    for (int i = 0; i < out.w; i++) {
+      float score = out.row(4)[i];
+      if (score > SCORE_THRESHOLD) {
+        float w = out.row(2)[i] * scale_w;
+        float h = out.row(3)[i] * scale_h;
+        int x = (int)((out.row(0)[i] - out.row(2)[i] / 2) * scale_w);
+        int y = (int)((out.row(1)[i] - out.row(3)[i] / 2) * scale_h);
+        boxes.push_back(cv::Rect(x, y, (int)w, (int)h));
+        confidences.push_back(score);
+      }
+    }
+
+    std::vector<int> indices;
+    cv::dnn::NMSBoxes(boxes, confidences, SCORE_THRESHOLD, NMS_THRESHOLD,
+                      indices);
+
+    for (int idx : indices) {
+      objects_array.push_back({{"x", boxes[idx].x / (float)CAPTURE_W},
+                               {"y", boxes[idx].y / (float)CAPTURE_H},
+                               {"w", boxes[idx].width / (float)CAPTURE_W},
+                               {"h", boxes[idx].height / (float)CAPTURE_H},
+                               {"conf", confidences[idx]}});
+    }
+
+    json msg;
+    msg["device_id"] = DEVICE_ID;
+    msg["timestamp"] = get_timestamp();
+    msg["sensor_type"] = "people_count";
+    msg["value"] = indices.size();
+    msg["unit"] = "person";
+    msg["blocks"] = objects_array;
+
+    auto pubmsg = mqtt::make_message(TOPIC, msg.dump());
+    pubmsg->set_qos(0);
+    client.publish(pubmsg);
+  }
 }
 
 int main() {
@@ -71,6 +155,7 @@ int main() {
   detector.opt.use_fp16_arithmetic = true;
   detector.load_param("../models/model.ncnn.param");
   detector.load_model("../models/model.ncnn.bin");
+
   const std::string in_pipeline = R"(
       libcamerasrc ! video/x-raw,width=640,height=480,framerate=30/1 !
       queue max-size-buffers=2 leaky=downstream !
@@ -96,8 +181,7 @@ int main() {
   }
   std::cout << "송출 준비 완료! 5000번 포트 대기 중..." << std::endl;
 
-  // 3. 보정
-  // 보정 mat 생성
+  // 3. 보정 초기화
   cv::Mat kernel = (cv::Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
   cv::Mat contrast_lut(1, 256, CV_8U);
   for (int i = 0; i < 256; i++)
@@ -107,14 +191,13 @@ int main() {
   for (int i = 0; i < 256; i++)
     sat_lut.at<uchar>(i) = cv::saturate_cast<uchar>(i * SAT_SCALE);
 
-  std::vector<cv::Rect> boxes;
-  std::vector<float> confidences;
-  boxes.reserve(100);
-  confidences.reserve(100);
-
   std::vector<cv::Mat> lab_ch(3);
   std::vector<cv::Mat> hsv_ch(3);
   cv::Mat lab, hsv, frame_enhanced;
+
+  // 4. 추론 스레드 시작
+  std::thread infer_thread(infer_thread_func, std::ref(detector),
+                           std::ref(client));
 
   while (true) {
     cv::Mat frame;
@@ -140,73 +223,24 @@ int main() {
     // 색조/채도 보정
     cv::cvtColor(frame_enhanced, hsv, cv::COLOR_BGR2HSV);
     cv::split(hsv, hsv_ch);
-
-    // 채도 0.90
     cv::LUT(hsv_ch[1], sat_lut, hsv_ch[1]);
     cv::merge(hsv_ch, hsv);
     cv::cvtColor(hsv, frame_enhanced, cv::COLOR_HSV2BGR);
 
     cv::LUT(frame_enhanced, contrast_lut, frame_enhanced);
 
-    if (frame_idx % INFER_INTERVAL == 0) {
-      // 4. AI 추론 (320x320 리사이징)
-      ncnn::Mat in = ncnn::Mat::from_pixels_resize(
-          frame_enhanced.data, ncnn::Mat::PIXEL_BGR2RGB, frame_enhanced.cols,
-          frame_enhanced.rows, INFER_SIZE, INFER_SIZE);
-      const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
-      in.substract_mean_normalize(0, norm_vals);
-
-      ncnn::Extractor ex = detector.create_extractor();
-      ex.input("in0", in);
-      ncnn::Mat out;
-      ex.extract("out0", out);
-
-      // 5. 후처리 및 JSON 데이터 생성
-      boxes.clear();
-      confidences.clear();
-      json objects_array = json::array();
-      float scale_w = (float)CAPTURE_W / INFER_SIZE;
-      float scale_h = (float)CAPTURE_H / INFER_SIZE;
-
-      for (int i = 0; i < out.w; i++) {
-        float score = out.row(4)[i];
-        if (score > SCORE_THRESHOLD) {
-          float w = out.row(2)[i] * scale_w;
-          float h = out.row(3)[i] * scale_h;
-          int x = (int)((out.row(0)[i] - out.row(2)[i] / 2) * scale_w);
-          int y = (int)((out.row(1)[i] - out.row(3)[i] / 2) * scale_h);
-          boxes.push_back(cv::Rect(x, y, (int)w, (int)h));
-          confidences.push_back(score);
-        }
-      }
-
-      std::vector<int> indices;
-      cv::dnn::NMSBoxes(boxes, confidences, SCORE_THRESHOLD, NMS_THRESHOLD,
-                        indices);
-
-      for (int idx : indices) {
-        objects_array.push_back({{"x", boxes[idx].x / (float)CAPTURE_W},
-                                 {"y", boxes[idx].y / (float)CAPTURE_H},
-                                 {"w", boxes[idx].width / (float)CAPTURE_W},
-                                 {"h", boxes[idx].height / (float)CAPTURE_H},
-                                 {"conf", confidences[idx]}});
-      }
-
-      // 6. MQTT 전송
-      json msg;
-      msg["device_id"] = DEVICE_ID;
-      msg["timestamp"] = get_timestamp();
-      msg["sensor_type"] = "people_count";
-      msg["value"] = indices.size();
-      msg["unit"] = "person";
-      msg["blocks"] = objects_array;
-
-      auto pubmsg = mqtt::make_message(TOPIC, msg.dump());
-      pubmsg->set_qos(0);
-      client.publish(pubmsg);
+    // 추론 스레드에 프레임 전달
+    if (frame_idx % INFER_INTERVAL == 0 && !g_new_frame) {
+      std::lock_guard<std::mutex> lock(g_infer_mutex);
+      g_infer_frame = frame_enhanced.clone();
+      g_new_frame = true;
     }
+
     frame_idx++;
     writer.write(frame_enhanced);
   }
+
+  g_running = false;
+  infer_thread.join();
   return 0;
 }
