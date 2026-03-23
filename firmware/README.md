@@ -80,12 +80,7 @@ STM32F401RE 기반으로 센서/디스플레이/오디오 주변장치를 제어
 * `arm-none-eabi-objcopy`, `arm-none-eabi-size`
 * ST-LINK (플래시/디버깅 시)
 
-Ubuntu 설치 예시:
 
-```bash
-sudo apt update
-sudo apt install -y cmake make gcc-arm-none-eabi binutils-arm-none-eabi
-```
 
 ### 2. STM32CubeIDE 빌드 (추천)
 
