@@ -116,7 +116,7 @@ cmake --build build_cmake -j
 
 ---
 
-## 🤍 6. 트러블슈팅
+### 💡  참고사항
 
 * `arm-none-eabi-gcc: command not found`
   * GNU Arm Toolchain 미설치 또는 PATH 미등록 상태입니다.
