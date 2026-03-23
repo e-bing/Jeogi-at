@@ -81,7 +81,7 @@
 
 * **Device Control Node:** Raspberry Pi 4, STM32 NUCLEO-F401RE
 
-* **Peripherals:** P5 LED Matrix (HUB75), MAX98357 (I2S), MQ-7/135, SHT20 (I2C), DC Motor (GPIO/PWM)
+* **Peripherals:** P5 LED Matrix (HUB75), MAX98357 (I2S), MQ-7/135(ADC), SHT20 (I2C), DC Motor (GPIO/PWM)
 
 ### 💻 Software Stack
 
