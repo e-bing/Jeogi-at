@@ -53,7 +53,6 @@ void run_sht20_monitor(int fd) {
     cout << "🚀 SHT20 모니터링 시작..." << endl;
 
     while (true) {
-        lseek(fd, 0, SEEK_SET);
         ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
 
         if (bytes > 0) {

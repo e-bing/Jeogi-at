@@ -82,7 +82,7 @@ static ssize_t sht20_read(struct file *file, char __user *user_buf, size_t count
 
     if (copy_to_user(user_buf, out_buf, len)) return -EFAULT;
 
-    return (ppos && *ppos > 0) ? 0 : len;
+    return len;
 }
 
 static int sht20_open(struct inode *inode, struct file *file) {
@@ -92,9 +92,10 @@ static int sht20_open(struct inode *inode, struct file *file) {
 }
 
 static struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .open = sht20_open,
-    .read = sht20_read,
+    .owner  = THIS_MODULE,
+    .open   = sht20_open,
+    .read   = sht20_read,
+    .llseek = noop_llseek,
 };
 
 static int sht20_probe(struct i2c_client *client, const struct i2c_device_id *id) {
