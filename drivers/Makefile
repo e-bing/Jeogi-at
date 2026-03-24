@@ -25,6 +25,7 @@ module:
 app:
 	mkdir -p $(BUILD_DIR)
 	g++ -std=c++17 \
+		-Wall -Wextra \
 		-I$(INCLUDES_DIR) \
 		-o $(BUILD_DIR)/drivers \
 		$(APP_SRCS) \

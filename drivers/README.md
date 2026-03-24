@@ -3,7 +3,7 @@
 **지하철 승강장 구역별 혼잡도 안내 및 환경 관리 시스템 (저기어때?)** 의 드라이버 모듈입니다.
 라즈베리파이 환경에서 환경 센서를 수집하고 하드웨어 장치를 제어하며, MQTT를 통해 중앙 서버와 데이터를 송수신합니다.
 
----
+## 1. Environment setup
 
 ## 🤍 1. 주요 기능
 
@@ -97,20 +97,30 @@ chmod +x setup_drivers.sh
 * Paho MQTT C / C++ 라이브러리 (소스 빌드)
 * I2C 활성화 여부 확인
 
-> ⚠️ **참고:** I2C가 비활성화된 경우 `sudo raspi-config → Interface Options → I2C → Enable` 후 재부팅이 필요합니다.
+- `build-essential`
+- Linux kernel headers
+- `libi2c-dev`
+- `nlohmann-json3-dev`
+- Eclipse Paho MQTT C / C++ libraries
 
----
+Required Raspberry Pi interfaces:
 
-### 2. 설정 파일 수정
+- Enable `I2C`
+- Enable `SPI`
+- Keep the MCU UART available at `/dev/ttyS0`
 
-`config/config.json`에 MQTT 브로커 주소, 토픽, 지하철 Open API 키를 설정합니다.
+If needed, use `sudo raspi-config` to enable `I2C` and `SPI`.
+
+## 2. Configure `config/config.json`
+
+Set the broker address, topics, and subway API key for your environment.
 
 ```json
 {
-    "mqtt_broker": "tcp://<서버 IP>:1883",
-    "subway_api_key": "<서울_열린데이터광장_API_인증키>",
-    "sensor_topic": "sensor/air_quality",
-    "sht20_topic": "sensor/temp_humi"
+  "mqtt_broker": "tcp://<server-ip>:1883",
+  "subway_api_key": "<seoul-open-api-key>",
+  "sensor_topic": "sensor/air_quality",
+  "sht20_topic": "sensor/temp_humi"
 }
 ```
 
@@ -118,38 +128,45 @@ chmod +x setup_drivers.sh
 > **참고 2:** `subway_api_key`는 **실시간 지하철 위치정보 Open API** 인증키를 사용해야 합니다.
 > **참고 3:** 인증키는 **서울 열린데이터광장**(https://data.seoul.go.kr/)에서 발급받을 수 있습니다.
 
----
+Build the kernel modules and the application.
 
-### 3. 빌드 및 드라이버 로드
+```bash
+make all
+```
 
-소스 코드를 컴파일하고 커널 모듈을 로드합니다.
+The application binary is created at `build/drivers`.
+
+## 4. Load kernel modules
+
+`build.sh` still handles the module load and device permission setup.
 
 ```bash
 chmod +x build.sh
 ./build.sh
 ```
 
-수행 순서:
-1. `make all` — 커널 모듈(`.ko`) + 유저 앱(`drivers`) 빌드
-2. `insmod motor_driver.ko` — 모터 PWM/GPIO 커널 드라이버 로드
-3. `insmod sht20_driver.ko` — SHT20 온습도 I2C 커널 드라이버 로드
-4. `/dev/motor`, `/dev/sht20` 권한 설정
+It performs:
 
-> ⚠️ **주의:** `build.sh`는 `sudo` 권한이 필요합니다. 커널 모듈이 이미 로드된 경우 `⚠️ 이미 로드됨 (정상)` 메시지가 출력되며 정상 동작입니다.
+1. `make all`
+2. `insmod src/motor_driver.ko`
+3. `insmod src/sht20_driver.ko`
+4. Permission setup for `/dev/motor`, `/dev/sht20`, `/dev/ttyS0`
 
----
+## 5. Run
 
-### 4. 실행
-
-빌드가 완료되면 드라이버 애플리케이션을 실행합니다.
+Start the integrated service:
 
 ```bash
 ./build/drivers
 ```
 
----
+At startup, the process now runs these features together:
 
-### 💡 참고 사항
+- MQTT communication for motor, sensor, display, and WAV control
+- UART communication with the STM32 on `/dev/ttyS0`
+- SHT20 monitoring
+- System status publishing
+- Qt -> Raspberry Pi -> MCU audio streaming server
 
 * 스크립트 실행 권한 오류 발생 시 `chmod +x *.sh`를 입력하여 권한을 부여할 수 있습니다.
 
