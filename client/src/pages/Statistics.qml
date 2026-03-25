@@ -141,11 +141,6 @@ ColumnLayout {
         Layout.margins: 20
         spacing: 20
 
-        Text {
-            text: "통계 및 리포트 분석"
-            font: Style.fontBold
-            color: Style.colorSlate800
-        }
         Item { Layout.fillWidth: true }
     }
 
@@ -157,19 +152,19 @@ ColumnLayout {
         background: Rectangle { color: Style.colorSurface; border.color: Style.colorTableBorder; border.width: 1 }
 
         TabButton {
-            id: tab2; text: "🌫️ 공기질 통계"; Layout.fillWidth: true
+            id: tab2; text: "공기질 통계"; Layout.fillWidth: true
             background: Rectangle { color: tab2.checked ? Style.colorSurface : Style.colorSlate200; border.color: Style.colorTableBorder; border.width: 1 }
-            contentItem: Text { text: tab2.text; font: Style.fontRegular; color: tab2.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
+            contentItem: Text { text: tab2.text; font.family: Style.fontBold.family; font.pointSize: 13; font.bold: true; color: tab2.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
         }
         TabButton {
-            id: tab4; text: "🌡️ 온습도 통계"; Layout.fillWidth: true
+            id: tab4; text: "온습도 통계"; Layout.fillWidth: true
             background: Rectangle { color: tab4.checked ? Style.colorSurface : Style.colorSlate200; border.color: Style.colorTableBorder; border.width: 1 }
-            contentItem: Text { text: tab4.text; font: Style.fontRegular; color: tab4.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
+            contentItem: Text { text: tab4.text; font.family: Style.fontBold.family; font.pointSize: 13; font.bold: true; color: tab4.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
         }
         TabButton {
-            id: tab3; text: "👥 승객 흐름 통계"; Layout.fillWidth: true
+            id: tab3; text: "승객 흐름 통계"; Layout.fillWidth: true
             background: Rectangle { color: tab3.checked ? Style.colorSurface : Style.colorSlate200; border.color: Style.colorTableBorder; border.width: 1 }
-            contentItem: Text { text: tab3.text; font: Style.fontRegular; color: tab3.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
+            contentItem: Text { text: tab3.text; font.family: Style.fontBold.family; font.pointSize: 13; font.bold: true; color: tab3.checked ? Style.colorSlate800 : Style.colorSlate600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideNone }
         }
     }
 

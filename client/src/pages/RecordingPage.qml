@@ -4,6 +4,7 @@ import QtQuick.Controls 2.15
 import ".."
 
 Rectangle {
+    id: recordingRoot
     color: Style.colorBackground
 
     property int selectedCamera: 1
@@ -11,18 +12,33 @@ Rectangle {
     property bool recActive: false
     property bool manualStopped: false
     property string errorMessage: ""
+    property var camRecordingStates: [false, false, false, false]
 
     function refresh() {
         recordings = recordingManager.getRecordings(selectedCamera)
         recActive  = recordingManager.isRecording(selectedCamera)
     }
 
-    Component.onCompleted: refresh()
+    Component.onCompleted: {
+        refresh()
+        var states = [false, false, false, false]
+        for (var i = 1; i <= 4; i++)
+            states[i - 1] = recordingManager.isRecording(i)
+        camRecordingStates = states
+    }
 
     Connections {
         target: recordingManager
         function onRecordingStateChanged(cameraId, recording) {
-            if (cameraId === selectedCamera) recActive = recording
+            var states = recordingRoot.camRecordingStates.slice()
+            states[cameraId - 1] = recording
+            recordingRoot.camRecordingStates = states
+            if (cameraId === recordingRoot.selectedCamera) {
+                recordingRoot.recActive = recording
+                recordingRoot.refresh()
+                if (!recording)
+                    durationRefreshTimer.restart()
+            }
         }
         function onRecordingsChanged(cameraId) {
             if (cameraId === selectedCamera) refresh()
@@ -31,6 +47,13 @@ Rectangle {
             errorMessage = message
             errorTimer.restart()
         }
+    }
+
+    Timer {
+        id: durationRefreshTimer
+        interval: 800
+        repeat: false
+        onTriggered: recordingRoot.refresh()
     }
 
     Timer {
@@ -115,10 +138,12 @@ Rectangle {
                 Repeater {
                     model: [1, 2, 3, 4]
                     delegate: Rectangle {
+                        id: camDelegate
+                        required property int modelData
                         Layout.fillWidth: true
                         height: 56
                         radius: 8
-                        color: selectedCamera === modelData
+                        color: recordingRoot.selectedCamera === camDelegate.modelData
                                ? Style.colorPrimary
                                : (camArea.containsMouse ? Style.colorSlate200 : "transparent")
 
@@ -135,10 +160,10 @@ Rectangle {
                                 width: 8
                                 height: 8
                                 radius: 4
-                                color: recordingManager.isRecording(modelData)
+                                color: recordingRoot.camRecordingStates[camDelegate.modelData - 1]
                                        ? Style.colorDanger : Style.colorSlate300
                                 SequentialAnimation on opacity {
-                                    running: recordingManager.isRecording(modelData)
+                                    running: recordingRoot.camRecordingStates[camDelegate.modelData - 1]
                                     loops: Animation.Infinite
                                     NumberAnimation { to: 0.2; duration: 500 }
                                     NumberAnimation { to: 1.0; duration: 500 }
@@ -146,8 +171,8 @@ Rectangle {
                             }
 
                             Text {
-                                text: "CAM " + modelData
-                                color: selectedCamera === modelData ? "white" : Style.colorSlate600
+                                text: "CAM " + camDelegate.modelData
+                                color: recordingRoot.selectedCamera === camDelegate.modelData ? "white" : Style.colorSlate600
                                 font: Style.fontNormal
                                 renderType: Text.QtRendering
                                 Layout.fillWidth: true
@@ -160,8 +185,8 @@ Rectangle {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                selectedCamera = modelData
-                                refresh()
+                                recordingRoot.selectedCamera = camDelegate.modelData
+                                recordingRoot.refresh()
                             }
                         }
                     }

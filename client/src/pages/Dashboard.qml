@@ -175,6 +175,13 @@ ColumnLayout {
         target: networkClient
         function onIsConnectedChanged() {
             console.log("Dashboard - Connected: " + networkClient.isConnected);
+            if (!networkClient.isConnected) {
+                dashboardRoot.tempValue = 0.0;
+                dashboardRoot.humiValue = 0.0;
+                dashboardRoot.co2Value = 0.0;
+                dashboardRoot.coValue = 0.0;
+                dashboardRoot.lastEnvUpdate = "수신 대기 중...";
+            }
         }
         function onStatusMessageChanged() {
             console.log("Dashboard - Status: " + networkClient.statusMessage);
@@ -248,6 +255,10 @@ ColumnLayout {
     ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
+        Layout.leftMargin: 2
+        Layout.rightMargin: 2
+        Layout.topMargin: 2
+        Layout.bottomMargin: 2
         spacing: 10
 
         // Top Row: Cameras + Environment
@@ -265,6 +276,7 @@ ColumnLayout {
                     border.color: Style.colorSlate200
                     border.width: 1
 
+
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 20
@@ -273,24 +285,42 @@ ColumnLayout {
                         RowLayout {
                             Layout.fillWidth: true
                             Text {
-                                text: "📹 실시간 카메라 모니터링"
-                                font: Style.fontBold
+                                text: "실시간 카메라 모니터링"
+                                font.family: Style.fontBold.family
+                                font.pointSize: 13
+                                font.bold: true
                                 color: Style.colorSlate800
                             }
                             Item {
                                 Layout.fillWidth: true
                             }
                             Text {
-                                id: detailsText
-                                text: dashboardRoot.showBoundingBox ? "객체 인식 ON" : "객체 인식 OFF"
-                                color: dashboardRoot.showBoundingBox ? "#22C55E" : Style.colorPrimary
-                                font.pixelSize: 12
+                                text: "객체 인식"
+                                font: Style.fontBold
+                                color: Style.colorSlate600
+                            }
+                            Rectangle {
+                                width: 36
+                                height: 20
+                                radius: 10
+                                color: dashboardRoot.showBoundingBox ? "#22c55e" : Style.colorSlate300
+
+                                Rectangle {
+                                    x: dashboardRoot.showBoundingBox ? 18 : 2
+                                    y: 2
+                                    width: 16
+                                    height: 16
+                                    radius: 8
+                                    color: "white"
+                                    Behavior on x {
+                                        NumberAnimation { duration: 200 }
+                                    }
+                                }
+
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        dashboardRoot.showBoundingBox = !dashboardRoot.showBoundingBox;
-                                    }
+                                    onClicked: dashboardRoot.showBoundingBox = !dashboardRoot.showBoundingBox
                                 }
                             }
                         }
@@ -309,7 +339,7 @@ ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     color: Style.isDarkMode ? "#1e293b" : "#0f172a"
-                                    radius: 12
+                                    radius: 0
                                     clip: true
                                     border.color: Style.isDarkMode ? "white" : "#334155"
                                     border.width: 1
@@ -379,31 +409,17 @@ ColumnLayout {
                                         ColumnLayout {
                                             anchors.centerIn: parent
                                             spacing: 8
-                                            Rectangle {
-                                                width: 48
-                                                height: 48
-                                                radius: 24
-                                                color: "#1e293b"
-                                                Layout.alignment: Qt.AlignCenter
-                                                Text {
-                                                    anchors.centerIn: parent
-                                                    text: "!"
-                                                    font.pixelSize: 24
-                                                    color: Style.colorDanger
-                                                    font.bold: true
-                                                }
-                                            }
                                             Text {
                                                 text: "NO SIGNAL"
                                                 color: "#94A3B8"
-                                                font.pixelSize: 12
+                                                font.pixelSize: 16
                                                 font.bold: true
                                                 Layout.alignment: Qt.AlignCenter
                                             }
                                             Text {
                                                 text: "CAM-0" + (index + 1)
                                                 color: Style.colorSlate500
-                                                font.pixelSize: 10
+                                                font.pixelSize: 11
                                                 Layout.alignment: Qt.AlignCenter
                                             }
                                         }
@@ -602,7 +618,7 @@ ColumnLayout {
                 // Environment Card
                 Rectangle {
                     Layout.fillHeight: true
-                    Layout.preferredWidth: 350
+                    Layout.preferredWidth: 365
                     color: Style.colorSurface
                     radius: 12
                     border.color: Style.colorSlate200
@@ -616,8 +632,10 @@ ColumnLayout {
                         RowLayout {
                             Layout.fillWidth: true
                             Text {
-                                text: "🍂 역사 내 환경 모니터링"
-                                font: Style.fontBold
+                                text: "역사 내 환경 모니터링"
+                                font.family: Style.fontBold.family
+                                font.pointSize: 13
+                                font.bold: true
                                 color: Style.colorSlate800
                             }
                             Item {
@@ -633,17 +651,27 @@ ColumnLayout {
                         // 온습도
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 20
+                            spacing: 10
 
                             RowLayout {
-                                spacing: 6
+                                spacing: 10
                                 Text {
                                     text: "🌡️ 온도"
-                                    color: Style.colorSlate500
-                                    font: Style.fontSmall
+                                    color: Style.colorSlate800
+                                    font.family: Style.fontBold.family
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 Text {
-                                    text: dashboardRoot.tempValue > 0 ? dashboardRoot.tempValue.toFixed(1) + " °C" : "-- °C"
+                                    text: dashboardRoot.tempValue > 0 ? dashboardRoot.tempValue.toFixed(1) : "--"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                    Layout.preferredWidth: 50
+                                    Layout.maximumWidth: 50
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                                Text {
+                                    text: "°C"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -656,14 +684,24 @@ ColumnLayout {
                             }
 
                             RowLayout {
-                                spacing: 6
+                                spacing: 10
                                 Text {
                                     text: "💧 습도"
-                                    color: Style.colorSlate500
-                                    font: Style.fontSmall
+                                    color: Style.colorSlate800
+                                    font.family: Style.fontBold.family
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 Text {
-                                    text: dashboardRoot.humiValue > 0 ? dashboardRoot.humiValue.toFixed(1) + " %" : "-- %"
+                                    text: dashboardRoot.humiValue > 0 ? dashboardRoot.humiValue.toFixed(1) : "--"
+                                    font: Style.fontLarge
+                                    color: Style.colorSlate800
+                                    Layout.preferredWidth: 50
+                                    Layout.maximumWidth: 50
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                                Text {
+                                    text: "%"
                                     font: Style.fontLarge
                                     color: Style.colorSlate800
                                 }
@@ -683,8 +721,10 @@ ColumnLayout {
                             RowLayout {
                                 Text {
                                     text: "대기질"
-                                    color: Style.colorSlate500
-                                    font: Style.fontSmall
+                                    color: Style.colorSlate800
+                                    font.family: Style.fontBold.family
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 Item {
                                     Layout.fillWidth: true
@@ -733,10 +773,20 @@ ColumnLayout {
                                 }
                             }
 
-                            Text {
-                                text: "💡 대기질: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
-                                font.pixelSize: 10
-                                color: Style.colorSlate500
+                            Row {
+                                spacing: 4
+                                Text {
+                                    text: "💡"
+                                    font.pixelSize: 14
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: "대기질: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
+                                    font.pixelSize: 10
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
 
@@ -747,8 +797,10 @@ ColumnLayout {
                             RowLayout {
                                 Text {
                                     text: "일산화탄소 농도"
-                                    color: Style.colorSlate500
-                                    font: Style.fontSmall
+                                    color: Style.colorSlate800
+                                    font.family: Style.fontBold.family
+                                    font.pointSize: 12
+                                    font.bold: true
                                 }
                                 Item {
                                     Layout.fillWidth: true
@@ -797,10 +849,20 @@ ColumnLayout {
                                 }
                             }
 
-                            Text {
-                                text: "💡 CO: 9ppm 이상 '주의', 25ppm 이상 '위험' 단계 진입"
-                                font.pixelSize: 10
-                                color: Style.colorSlate500
+                            Row {
+                                spacing: 4
+                                Text {
+                                    text: "💡"
+                                    font.pixelSize: 14
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: "CO: 9ppm 이상 '주의', 25ppm 이상 '위험' 단계 진입"
+                                    font.pixelSize: 10
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
 
@@ -934,14 +996,17 @@ ColumnLayout {
                     border.color: Style.colorSlate200
                     border.width: 1
 
+
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 20
                         spacing: 15
 
                         Text {
-                            text: "👥 실시간 혼잡도 현황 (8구간)"
-                            font: Style.fontBold
+                            text: "실시간 혼잡도 현황"
+                            font.family: Style.fontBold.family
+                            font.pointSize: 13
+                            font.bold: true
                             color: Style.colorSlate800
                         }
 
@@ -1106,7 +1171,7 @@ ColumnLayout {
 
                 // Device Control
                 Rectangle {
-                    Layout.preferredWidth: 350
+                    Layout.preferredWidth: 365
                     Layout.preferredHeight: deviceControlInner.implicitHeight + 35
                     Layout.alignment: Qt.AlignTop
                     color: Style.colorSurface
@@ -1128,8 +1193,10 @@ ColumnLayout {
                             Layout.fillWidth: true
                             Layout.rightMargin: 15
                             Text {
-                                text: "👆 디바이스 통합 제어"
-                                font: Style.fontBold
+                                text: "디바이스 통합 제어"
+                                font.family: Style.fontBold.family
+                                font.pointSize: 13
+                                font.bold: true
                                 color: Style.colorSlate800
                             }
                             Item {
@@ -1145,7 +1212,7 @@ ColumnLayout {
                                 width: 36
                                 height: 20
                                 radius: 10
-                                color: dashboardRoot.isManualMode ? "#EAB308" : Style.colorSlate300
+                                color: dashboardRoot.isManualMode ? Style.colorPrimary : Style.colorSlate300
 
                                 Rectangle {
                                     id: modeKnob
@@ -1219,105 +1286,104 @@ ColumnLayout {
                                     radius: 8
                                     color: "white"
 
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 15
-                                        Text {
-                                            text: deviceItem.deviceData.icon
-                                        }
-                                        Text {
-                                            text: deviceItem.deviceData.name
-                                            font: Style.fontBold
-                                            color: "#0F172A"
-                                        }
-                                        Item {
-                                            Layout.fillWidth: true
-                                        }
+                                    Text {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 15
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: deviceItem.deviceData.name
+                                        font: Style.fontBold
+                                        color: "#0F172A"
+                                    }
 
-                                        // 1) Toggle switch
+                                    // 1) Toggle switch
+                                    Rectangle {
+                                        visible: deviceItem.deviceData.type === "toggle"
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 15
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 36
+                                        height: 20
+                                        radius: 10
+                                        color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
+
                                         Rectangle {
-                                            visible: deviceItem.deviceData.type === "toggle"
-                                            width: 36
-                                            height: 20
-                                            radius: 10
-                                            color: deviceItem.isActive ? Style.colorPrimary : Style.colorSlate300
-
-                                            Rectangle {
-                                                id: knob
-                                                x: deviceItem.isActive ? 18 : 2
-                                                y: 2
-                                                width: 16
-                                                height: 16
-                                                radius: 8
-                                                color: "white"
-                                                Behavior on x {
-                                                    NumberAnimation {
-                                                        duration: 200
-                                                    }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    deviceItem.isActive = !deviceItem.isActive;
-                                                    if (networkClient && networkClient.sendDeviceCommand) {
-                                                        networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
-                                                    }
+                                            id: knob
+                                            x: deviceItem.isActive ? 18 : 2
+                                            y: 2
+                                            width: 16
+                                            height: 16
+                                            radius: 8
+                                            color: "white"
+                                            Behavior on x {
+                                                NumberAnimation {
+                                                    duration: 200
                                                 }
                                             }
                                         }
 
-                                        // 2) Numbered buttons
-                                        RowLayout {
-                                            visible: deviceItem.deviceData.type === "buttons"
-                                            spacing: 6
-
-                                            Timer {
-                                                id: resetTimer
-                                                interval: 3000
-                                                repeat: false
-                                                onTriggered: {
-                                                    deviceItem.activeOption = "";
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                deviceItem.isActive = !deviceItem.isActive;
+                                                if (networkClient && networkClient.sendDeviceCommand) {
+                                                    networkClient.sendDeviceCommand(deviceItem.deviceData.device, deviceItem.isActive ? networkClient.ACTION_ON : networkClient.ACTION_OFF);
                                                 }
                                             }
+                                        }
+                                    }
 
-                                            Repeater {
-                                                model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
-                                                Rectangle {
-                                                    width: 28
-                                                    height: 28
-                                                    radius: 6
-                                                    color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
-                                                    border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
-                                                    border.width: 1
+                                    // 2) Numbered buttons
+                                    Row {
+                                        visible: deviceItem.deviceData.type === "buttons"
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 15
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
 
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: modelData
-                                                        color: deviceItem.activeOption === modelData ? "white" : "#475569"
-                                                        font.bold: true
-                                                        font.pixelSize: 13
-                                                    }
+                                        Timer {
+                                            id: resetTimer
+                                            interval: 3000
+                                            repeat: false
+                                            onTriggered: {
+                                                deviceItem.activeOption = "";
+                                            }
+                                        }
 
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            var val = modelData;
-                                                            deviceItem.activeOption = val;
-                                                            resetTimer.restart();
-                                                            if (networkClient && networkClient.sendDeviceCommand) {
-                                                                var targetAction = networkClient.ACTION_1;
-                                                                if (val === "2")
-                                                                    targetAction = networkClient.ACTION_2;
-                                                                else if (val === "3")
-                                                                    targetAction = networkClient.ACTION_3;
-                                                                else if (val === "4")
-                                                                    targetAction = networkClient.ACTION_4;
-                                                                networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
-                                                            }
+                                        Repeater {
+                                            model: deviceItem.deviceData.type === "buttons" ? deviceItem.deviceData.options : []
+                                            Rectangle {
+                                                width: 28
+                                                height: 28
+                                                radius: 6
+                                                color: deviceItem.activeOption === modelData ? Style.colorPrimary : "white"
+                                                border.color: deviceItem.activeOption === modelData ? Style.colorPrimary : Style.colorSlate300
+                                                border.width: 1
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: modelData
+                                                    color: deviceItem.activeOption === modelData ? "white" : "#475569"
+                                                    font.bold: true
+                                                    font.pixelSize: 13
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        var val = modelData;
+                                                        deviceItem.activeOption = val;
+                                                        resetTimer.restart();
+                                                        if (networkClient && networkClient.sendDeviceCommand) {
+                                                            var targetAction = networkClient.ACTION_1;
+                                                            if (val === "2")
+                                                                targetAction = networkClient.ACTION_2;
+                                                            else if (val === "3")
+                                                                targetAction = networkClient.ACTION_3;
+                                                            else if (val === "4")
+                                                                targetAction = networkClient.ACTION_4;
+                                                            networkClient.sendDeviceCommand(deviceItem.deviceData.device, targetAction);
                                                         }
                                                     }
                                                 }

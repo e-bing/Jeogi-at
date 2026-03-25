@@ -164,20 +164,11 @@ Rectangle {
                 onClicked: Style.isDarkMode = !Style.isDarkMode
             }
 
-            RowLayout {
+            Text {
                 anchors.centerIn: parent
-                spacing: 12
-
-                Text {
-                    text: Style.isDarkMode ? "☀️" : "🌙"
-                    font.pixelSize: 18
-                }
-
-                Text {
-                    text: Style.isDarkMode ? "라이트 모드로 전환" : "다크 모드로 전환"
-                    color: Style.colorSlate600
-                    font: Style.fontNormal
-                }
+                text: Style.isDarkMode ? "라이트 모드" : "다크 모드"
+                color: Style.colorSlate600
+                font: Style.fontNormal
             }
         }
     }
