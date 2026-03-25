@@ -186,7 +186,7 @@ void NetworkClient::onConnected() {
 void NetworkClient::onDisconnected() {
   qDebug() << "Socket disconnected, last error:" << socket->errorString()
            << "state:" << socket->state();
-  setStatus("❌ Disconnected from server");
+  setStatus("Disconnected from server");
   setIsConnected(false);
 }
 

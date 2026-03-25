@@ -29,7 +29,10 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 10 // Reduced from 20
+        anchors.leftMargin: 20
+        anchors.rightMargin: 10
+        anchors.topMargin: 10
+        anchors.bottomMargin: 10
 
         Text {
             text: headerRoot.title
@@ -79,47 +82,6 @@ Rectangle {
             }
         }
 
-        // Notification Icons (Placeholders)
-        Rectangle {
-            width: 32
-            height: 32
-            color: Style.colorSlate200
-            radius: 16
-            Text {
-                anchors.centerIn: parent
-                text: "🔔"
-            }
-        }
 
-        Rectangle {
-            width: 32
-            height: 32
-            color: Style.colorSlate200
-            radius: 16
-            Text {
-                anchors.centerIn: parent
-                text: Style.isDarkMode ? "☀️" : "🌙"
-                font.pixelSize: 16
-            }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Style.isDarkMode = !Style.isDarkMode
-            }
-        }
-
-        Rectangle {
-            width: 32
-            height: 32
-            color: Style.colorPrimary
-            radius: 16
-            Text {
-                anchors.centerIn: parent
-                text: "AD"
-                color: "white"
-                font.pixelSize: 10
-                font.bold: true
-            }
-        }
     }
 }

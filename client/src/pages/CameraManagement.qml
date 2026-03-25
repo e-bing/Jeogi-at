@@ -61,7 +61,7 @@ Item {
             ColumnLayout {
                 spacing: 4
                 Text {
-                    text: "🖥️  시스템 리소스 모니터링"
+                    text: "시스템 리소스 모니터링"
                     font.family: "Pretendard"
                     font.pixelSize: 22
                     font.bold: true
