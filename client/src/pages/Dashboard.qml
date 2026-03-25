@@ -651,12 +651,12 @@ ColumnLayout {
                         // 온습도
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 20
+                            spacing: 10
 
                             RowLayout {
-                                spacing: 20
+                                spacing: 10
                                 Text {
-                                    text: "온도"
+                                    text: "🌡️ 온도"
                                     color: Style.colorSlate800
                                     font.family: Style.fontBold.family
                                     font.pointSize: 12
@@ -684,9 +684,9 @@ ColumnLayout {
                             }
 
                             RowLayout {
-                                spacing: 20
+                                spacing: 10
                                 Text {
-                                    text: "습도"
+                                    text: "💧 습도"
                                     color: Style.colorSlate800
                                     font.family: Style.fontBold.family
                                     font.pointSize: 12
@@ -773,10 +773,20 @@ ColumnLayout {
                                 }
                             }
 
-                            Text {
-                                text: "💡 대기질: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
-                                font.pixelSize: 10
-                                color: Style.colorSlate500
+                            Row {
+                                spacing: 4
+                                Text {
+                                    text: "💡"
+                                    font.pixelSize: 14
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: "대기질: 400ppm 이상 '주의', 600ppm 이상 '위험' 단계 진입"
+                                    font.pixelSize: 10
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
 
@@ -839,10 +849,20 @@ ColumnLayout {
                                 }
                             }
 
-                            Text {
-                                text: "💡 CO: 9ppm 이상 '주의', 25ppm 이상 '위험' 단계 진입"
-                                font.pixelSize: 10
-                                color: Style.colorSlate500
+                            Row {
+                                spacing: 4
+                                Text {
+                                    text: "💡"
+                                    font.pixelSize: 14
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: "CO: 9ppm 이상 '주의', 25ppm 이상 '위험' 단계 진입"
+                                    font.pixelSize: 10
+                                    color: Style.colorSlate500
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
 

@@ -77,7 +77,8 @@ Rectangle {
             Text {
                 text: Qt.formatDateTime(headerRoot.currentTime, "yyyy-MM-dd hh:mm:ss")
                 color: Style.colorSlate500
-                font: Style.fontNormal
+                font.family: "Consolas"
+                font.pixelSize: 13
                 Layout.alignment: Qt.AlignVCenter
             }
         }
