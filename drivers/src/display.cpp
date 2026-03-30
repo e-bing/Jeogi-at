@@ -20,34 +20,46 @@ static mqtt::async_client *g_display_mqtt = nullptr;
 static bool g_subway_thread_started = false;
 static constexpr int TARGET_SUBWAY_ID = 1003; // 3호선
 
-static uint8_t train_dest_code_from_line(const string &line) {
-  if (line.find("대화행") != string::npos || line.find("DAEWHA") != string::npos) {
+static uint8_t train_dest_code_from_line(const string &line)
+{
+  if (line.find("대화") != string::npos || line.find("DAEWHA") != string::npos)
+  {
     return 1U;
   }
-  if (line.find("구파발행") != string::npos || line.find("GUPABAL") != string::npos) {
+  if (line.find("구파발") != string::npos || line.find("GUPABAL") != string::npos)
+  {
     return 2U;
   }
   return 0U;
 }
 
-static int parse_int_value(const json &v, int fallback = -1) {
-  try {
-    if (v.is_number_integer()) return v.get<int>();
-    if (v.is_string()) return stoi(v.get<string>());
-  } catch (...) {
+static int parse_int_value(const json &v, int fallback = -1)
+{
+  try
+  {
+    if (v.is_number_integer())
+      return v.get<int>();
+    if (v.is_string())
+      return stoi(v.get<string>());
+  }
+  catch (...)
+  {
     return fallback;
   }
   return fallback;
 }
 
-static bool fetch_subway_json_via_curl(const string &url, string &out_json) {
+static bool fetch_subway_json_via_curl(const string &url, string &out_json)
+{
   out_json.clear();
   string cmd = "curl -s --max-time 5 \"" + url + "\"";
   FILE *fp = popen(cmd.c_str(), "r");
-  if (!fp) return false;
+  if (!fp)
+    return false;
 
   char buf[1024];
-  while (fgets(buf, sizeof(buf), fp) != nullptr) {
+  while (fgets(buf, sizeof(buf), fp) != nullptr)
+  {
     out_json += buf;
   }
 
@@ -56,18 +68,24 @@ static bool fetch_subway_json_via_curl(const string &url, string &out_json) {
 }
 
 static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, string &out_line, string &out_msg,
-                                string &out_reason) {
+                                string &out_reason)
+{
   out_barvl_dt = -1;
   out_line.clear();
   out_msg.clear();
   out_reason.clear();
 
-  try {
+  try
+  {
     auto root = json::parse(json_text);
-    if (!root.contains("realtimeArrivalList") || !root["realtimeArrivalList"].is_array()) {
-      if (root.contains("errorMessage")) {
+    if (!root.contains("realtimeArrivalList") || !root["realtimeArrivalList"].is_array())
+    {
+      if (root.contains("errorMessage"))
+      {
         out_reason = string("api_error=") + root["errorMessage"].dump();
-      } else {
+      }
+      else
+      {
         out_reason = "missing_realtimeArrivalList";
       }
       return false;
@@ -78,27 +96,33 @@ static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, stri
     int pass_updn = 0;
     int pass_line = 0;
     int pass_barvl = 0;
-    for (const auto &row : root["realtimeArrivalList"]) {
+    for (const auto &row : root["realtimeArrivalList"])
+    {
       seen_rows++;
       string updn = row.value("updnLine", "");
-      if (updn.find("상행") == string::npos) continue;
+      if (updn.find("상행") == string::npos)
+        continue;
       pass_updn++;
       int subway_id = row.contains("subwayId") ? parse_int_value(row["subwayId"], -1) : -1;
-      if (subway_id != TARGET_SUBWAY_ID) continue;
+      if (subway_id != TARGET_SUBWAY_ID)
+        continue;
       pass_line++;
 
       int sec = row.contains("barvlDt") ? parse_int_value(row["barvlDt"], -1) : -1;
-      if (sec < 0) continue;
+      if (sec < 0)
+        continue;
       pass_barvl++;
 
-      if (sec < best) {
+      if (sec < best)
+      {
         best = sec;
         out_line = row.value("trainLineNm", "");
         out_msg = row.value("arvlMsg2", "");
       }
     }
 
-    if (best == INT32_MAX) {
+    if (best == INT32_MAX)
+    {
       out_reason = "[filter_miss] rows=" + to_string(seen_rows) +
                    " updn=" + to_string(pass_updn) +
                    " line3=" + to_string(pass_line) +
@@ -107,13 +131,16 @@ static bool parse_best_up_train(const string &json_text, int &out_barvl_dt, stri
     }
     out_barvl_dt = best;
     return true;
-  } catch (const exception &e) {
+  }
+  catch (const exception &e)
+  {
     out_reason = string("json_exception=") + e.what();
     return false;
   }
 }
 
-static void run_subway_arrival_override_loop(int uart_fd) {
+static void run_subway_arrival_override_loop(int uart_fd)
+{
   auto config = load_config();
   string api_key = config.value("subway_api_key", "");
   string station_encoded = config.value("subway_station_encoded", "%EC%96%91%EC%9E%AC");
@@ -122,7 +149,8 @@ static void run_subway_arrival_override_loop(int uart_fd) {
   int event_screen = config.value("subway_event_screen", 4);
   int base_screen = config.value("subway_base_screen", 0);
 
-  if (api_key.empty()) {
+  if (api_key.empty())
+  {
     cerr << "[Subway] subway_api_key is empty; skipping subway API polling" << endl;
     return;
   }
@@ -137,9 +165,11 @@ static void run_subway_arrival_override_loop(int uart_fd) {
   cout << "[Subway] started: line=3(up) screen " << event_screen
        << " for " << hold_sec << "s on arrival" << endl;
 
-  while (true) {
+  while (true)
+  {
     auto now = chrono::steady_clock::now();
-    if (active && now >= active_until) {
+    if (active && now >= active_until)
+    {
       send_to_stm32_display_screen(uart_fd, base_screen);
       cout << "[Subway] restore base screen=" << base_screen << endl;
       active = false;
@@ -151,9 +181,11 @@ static void run_subway_arrival_override_loop(int uart_fd) {
     string msg;
     string reason;
 
-    if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg, reason)) {
+    if (fetch_subway_json_via_curl(url, body) && parse_best_up_train(body, barvl_dt, line, msg, reason))
+    {
       cout << "[Subway] up train: barvlDt=" << barvl_dt << " line=" << line << " msg=" << msg << endl;
-      if (!active && event_armed && barvl_dt <= 0) {
+      if (!active && event_armed && barvl_dt <= 0)
+      {
         uint8_t dest_code = train_dest_code_from_line(line);
         send_to_stm32_train_dest(uart_fd, dest_code);
         send_to_stm32_display_screen(uart_fd, event_screen);
@@ -162,16 +194,24 @@ static void run_subway_arrival_override_loop(int uart_fd) {
         active_until = chrono::steady_clock::now() + chrono::seconds(hold_sec);
         cout << "[Subway] arrival detected -> event screen=" << event_screen
              << " dest_code=" << static_cast<int>(dest_code) << endl;
-      } else if (!active) {
-        if (barvl_dt > 0) {
+      }
+      else if (!active)
+      {
+        if (barvl_dt > 0)
+        {
           event_armed = true;
         }
         cout << "[Subway] waiting arrival (barvlDt=" << barvl_dt << ")" << endl;
       }
-    } else {
-      if (body.empty()) {
+    }
+    else
+    {
+      if (body.empty())
+      {
         cerr << "[Subway] API fetch failed (empty body)" << endl;
-      } else {
+      }
+      else
+      {
         cerr << "[Subway] no valid 3-ho up train: " << reason << endl;
       }
     }
@@ -186,18 +226,23 @@ static void run_subway_arrival_override_loop(int uart_fd) {
  * 패킷을 전송합니다. 수신 JSON 형식: {"update_time": unix_sec, "levels":
  * [0,1,2,...], "zone_count": N} levels 원소: 0=여유, 1=보통, 2=혼잡 (최대 8개)
  */
-class DisplayCallback : public mqtt::callback {
+class DisplayCallback : public mqtt::callback
+{
 public:
   explicit DisplayCallback(int uart_fd) : uart_fd_(uart_fd) {}
 
-  void message_arrived(mqtt::const_message_ptr msg) override {
-    try {
+  void message_arrived(mqtt::const_message_ptr msg) override
+  {
+    try
+    {
       json data = json::parse(msg->get_payload_str());
 
       // display/control: {"type": "display_control", "action": "on"/"off"/...}
-      if (data.value(Protocol::FIELD_TYPE, "") == Protocol::MSG_DISPLAY_CONTROL) {
+      if (data.value(Protocol::FIELD_TYPE, "") == Protocol::MSG_DISPLAY_CONTROL)
+      {
         string action = data.value(Protocol::FIELD_ACTION, "");
-        if (action.empty()) {
+        if (action.empty())
+        {
           cerr << "[Display] JSON 오류: action 누락" << endl;
           return;
         }
@@ -207,36 +252,44 @@ public:
       }
 
       // iot/server/status/congestion: {"levels": [...], "update_time": ...}
-      if (!data.contains("levels") || !data["levels"].is_array()) {
+      if (!data.contains("levels") || !data["levels"].is_array())
+      {
         cerr << "[Display] JSON 오류: 알 수 없는 메시지" << endl;
         return;
       }
 
       vector<int> levels;
-      for (const auto &v : data["levels"]) {
-        if (!v.is_number_integer()) {
+      for (const auto &v : data["levels"])
+      {
+        if (!v.is_number_integer())
+        {
           cerr << "[Display] JSON 오류: levels 원소 타입 오류" << endl;
           return;
         }
         levels.push_back(v.get<int>());
       }
 
-      if (data.contains("update_time")) {
+      if (data.contains("update_time"))
+      {
         long long update_time = data["update_time"].get<long long>();
         auto now = chrono::system_clock::to_time_t(chrono::system_clock::now());
         long long lag = static_cast<long long>(now) - update_time;
-        if (lag > 30) {
+        if (lag > 30)
+        {
           cerr << "[Display] 지연 데이터 감지: " << lag << "초 전" << endl;
         }
       }
 
       send_to_stm32_bulk_congestion(uart_fd_, levels);
-    } catch (const exception &e) {
+    }
+    catch (const exception &e)
+    {
       cerr << "[Display] JSON 파싱 실패: " << e.what() << endl;
     }
   }
 
-  void connection_lost(const string &cause) override {
+  void connection_lost(const string &cause) override
+  {
     cerr << "[Display] MQTT 연결 끊김: " << cause << endl;
   }
 
@@ -251,8 +304,10 @@ static DisplayCallback *g_display_cb = nullptr;
  *        수신 JSON 형식: {"update_time": 1234567890, "levels": [0,1,2,...],
  * "zone_count": 8} levels 원소: 0=여유, 1=보통, 2=혼잡
  */
-void init_display(int uart_fd) {
-  try {
+void init_display(int uart_fd)
+{
+  try
+  {
     auto config = load_config();
     string broker = config.value("mqtt_broker", "tcp://localhost:1883");
     string topic =
@@ -273,11 +328,16 @@ void init_display(int uart_fd) {
     cout << "[Display] MQTT 연결 완료, 구독: " << topic
          << ", " << Protocol::MQTT_TOPIC_DIGITAL_DISPLAY_CONTROL << endl;
 
-    if (!g_subway_thread_started) {
+    if (!g_subway_thread_started)
+    {
       g_subway_thread_started = true;
-      thread([uart_fd]() { run_subway_arrival_override_loop(uart_fd); }).detach();
+      thread([uart_fd]()
+             { run_subway_arrival_override_loop(uart_fd); })
+          .detach();
     }
-  } catch (const mqtt::exception &e) {
+  }
+  catch (const mqtt::exception &e)
+  {
     cerr << "[Display] MQTT 초기화 실패: " << e.what() << endl;
   }
 }
