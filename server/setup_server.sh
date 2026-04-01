@@ -44,8 +44,7 @@ sudo sed -i 's/add_library(PahoMqttCpp::paho-mqttpp3 ALIAS PahoMqttCpp::paho-mqt
 sudo ldconfig
 
 echo "--- 6. 영상 처리/디코딩 라이브러리 설치 ---"
-# 서버에서 cctv_app(FFmpeg + OpenCV)을 돌리기 위한 필수 요소
-sudo apt install -y libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
+sudo apt install -y libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libtinyxml-dev \
                    libopencv-dev build-essential cmake nlohmann-json3-dev
 
 echo "--- 7. 서비스 최종 재시작 및 확인 ---"
