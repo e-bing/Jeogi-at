@@ -1,0 +1,38 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Main.qml</file>
+        <file>Style.qml</file>
+        <file>qmldir</file>
+        <file>components/Sidebar.qml</file>
+        <file>components/Header.qml</file>
+        <file>components/Footer.qml</file>
+        <file>components/SystemStatItem.qml</file>
+        <file>pages/Dashboard.qml</file>
+        <file>pages/RoiEditorDialog.qml</file>
+        <file>pages/Statistics.qml</file>
+        <file>pages/CameraManagement.qml</file>
+        <file>pages/RecordingPage.qml</file>
+        <file>logo/logo.png</file>
+        <file>logo/clock_logo.png</file>
+        <file>logo/main_logo.png</file>
+        <file>logo/camera_logo.png</file>
+        <file>logo/chart_logo.png</file>
+        <file>logo/manual_logo.png</file>
+        <file>logo/device_logo.png</file>
+        <file>logo/reverse_camera_logo.png</file>
+        <file>logo/reverse_chart_logo.png</file>
+        <file>logo/reverse_device_logo.png</file>
+        <file>fonts/Pretendard-Black.otf</file>
+        <file>fonts/Pretendard-Bold.otf</file>
+        <file>fonts/Pretendard-ExtraBold.otf</file>
+        <file>fonts/Pretendard-ExtraLight.otf</file>
+        <file>fonts/Pretendard-Light.otf</file>
+        <file>fonts/Pretendard-Medium.otf</file>
+        <file>fonts/Pretendard-Regular.otf</file>
+        <file>fonts/Pretendard-SemiBold.otf</file>
+        <file>fonts/Pretendard-Thin.otf</file>
+        <file>../../protocol/message_types.hpp</file>
+        <file>../../protocol/sensor_thresholds.hpp</file>
+        <file alias="config/server.crt">config/server.crt</file>
+    </qresource>
+</RCC>

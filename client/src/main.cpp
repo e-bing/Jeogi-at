@@ -1,0 +1,72 @@
+#include "backend/networkclient.h"
+#include "backend/recordingmanager.h"
+#include "backend/util/micstreamer/micstreamer.h"
+#include <QDebug>
+#include <QFont>
+#include <QFontDatabase>
+#include <QGuiApplication>
+#include <QQmlContext>
+#include <QObject>
+#include <QQmlApplicationEngine>
+#include <QtGlobal>
+
+int main(int argc, char *argv[])
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+#endif
+  QGuiApplication app(argc, argv);
+
+  // Register Fonts
+  QStringList fontPaths = {
+      ":/fonts/Pretendard-Thin.otf", ":/fonts/Pretendard-ExtraLight.otf",
+      ":/fonts/Pretendard-Light.otf", ":/fonts/Pretendard-Regular.otf",
+      ":/fonts/Pretendard-Medium.otf", ":/fonts/Pretendard-SemiBold.otf",
+      ":/fonts/Pretendard-Bold.otf", ":/fonts/Pretendard-ExtraBold.otf",
+      ":/fonts/Pretendard-Black.otf"};
+
+  for (const QString &path : fontPaths)
+  {
+    if (QFontDatabase::addApplicationFont(path) == -1)
+    {
+      qWarning() << "Failed to load font:" << path;
+    }
+  }
+
+  app.setFont(QFont("Pretendard"));
+
+  // NetworkClient를 전역 싱글톤으로 생성 (페이지 전환 시 소켓 유지)
+  NetworkClient *networkClient = new NetworkClient(&app);
+
+  // RecordingManager 생성
+  g_recordingManager = new RecordingManager(&app);
+
+  QQmlApplicationEngine engine;
+
+  g_cameraImageProvider = new CameraImageProvider();
+  engine.addImageProvider("camera", g_cameraImageProvider);
+
+  engine.rootContext()->setContextProperty("networkClient", networkClient);
+  engine.rootContext()->setContextProperty("recordingManager", g_recordingManager);
+
+  // test: mic streamer
+  MicStreamer streamer;
+  engine.rootContext()->setContextProperty("micStreamer", &streamer);
+  //
+
+  // QML 타입 등록은 유지 (혹시 모를 호환성)
+  qmlRegisterType<NetworkClient>("com.metro.network", 1, 0, "NetworkClient");
+
+  const QUrl url(QStringLiteral("qrc:/Main.qml"));
+  QObject::connect(
+      &engine, &QQmlApplicationEngine::objectCreated, &app,
+      [url](QObject *obj, const QUrl &objUrl)
+      {
+        if (!obj && url == objUrl)
+          QCoreApplication::exit(-1);
+      },
+      Qt::QueuedConnection);
+  engine.load(url);
+
+  return app.exec();
+}
